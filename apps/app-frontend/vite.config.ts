@@ -69,11 +69,12 @@ export default defineConfig({
 		}),
 	],
 
-	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+		// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	// prevent vite from obscuring rust errors
 	clearScreen: false,
 	// tauri expects a fixed port, fail if that port is not available
 	server: {
+		host: '127.0.0.1', // <-- ЭТА СТРОЧКА ПРИНУДИТЕЛЬНО УСТАНАВЛИВАЕТ ПРАВИЛЬНЫЙ АДРЕС
 		port: 1420,
 		strictPort: true,
 		headers: {

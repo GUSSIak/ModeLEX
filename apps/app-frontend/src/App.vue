@@ -67,7 +67,7 @@ import { $fetch } from 'ofetch'
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import ModrinthAppLogo from '@/assets/modrinth_app.svg?component'
+import ModLEXAppLogo from '@/assets/modlex_app.svg?component'
 import AccountsCard from '@/components/ui/AccountsCard.vue'
 import AppActionBar from '@/components/ui/AppActionBar.vue'
 import Breadcrumbs from '@/components/ui/Breadcrumbs.vue'
@@ -270,6 +270,33 @@ const stateInitialized = ref(false)
 const criticalErrorMessage = ref()
 
 const isMaximized = ref(false)
+
+// Настройка ModLEX — скрытие кнопки серверов
+const hideServersTab = ref(false)
+
+async function updateHideServersTab() {
+	const settings = await getSettings()
+	hideServersTab.value = settings.modlex_hide_servers ?? false
+}
+
+onMounted(async () => {
+	await useCheckDisableMouseover()
+
+	document.querySelector('body').addEventListener('click', handleClick)
+	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
+
+	checkUpdates()
+
+	// Загружаем настройки ModLEX
+	const settings = await getSettings()
+	hideServersTab.value = settings.modlex_hide_servers === true
+
+	window.addEventListener('modlex-settings-changed', (e) => {
+		if (e.detail.hideServers !== undefined) {
+			hideServersTab.value = e.detail.hideServers
+		}
+	})
+})
 
 const authUnreachableDebug = useDebugLogger('AuthReachableChecker')
 const authServerQuery = useQuery({
@@ -1432,6 +1459,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<LibraryIcon />
 			</NavButton>
 			<NavButton
+				v-if="!hideServersTab"
 				v-tooltip.right="'Modrinth Hosting'"
 				to="/hosting/manage"
 				:is-primary="(r) => r.path === '/hosting/manage' || r.path === '/hosting/manage/'"
@@ -1494,7 +1522,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		</div>
 		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
-				<ModrinthAppLogo class="h-full w-auto shrink-0 text-contrast pointer-events-none" />
+				<ModLEXAppLogo class="h-full w-auto shrink-0 text-contrast pointer-events-none" />
 				<div data-tauri-drag-region class="flex shrink-0 items-center gap-1 ml-3">
 					<button
 						class="cursor-pointer p-0 m-0 text-contrast border-none outline-none bg-button-bg rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"

@@ -1,10 +1,10 @@
 [package]
 name = "theseus_gui"
 # The actual version is set by the theseus-build workflow on tagging
-version = "1.0.0-local"
+version = "1.0.0"
 edition.workspace = true
-description = "The Modrinth App is a desktop application for managing your Minecraft mods"
-repository = "https://github.com/modrinth/code/apps/app/"
+description = "The ModLEX App is a desktop application for managing your Minecraft mods. Based on Modrinth app"
+repository = "https://github.com/gussiak/ModeLEX/"
 license = "GPL-3.0-only"
 
 [dependencies]

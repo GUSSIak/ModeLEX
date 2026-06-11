@@ -18,7 +18,7 @@ impl DiscordGuard {
     /// Initialize discord IPC client, and attempt to connect to it
     /// If it fails, it will still return a DiscordGuard, but the client will be unconnected
     pub fn init() -> crate::Result<DiscordGuard> {
-        let dipc = DiscordIpcClient::new("1123683254248148992");
+        let dipc = DiscordIpcClient::new("1426605117242736870");
 
         Ok(DiscordGuard {
             client: Arc::new(RwLock::new(dipc)),
@@ -140,13 +140,13 @@ impl DiscordGuard {
                 Profile::get(&existing_child.profile_path, &state.pool).await?;
             if let Some(prof) = prof {
                 self.set_activity(
-                    &format!("Playing {}", prof.name),
+                    &format!("Играет {}", prof.name),
                     reconnect_if_fail,
                 )
                 .await?;
             }
         } else {
-            self.set_activity("Idling...", reconnect_if_fail).await?;
+            self.set_activity("Бездействует...", reconnect_if_fail).await?;
         }
         Ok(())
     }

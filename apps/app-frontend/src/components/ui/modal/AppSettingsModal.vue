@@ -9,6 +9,7 @@ import {
 	SettingsIcon,
 	ShieldIcon,
 	ToggleRightIcon,
+	SparklesIcon,
 } from '@modrinth/assets'
 import {
 	commonMessages,
@@ -23,6 +24,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { platform as getOsPlatform, version as getOsVersion } from '@tauri-apps/plugin-os'
 import { ref, watch } from 'vue'
 
+import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
 import AppearanceSettings from '@/components/ui/settings/AppearanceSettings.vue'
 import DefaultInstanceSettings from '@/components/ui/settings/DefaultInstanceSettings.vue'
 import FeatureFlagSettings from '@/components/ui/settings/FeatureFlagSettings.vue'
@@ -94,6 +96,14 @@ const tabs = [
 		}),
 		icon: GaugeIcon,
 		content: ResourceManagementSettings,
+	},
+	{
+		name: defineMessage({
+			id: 'app.settings.tabs.modlex',
+			defaultMessage: 'ModLEX',
+		}),
+		icon: SparklesIcon, 
+		content: ModLexSettings,
 	},
 	{
 		name: commonSettingsMessages.featureFlags,
@@ -178,7 +188,7 @@ const messages = defineMessages({
 						<ModrinthIcon class="w-6 h-6" />
 					</button>
 					<div class="max-w-[200px]">
-						<p class="m-0">Modrinth App {{ version }}</p>
+						<p class="m-0">ModLEX App {{ version }}</p>
 						<p class="m-0">
 							<span v-if="osPlatform === 'macos'">macOS</span>
 							<span v-else class="capitalize">{{ osPlatform }}</span>
