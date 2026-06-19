@@ -11,6 +11,12 @@
 				{{ formatMessage(messages.signInToMinecraft) }}
 			</button>
 		</ButtonStyled>
+		<ButtonStyled color="secondary">
+			<button @click="openOfflineModal()">
+				<UserIcon />
+				{{ formatMessage(messages.addOfflineAccount) }}
+			</button>
+		</ButtonStyled>
 	</div>
 	<Accordion
 		v-else
@@ -78,9 +84,53 @@
 						{{ formatMessage(messages.addAccount) }}
 					</button>
 				</ButtonStyled>
+				<ButtonStyled class="w-full" color="secondary">
+					<button @click="openOfflineModal()">
+						<UserIcon />
+						{{ formatMessage(messages.addOfflineAccount) }}
+					</button>
+				</ButtonStyled>
 			</div>
 		</div>
 	</Accordion>
+
+	<!-- Offline account modal -->
+	<div
+		v-if="showOfflineModal"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+		@click.self="closeOfflineModal()"
+	>
+		<div class="bg-bg border border-solid border-surface-5 rounded-xl p-6 w-80 flex flex-col gap-4 shadow-2xl">
+			<h3 class="m-0 text-base font-semibold text-contrast">
+				{{ formatMessage(messages.offlineModalTitle) }}
+			</h3>
+			<p class="m-0 text-sm text-secondary">
+				{{ formatMessage(messages.offlineModalHint) }}
+			</p>
+			<input
+				v-model="offlineUsername"
+				class="w-full rounded-lg border border-solid border-surface-5 bg-button-bg px-3 py-2 text-sm text-contrast outline-none focus:border-brand"
+				type="text"
+				maxlength="20"
+				:placeholder="formatMessage(messages.offlineUsernamePlaceholder)"
+				@keydown.enter="confirmOfflineLogin()"
+			/>
+			<p v-if="offlineError" class="m-0 text-xs text-red">{{ offlineError }}</p>
+			<div class="flex gap-2 justify-end">
+				<ButtonStyled color="secondary">
+					<button @click="closeOfflineModal()">
+						{{ formatMessage(messages.cancel) }}
+					</button>
+				</ButtonStyled>
+				<ButtonStyled color="brand">
+					<button :disabled="offlineLoading" @click="confirmOfflineLogin()">
+						<SpinnerIcon v-if="offlineLoading" class="animate-spin" />
+						{{ formatMessage(messages.confirm) }}
+					</button>
+				</ButtonStyled>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -91,6 +141,7 @@ import {
 	RadioButtonIcon,
 	SpinnerIcon,
 	TrashIcon,
+	UserIcon,
 } from '@modrinth/assets'
 import {
 	Accordion,
@@ -107,6 +158,7 @@ import { trackEvent } from '@/helpers/analytics'
 import {
 	get_default_user,
 	login as login_flow,
+	offline_login,
 	remove_user,
 	set_default_user,
 	users,
@@ -136,6 +188,45 @@ const loginDisabled = ref(false)
 const defaultUser = ref<string | undefined>()
 const equippedSkin = ref<Skin | null>(null)
 const headUrlCache = ref(new Map<string, string>())
+
+// --- Offline login ---
+const showOfflineModal = ref(false)
+const offlineUsername = ref('')
+const offlineError = ref('')
+const offlineLoading = ref(false)
+
+async function openOfflineModal() {
+	offlineUsername.value = ''
+	offlineError.value = ''
+	showOfflineModal.value = true
+}
+
+function closeOfflineModal() {
+	showOfflineModal.value = false
+}
+
+async function confirmOfflineLogin() {
+	const name = offlineUsername.value.trim()
+	if (name.length < 2 || name.length > 20) {
+		offlineError.value = 'Никнейм должен быть от 2 до 20 символов'
+		return
+	}
+	offlineLoading.value = true
+	offlineError.value = ''
+	try {
+		const loggedIn = await offline_login(name)
+		if (loggedIn) {
+			await setAccount(loggedIn)
+			await refreshValues()
+		}
+		showOfflineModal.value = false
+	} catch (e: any) {
+		offlineError.value = e?.message ?? 'Неизвестная ошибка'
+	} finally {
+		offlineLoading.value = false
+	}
+}
+// --- /Offline login ---
 
 async function refreshValues() {
 	defaultUser.value = await get_default_user().catch(handleError)
@@ -282,6 +373,30 @@ const messages = defineMessages({
 	signInToMinecraft: {
 		id: 'minecraft-account.sign-in',
 		defaultMessage: 'Sign in to Minecraft',
+	},
+	addOfflineAccount: {
+		id: 'minecraft-account.add-offline',
+		defaultMessage: 'Add offline account',
+	},
+	offlineModalTitle: {
+		id: 'minecraft-account.offline-modal.title',
+		defaultMessage: 'Offline account',
+	},
+	offlineModalHint: {
+		id: 'minecraft-account.offline-modal.hint',
+		defaultMessage: 'Works only on servers with online-mode=false. No Microsoft login required.',
+	},
+	offlineUsernamePlaceholder: {
+		id: 'minecraft-account.offline-modal.username-placeholder',
+		defaultMessage: 'Enter nickname (2–20 chars)',
+	},
+	cancel: {
+		id: 'action.cancel',
+		defaultMessage: 'Cancel',
+	},
+	confirm: {
+		id: 'action.confirm',
+		defaultMessage: 'Confirm',
 	},
 })
 </script>
