@@ -36,6 +36,14 @@ pub async fn finish_login(
     crate::state::login_finish(code, flow, &state.pool).await
 }
 
+/// Creates a new offline (cracked) account without Microsoft authentication.
+/// Works only on servers with online-mode=false.
+#[tracing::instrument]
+pub async fn offline_login(name: &str) -> crate::Result<Credentials> {
+    let state = State::get().await?;
+    crate::state::offline_login(name, &state.pool).await
+}
+
 #[tracing::instrument]
 pub async fn get_default_user() -> crate::Result<Option<uuid::Uuid>> {
     let state = State::get().await?;

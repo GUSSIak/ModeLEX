@@ -58,12 +58,12 @@
 				"ext": [
 					"mrpack"
 				],
-				"mimeType": "application/x-modrinth-modpack+zip"
+				"mimeType": "application/x-modlex-modpack+zip"
 			}
 		]
 	},
 	"productName": "ModLEX App",
-	"version": "../app-frontend/package.json",
+	"version": "1.3.0",
 	"mainBinaryName": "ModLEX App",
 	"identifier": "ModLEXApp",
 	"plugins": {

@@ -1,61 +1,55 @@
-<script setup lang="ts">
-	import { Toggle } from '@modrinth/ui'
-	import { modlexHideServers, modlexUseGithubNews, modlexHideNews } from '@/helpers/modlex-settings'
-</script>
-
 <template>
-	<div class="flex flex-col gap-4">
-		<!-- Секция 1: Внешний вид -->
+	<div class="flex flex-col gap-6">
+		<!-- Секция: Внешний вид -->
 		<div class="settings-section">
 			<h2 class="settings-section__title">Внешний вид</h2>
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<h3 class="m-0 text-base font-extrabold text-contrast">
-						Скрыть вкладку "Серверы"
-					</h3>
-					<p class="m-0 text-sm text-secondary">
-						Убирает кнопку "Серверы" из бокового меню лаунчера.
-					</p>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Скрыть вкладку "Серверы"</h3>
+					<p class="setting-row__desc">Убирает кнопку серверов из бокового меню.</p>
 				</div>
 				<Toggle v-model="modlexHideServers" />
 			</div>
 		</div>
 
-		<!-- Секция 2: Контент / новости -->
+		<!-- Секция: Контент -->
 		<div class="settings-section">
 			<h2 class="settings-section__title">Контент</h2>
-
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<h3 class="m-0 text-base font-extrabold text-contrast">
-						Использовать GitHub новости
-					</h3>
-					<p class="m-0 text-sm text-secondary">
-						Показывать новости из GitHub-репозитория ModLEX вместо стандартной ленты Modrinth.
-					</p>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Источник новостей</h3>
+					<p class="setting-row__desc">Откуда загружать новости в правой панели.</p>
 				</div>
-				<Toggle v-model="modlexUseGithubNews" />
-			</div>
-
-			<div class="flex items-center justify-between gap-4 mt-4">
-				<div>
-					<h3 class="m-0 text-base font-extrabold text-contrast">
-						Скрыть ленту новостей
-					</h3>
-					<p class="m-0 text-sm text-secondary">
-						Полностью убирает блок новостей из правой части интерфейса.
-					</p>
-				</div>
-				<Toggle v-model="modlexHideNews" />
+				<DropdownSelect v-model="modlexNewsSource"
+								name="news-source"
+								:options="newsSourceOptions"
+								:get-option-label="getNewsLabel"
+								class="news-dropdown" />
 			</div>
 		</div>
 	</div>
 </template>
 
+<script setup lang="ts">
+	import { DropdownSelect, Toggle } from '@modrinth/ui'
+	import { modlexHideServers, modlexNewsSource, type NewsSource } from '@/helpers/modlex-settings'
+
+	const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
+
+	function getNewsLabel(value: NewsSource): string {
+	const labels: Record<NewsSource, string> = {
+	github: 'GitHub',
+	modrinth: 'Modrinth',
+	off: 'Выключено',
+	}
+	return labels[value] ?? value
+	}
+</script>
+
 <style scoped>
 	.settings-section {
-		padding-bottom: 1rem;
-		margin-bottom: 1rem;
+		padding-bottom: 1.25rem;
+		margin-bottom: 1.25rem;
 		border-bottom: 1px solid var(--color-divider);
 	}
 
@@ -70,5 +64,35 @@
 		font-weight: 600;
 		margin-bottom: 1rem;
 		color: var(--color-contrast);
+	}
+
+	.setting-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+	}
+
+	.setting-row__info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.setting-row__label {
+		margin: 0 0 0.2rem;
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-contrast);
+	}
+
+	.setting-row__desc {
+		margin: 0;
+		font-size: 0.875rem;
+		color: var(--color-secondary);
+	}
+
+	.news-dropdown {
+		flex-shrink: 0;
+		min-width: 140px;
 	}
 </style>

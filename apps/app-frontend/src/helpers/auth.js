@@ -64,3 +64,13 @@ export async function remove_user(user) {
 export async function users() {
 	return await invoke('plugin:auth|get_users')
 }
+
+/**
+ * Create a new offline account with the given username (no Microsoft auth).
+ * Works only on servers with online-mode=false.
+ * @param {string} name - Player nickname (2-20 characters)
+ * @returns {Promise<Credentials>}
+ */
+export async function offline_login(name) {
+    return await invoke('plugin:auth|offline_login', { name })
+}

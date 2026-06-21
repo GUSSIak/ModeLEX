@@ -31,8 +31,8 @@
 						}
 					],
 					"glass": true,
-					"image-name": "Modrinth logo.svg",
-					"name": "Modrinth logo",
+					"image-name": "modlexlogo.svg",
+					"name": "ModLEX logo",
 					"opacity-specializations": [
 						{
 							"appearance": "tinted",

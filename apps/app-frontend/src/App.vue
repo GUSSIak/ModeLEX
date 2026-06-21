@@ -133,6 +133,11 @@ import { setupLoadingStateProvider } from '@/providers/setup/loading-state'
 import { useError } from '@/store/error.js'
 import { useTheming } from '@/store/state'
 
+// ===== ModLEX IMPORTS =====
+import { modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
+import { fetchModlexNews } from '@/helpers/modlex-github-news'
+// ===== END ModLEX IMPORTS =====
+
 import { generateSkinPreviews } from './helpers/rendering/batch-skin-renderer'
 import { get_available_capes, get_available_skins } from './helpers/skins'
 import { AppNotificationManager } from './providers/app-notifications'
@@ -247,7 +252,60 @@ const {
 	handleModpackDuplicateGoToInstance,
 } = setupProviders(notificationManager, popupNotificationManager)
 
+// ===== MODLEX NEWS SYSTEM =====
 const news = ref([])
+const newsLoading = ref(false)
+
+async function loadNews() {
+	const source = modlexNewsSource.value
+	
+	// Если выключено — сразу очищаем и выходим
+	if (source === 'off') {
+		news.value = []
+		newsLoading.value = false
+		return
+	}
+	
+	news.value = []
+	newsLoading.value = true
+	
+	try {
+		if (source === 'github') {
+			const items = await fetchModlexNews()
+			news.value = items.map((item) => ({
+				path: item.url || '#',
+				thumbnail: item.image || '',
+				title: item.title || 'Без названия',
+				summary: item.summary || '',
+				date: item.date || '',
+			}))
+		} else {
+			const response = await fetch('https://modrinth.com/news/feed/articles.json')
+			const res = await response.json()
+			if (res && res.articles) {
+				news.value = res.articles
+					.map((article) => ({
+						...article,
+						path: article.link,
+					}))
+					.slice(0, 4)
+			}
+		}
+	} catch (error) {
+		console.error('Failed to fetch news:', error)
+		try {
+			const cached = localStorage.getItem('modlex_news_fallback')
+			if (cached) {
+				news.value = JSON.parse(cached)
+			}
+		} catch {}
+	} finally {
+		await new Promise(resolve => setTimeout(resolve, 300))
+		newsLoading.value = false
+	}
+}
+// ===== END MODLEX NEWS SYSTEM =====
+
 const availableSurvey = ref(false)
 const displayedServerInviteNotifications = new Set()
 
@@ -271,33 +329,6 @@ const criticalErrorMessage = ref()
 
 const isMaximized = ref(false)
 
-// Настройка ModLEX — скрытие кнопки серверов
-const hideServersTab = ref(false)
-
-async function updateHideServersTab() {
-	const settings = await getSettings()
-	hideServersTab.value = settings.modlex_hide_servers ?? false
-}
-
-onMounted(async () => {
-	await useCheckDisableMouseover()
-
-	document.querySelector('body').addEventListener('click', handleClick)
-	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
-
-	checkUpdates()
-
-	// Загружаем настройки ModLEX
-	const settings = await getSettings()
-	hideServersTab.value = settings.modlex_hide_servers === true
-
-	window.addEventListener('modlex-settings-changed', (e) => {
-		if (e.detail.hideServers !== undefined) {
-			hideServersTab.value = e.detail.hideServers
-		}
-	})
-})
-
 const authUnreachableDebug = useDebugLogger('AuthReachableChecker')
 const authServerQuery = useQuery({
 	queryKey: ['authServerReachability'],
@@ -319,6 +350,15 @@ const authUnreachable = computed(() => {
 	return false
 })
 
+// ===== MODLEX: скрытие кнопки серверов =====
+const hideServersTab = ref(false)
+
+async function updateHideServersTab() {
+	// Используем импортированный ref из modlex-settings
+	hideServersTab.value = modlexHideServers.value
+}
+// ===== END MODLEX =====
+
 onMounted(async () => {
 	await useCheckDisableMouseover()
 
@@ -326,6 +366,17 @@ onMounted(async () => {
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
 
 	checkUpdates()
+	
+	// ===== MODLEX: загружаем настройки и новости =====
+	hideServersTab.value = modlexHideServers.value
+	await loadNews()
+	
+	// Слушаем изменения настроек
+	window.addEventListener('modlex-settings-changed', () => {
+		hideServersTab.value = modlexHideServers.value
+		loadNews()
+	})
+	// ===== END MODLEX =====
 })
 
 onUnmounted(async () => {
@@ -446,21 +497,7 @@ async function setupApp() {
 			)
 		})
 
-	fetch(`https://modrinth.com/news/feed/articles.json`)
-		.then((response) => response.json())
-		.then((res) => {
-			if (res && res.articles) {
-				news.value = res.articles
-					.map((article) => ({
-						...article,
-						path: article.link,
-					}))
-					.slice(0, 4)
-			}
-		})
-		.catch((error) => {
-			console.error('Failed to fetch news articles', error)
-		})
+	// Оригинальный fetch новостей УДАЛЁН — теперь используется loadNews()
 
 	get_opening_command().then(handleCommand)
 	fetchCredentials()
@@ -877,7 +914,6 @@ async function handleCommand(e) {
 	if (!e) return
 
 	if (e.event === 'RunMRPack') {
-		// RunMRPack should directly install a local mrpack given a path
 		if (e.path.endsWith('.mrpack')) {
 			await create_profile_and_install_from_file(e.path, (createProfile, fileName) =>
 				unknownPackWarningModal.value?.show(createProfile, fileName),
@@ -1666,25 +1702,40 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 							<FriendsList :credentials="credentials" :sign-in="() => signIn()" />
 						</suspense>
 					</div>
-					<PrideFundraiserBanner
-						v-if="prideFundraiserEnabled"
-						class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid"
-					/>
-					<div v-if="news && news.length > 0" class="p-4 flex flex-col items-center">
+					<PrideFundraiserBanner v-if="prideFundraiserEnabled"
+										   class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid" />
+					<!-- ===== MODLEX NEWS ===== -->
+					<div v-if="modlexNewsSource !== 'off'" class="p-4 flex flex-col items-center">
+						<!-- Заголовок -->
 						<h3 class="text-base mb-4 text-primary font-medium m-0 text-left w-full">News</h3>
-						<div class="space-y-4 flex flex-col items-center w-full">
-							<NewsArticleCard
-								v-for="(item, index) in news"
-								:key="`news-${index}`"
-								:article="item"
-							/>
+
+						<!-- Состояние загрузки -->
+						<div v-if="newsLoading" class="w-full flex flex-col items-center justify-center py-8">
+							<div class="w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+							<p class="text-secondary text-sm mt-3">Загрузка новостей...</p>
+						</div>
+
+						<!-- Новости -->
+						<div v-else-if="news && news.length > 0" class="space-y-4 flex flex-col items-center w-full">
+							<NewsArticleCard v-for="(item, index) in news"
+											 :key="`news-${index}`"
+											 :article="item" />
 							<ButtonStyled color="brand" size="large">
-								<a href="https://modrinth.com/news" target="_blank" class="my-4">
-									<NewspaperIcon /> View all news
+								<a :href="modlexNewsSource === 'github' ? 'https://github.com/gussiak/ModeLEX/releases' : 'https://modrinth.com/news'"
+								   target="_blank"
+								   class="my-4">
+									<NewspaperIcon />
+									{{ modlexNewsSource === 'github' ? 'View all releases' : 'View all news' }}
 								</a>
 							</ButtonStyled>
 						</div>
+
+						<!-- Нет новостей (только если не off) -->
+						<div v-else class="text-secondary text-sm py-4 text-center w-full">
+							Нет доступных новостей
+						</div>
 					</div>
+					<!-- ===== END MODLEX NEWS ===== -->
 				</div>
 			</div>
 			<template v-if="showAd">
@@ -1787,25 +1838,33 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	-webkit-app-region: no-drag;
 }
 
-.app-contents {
-	position: absolute;
-	z-index: 1;
-	left: var(--left-bar-width);
-	top: var(--top-bar-height);
-	right: 0;
-	bottom: 0;
-	height: calc(100vh - var(--top-bar-height));
-	background-color: var(--color-bg);
-	border-top-left-radius: var(--radius-xl);
+	.app-contents {
+		position: absolute;
+		z-index: 1;
+		left: var(--left-bar-width);
+		top: var(--top-bar-height);
+		right: 0;
+		bottom: 0;
+		height: calc(100vh - var(--top-bar-height));
+		background-color: var(--color-bg);
+		border-top-left-radius: var(--radius-xl);
+		display: grid;
+		grid-template-columns: 1fr 0px;
+		// transition: grid-template-columns 0.4s ease-in-out;
 
-	display: grid;
-	grid-template-columns: 1fr 0px;
-	// transition: grid-template-columns 0.4s ease-in-out;
+		&.sidebar-enabled {
+			grid-template-columns: 1fr 300px;
+		}
+		// Анимация для новостей
+		.news-enter-active {
+			transition: all 0.3s ease-out;
+		}
 
-	&.sidebar-enabled {
-		grid-template-columns: 1fr 300px;
+		.news-enter-from {
+			opacity: 0;
+			transform: translateY(-10px);
+		}
 	}
-}
 
 .loading-indicator-container {
 	border-top-left-radius: var(--radius-xl);

@@ -177,6 +177,36 @@ pub async fn login_finish(
     Ok(credentials)
 }
 
+/// Creates a new offline (cracked) account without Microsoft authentication.
+/// The UUID is generated randomly (v4), access/refresh tokens are set to "null"
+/// so the game launches in offline mode. The expiry is set far in the future
+/// so the token-refresh logic never tries to hit Microsoft servers for this account.
+#[tracing::instrument]
+pub async fn offline_login(
+    name: &str,
+    exec: impl sqlx::Executor<'_, Database = sqlx::Sqlite> + Copy,
+) -> crate::Result<Credentials> {
+    let uuid = Uuid::new_v4();
+
+    let credentials = Credentials {
+        offline_profile: MinecraftProfile {
+            id: uuid,
+            name: name.to_string(),
+            skins: Vec::new(),
+            capes: Vec::new(),
+            fetch_time: Some(Instant::now()),
+        },
+        access_token: "null".to_string(),
+        refresh_token: "null".to_string(),
+        expires: Utc::now() + Duration::days(365 * 99),
+        active: true,
+    };
+
+    credentials.upsert(exec).await?;
+
+    Ok(credentials)
+}
+
 #[derive(Deserialize, Debug)]
 pub struct Credentials {
     /// The offline profile of the user these credentials are for.
@@ -331,6 +361,11 @@ impl Credentials {
         &self,
         cache_intent: OnlineProfileCacheIntent,
     ) -> Option<Arc<MinecraftProfile>> {
+        // Если это офлайн-аккаунт — не пытаемся получить онлайн-профиль
+        if self.access_token == "null" && self.refresh_token == "null" {
+            return None;
+        }
+
         let max_age = cache_intent.max_age();
         let stale_profile = {
             let mut profile_cache = PROFILE_CACHE.lock().await;
@@ -434,6 +469,11 @@ impl Credentials {
     pub async fn maybe_online_profile(
         &self,
     ) -> MaybeOnlineMinecraftProfile<'_> {
+        // Если это офлайн-аккаунт — сразу возвращаем офлайн-профиль без попытки получить онлайн
+        if self.access_token == "null" && self.refresh_token == "null" {
+            return MaybeOnlineMinecraftProfile::Offline(&self.offline_profile);
+        }
+
         let online_profile = self.online_profile().await;
         online_profile.map_or_else(
             || MaybeOnlineMinecraftProfile::Offline(&self.offline_profile),
@@ -1399,13 +1439,13 @@ async fn minecraft_entitlements(
     token: &str,
 ) -> Result<MinecraftEntitlements, MinecraftAuthenticationError> {
     let res = auth_retry(|| {
-		INSECURE_REQWEST_CLIENT
-			.get(format!("https://api.minecraftservices.com/entitlements/license?requestId={}", Uuid::new_v4()))
-			.header("Accept", "application/json")
-			.header("User-Agent", MINECRAFT_SERVICES_USER_AGENT)
-			.bearer_auth(token)
-			.send()
-	})
+        INSECURE_REQWEST_CLIENT
+            .get(format!("https://api.minecraftservices.com/entitlements/license?requestId={}", Uuid::new_v4()))
+            .header("Accept", "application/json")
+            .header("User-Agent", MINECRAFT_SERVICES_USER_AGENT)
+            .bearer_auth(token)
+            .send()
+    })
     .await.map_err(|source| MinecraftAuthenticationError::Request { source, step: MinecraftAuthStep::MinecraftEntitlements })?;
 
     let status = res.status();
