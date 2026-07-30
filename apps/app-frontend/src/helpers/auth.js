@@ -74,3 +74,19 @@ export async function users() {
 export async function offline_login(name) {
     return await invoke('plugin:auth|offline_login', { name })
 }
+
+/**
+ * Authenticate a user with Ely.by. Opens the system browser for the OAuth sign-in page
+ * and waits for the redirect to complete.
+ * @returns {Promise<Credentials|null>}
+ */
+export async function elyby_login() {
+	return await invoke('plugin:auth|elyby_login')
+}
+
+/**
+ * Cancels an in-progress Ely.by sign-in.
+ */
+export async function cancel_elyby_login() {
+	await invoke('plugin:auth|cancel_elyby_login')
+}

@@ -59,6 +59,10 @@ apps/frontend/src/generated
 target
 generated
 .env
+.env.local
+.env.prod
+.env.prod-with-staging-archon
+.env.staging
 
 # app testing dir
 app-playground-data/*

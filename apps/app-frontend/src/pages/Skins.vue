@@ -3,12 +3,15 @@ import {
 	CheckIcon,
 	EditIcon,
 	ExcitedRinthbot,
+	ExternalIcon,
 	EyeIcon,
+	InfoIcon,
 	LogInIcon,
 	RotateCounterClockwiseIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
 import {
+	Admonition,
 	ButtonStyled,
 	commonMessages,
 	ConfirmModal,
@@ -166,6 +169,50 @@ const messages = defineMessages({
 		id: 'app.skins.sign-in.button',
 		defaultMessage: 'Sign In',
 	},
+	loadingSkinText: {
+		id: 'app.skins.loading-skin',
+		defaultMessage: 'Loading your one-of-a-kind skin…',
+	},
+	offlineAccountSkinNoticeHeader: {
+		id: 'app.skins.offline-account-notice.header',
+		defaultMessage: 'This is an offline account',
+	},
+	offlineAccountSkinNoticeBody: {
+		id: 'app.skins.offline-account-notice.body',
+		defaultMessage:
+			"Offline accounts aren't linked to a real Minecraft skin service, so this skin is only a local preview and can't be changed here.",
+	},
+	elybyAccountSkinNoticeHeader: {
+		id: 'app.skins.elyby-account-notice.header',
+		defaultMessage: 'This skin comes from Ely.by',
+	},
+	elybyAccountSkinNoticeBody: {
+		id: 'app.skins.elyby-account-notice.body',
+		defaultMessage:
+			"Ely.by accounts manage their skin on Ely.by's own website, not here — browse and pick a new one on the right.",
+	},
+	openInBrowserButton: {
+		id: 'app.skins.elyby-account-notice.open-in-browser',
+		defaultMessage: 'Open in browser',
+	},
+	elybySkinListBlurredNotice: {
+		id: 'app.skins.elyby-skin-list-blurred-notice',
+		defaultMessage:
+			'For now, changing your skin is only possible on the official Ely.by website.',
+	},
+	elybyCatalogNoticeHeader: {
+		id: 'app.skins.elyby-catalog-notice.header',
+		defaultMessage: 'Ely.by skin catalog',
+	},
+	elybyCatalogNoticeBody: {
+		id: 'app.skins.elyby-catalog-notice.body',
+		defaultMessage:
+			"This is a community-run catalog on Ely.by's own website — ModLEX doesn't moderate or take responsibility for what's in it. Some skins may be offensive, NSFW, or otherwise not to your taste. Browse at your own discretion.",
+	},
+	elybyCatalogNoticeAcknowledge: {
+		id: 'app.skins.elyby-catalog-notice.acknowledge',
+		defaultMessage: 'Understood',
+	},
 })
 
 const editSkinModal = useTemplateRef('editSkinModal')
@@ -190,6 +237,7 @@ const currentUserId = ref<string | undefined>(undefined)
 const username = computed(() => currentUser.value?.profile?.name ?? undefined)
 const selectedSkin = ref<Skin | null>(null)
 const isApplyingSkin = ref(false)
+const isSwitchingAccount = ref(false)
 
 const originalSelectedSkin = ref<Skin | null>(null)
 
@@ -259,31 +307,48 @@ const currentCape = computed(() => {
 	return undefined
 })
 
-const skinTexture = computedAsync(async () => {
-	const skin = selectedSkin.value
-	if (skin?.texture) {
-		try {
-			return await get_normalized_skin_texture(skin)
-		} catch (error) {
-			if (skin.texture.startsWith('data:image/')) {
-				return skin.texture
-			}
+const isLoadingSkinTexture = ref(false)
+const skinTexture = computedAsync(
+	async () => {
+		const skin = selectedSkin.value
+		if (skin?.texture) {
+			try {
+				return await get_normalized_skin_texture(skin)
+			} catch (error) {
+				if (skin.texture.startsWith('data:image/')) {
+					return skin.texture
+				}
 
-			handleError(error as Error)
+				handleError(error as Error)
+				return ''
+			}
+		} else {
 			return ''
 		}
-	} else {
-		return ''
-	}
-})
+	},
+	'',
+	isLoadingSkinTexture,
+)
 const capeTexture = computed(() => currentCape.value?.texture)
 const skinVariant = computed(() => selectedSkin.value?.variant)
 const skinNametag = computed(() => (themeStore.hideNametagSkinsPage ? undefined : username.value))
+const accountKind = computed(() => currentUser.value?.kind)
+const nonMicrosoftReadOnlyReason = computed(() => {
+	if (accountKind.value === 'offline') return 'offline-account'
+	if (accountKind.value === 'elyby') return 'elyby-account'
+	return null
+})
 const isSkinManagementReadOnly = computed(
-	() => offline.value || (authServerQuery.isError.value && !authServerQuery.isLoading.value),
+	() =>
+		offline.value ||
+		(authServerQuery.isError.value && !authServerQuery.isLoading.value) ||
+		nonMicrosoftReadOnlyReason.value !== null,
 )
 const hasPendingSkinChange = computed(
 	() => !skinsMatch(selectedSkin.value, originalSelectedSkin.value),
+)
+const isSkinPreviewLoading = computed(
+	() => isSwitchingAccount.value || isLoadingSkinTexture.value,
 )
 
 let userCheckInterval: number | null = null
@@ -296,6 +361,17 @@ const isAddSkinButtonDragActive = ref(false)
 
 const deleteSkinModal = ref()
 const skinToDelete = ref<Skin | null>(null)
+
+const elybyCatalogDisclaimerModal = ref()
+const ELYBY_CATALOG_DISCLAIMER_SEEN_KEY = 'modlex-elyby-catalog-disclaimer-seen'
+
+function maybeShowElybyCatalogDisclaimer() {
+	if (accountKind.value !== 'elyby') return
+	if (localStorage.getItem(ELYBY_CATALOG_DISCLAIMER_SEEN_KEY)) return
+
+	localStorage.setItem(ELYBY_CATALOG_DISCLAIMER_SEEN_KEY, 'true')
+	elybyCatalogDisclaimerModal.value?.show()
+}
 
 function confirmDeleteSkin(skin: Skin) {
 	if (isSkinManagementReadOnly.value) return
@@ -635,6 +711,7 @@ async function loadCurrentUser() {
 
 		const allAccounts = await users()
 		currentUser.value = allAccounts.find((acc) => acc.profile.id === defaultId)
+		maybeShowElybyCatalogDisclaimer()
 	} catch (e) {
 		handleError(e as Error)
 		currentUser.value = undefined
@@ -871,18 +948,29 @@ function onOnline() {
 	void authServerQuery.refetch()
 }
 
+let isCheckingUserChanges = false
+
 async function checkUserChanges() {
+	if (isCheckingUserChanges) return
+	isCheckingUserChanges = true
 	try {
 		const defaultId = await get_default_user()
 		if (defaultId !== currentUserId.value) {
-			await loadCurrentUser()
-			await loadCapes()
-			await loadSkins()
+			isSwitchingAccount.value = true
+			try {
+				await loadCurrentUser()
+				await loadCapes()
+				await loadSkins()
+			} finally {
+				isSwitchingAccount.value = false
+			}
 		}
 	} catch (error) {
 		if (currentUser.value && error instanceof Error) {
 			handleError(error)
 		}
+	} finally {
+		isCheckingUserChanges = false
 	}
 }
 
@@ -911,15 +999,48 @@ await loadSkins()
 		:proceed-label="formatMessage(commonMessages.deleteLabel)"
 		@proceed="deleteSkin"
 	/>
+	<ConfirmModal
+		ref="elybyCatalogDisclaimerModal"
+		:danger="false"
+		:proceed-icon="CheckIcon"
+		:title="formatMessage(messages.elybyCatalogNoticeHeader)"
+		:description="formatMessage(messages.elybyCatalogNoticeBody)"
+		:proceed-label="formatMessage(messages.elybyCatalogNoticeAcknowledge)"
+	/>
 
 	<div v-if="currentUser" class="skin-layout box-border min-h-full p-4">
 		<div class="sticky top-6 self-start p-2 pt-0">
 			<h1 class="m-0 text-2xl font-bold flex items-center gap-2">
 				{{ formatMessage(messages.skinSelectorTitle) }}
 			</h1>
+			<Admonition
+				v-if="nonMicrosoftReadOnlyReason === 'offline-account'"
+				class="mt-4"
+				type="info"
+				:header="formatMessage(messages.offlineAccountSkinNoticeHeader)"
+				:body="formatMessage(messages.offlineAccountSkinNoticeBody)"
+			/>
+			<Admonition
+				v-else-if="nonMicrosoftReadOnlyReason === 'elyby-account'"
+				class="mt-4"
+				type="info"
+				:header="formatMessage(messages.elybyAccountSkinNoticeHeader)"
+				:body="formatMessage(messages.elybyAccountSkinNoticeBody)"
+			/>
 			<div
-				class="ml-5 mt-4 flex h-[calc(80vh-1rem)] items-center justify-center max-[700px]:h-[calc(50vh-1rem)]"
+				class="relative ml-5 mt-4 flex h-[calc(80vh-1rem)] items-center justify-center max-[700px]:h-[calc(50vh-1rem)]"
 			>
+				<Transition name="fade">
+					<div
+						v-if="isSkinPreviewLoading"
+						class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-black/60 backdrop-blur-sm"
+					>
+						<SpinnerIcon class="size-8 animate-spin text-white" />
+						<p class="m-0 text-base font-medium text-white">
+							{{ formatMessage(messages.loadingSkinText) }}
+						</p>
+					</div>
+				</Transition>
 				<SkinPreviewRenderer
 					:cape-src="capeTexture"
 					:texture-src="skinTexture || ''"
@@ -972,9 +1093,25 @@ await loadSkins()
 			</div>
 		</div>
 
-		<div class="pt-2">
+		<div class="relative pt-2">
+			<div
+				v-if="nonMicrosoftReadOnlyReason === 'elyby-account'"
+				class="sticky top-1/2 z-10 mx-auto flex w-fit max-w-sm -translate-y-1/2 flex-col items-center gap-3 rounded-2xl bg-black/70 p-6 text-center backdrop-blur-sm"
+			>
+				<InfoIcon class="size-8 shrink-0 text-white" />
+				<p class="m-0 max-w-sm text-base font-medium text-white">
+					{{ formatMessage(messages.elybySkinListBlurredNotice) }}
+				</p>
+				<ButtonStyled color="brand">
+					<a href="https://ely.by/skins" target="_blank" rel="noopener noreferrer">
+						<ExternalIcon />
+						{{ formatMessage(messages.openInBrowserButton) }}
+					</a>
+				</ButtonStyled>
+			</div>
 			<VirtualSkinSectionList
 				ref="skinSectionList"
+				:class="{ 'pointer-events-none select-none blur-sm': nonMicrosoftReadOnlyReason === 'elyby-account' }"
 				:saved-skins="savedSkins"
 				:default-skin-sections="defaultSkinSections"
 				:get-baked-skin-textures="getBakedSkinTextures"
@@ -1042,5 +1179,15 @@ await loadSkins()
 	@media (max-width: 700px) {
 		grid-template-columns: 1fr;
 	}
+}
+
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
 }
 </style>

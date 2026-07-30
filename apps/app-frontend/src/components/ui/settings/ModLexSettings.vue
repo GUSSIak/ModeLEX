@@ -1,5 +1,10 @@
 <template>
 	<div class="flex flex-col gap-6">
+		<Transition name="settings-notice-fade">
+			<div v-if="inlineNotice" class="settings-notice sticky top-2 z-20 mx-auto">
+				{{ inlineNotice }}
+			</div>
+		</Transition>
 
 		<!-- Внешний вид -->
 		<div class="settings-section">
@@ -46,8 +51,8 @@
 					<h3 class="setting-row__label">Modrinth</h3>
 					<p class="setting-row__desc">Официальный магазин модов Modrinth.</p>
 				</div>
-				<Toggle v-model="modlexEnableModrinth"
-						:disabled="modlexEnableModrinth && !modlexEnableCurseForge" />
+				<Toggle :model-value="modlexEnableModrinth"
+						@update:model-value="onToggleModrinth" />
 			</div>
 
 			<!-- CurseForge -->
@@ -63,13 +68,12 @@
 				</div>
 				<div class="toggle-lock-wrapper"
 					 :class="{ 'toggle-lock-wrapper--locked': cfLocked }">
-					<Toggle :model-value="modlexEnableCurseForge"
-							:disabled="!modlexEnableModrinth && modlexEnableCurseForge"
+					<Toggle :model-value="cfDisplayValue"
 							@update:model-value="onToggleCurseForge" />
 				</div>
 			</div>
 
-			<p v-if="!modlexEnableModrinth && !modlexEnableCurseForge" class="platform-warning">
+			<p v-if="!modlexEnableModrinth && !cfDisplayValue" class="platform-warning">
 				⚠ Включите хотя бы одну платформу.
 			</p>
 		</div>
@@ -78,17 +82,17 @@
 </template>
 
 <script setup lang="ts">
-	import { DropdownSelect, injectNotificationManager, Toggle } from '@modrinth/ui'
+	import { DropdownSelect, Toggle } from '@modrinth/ui'
+	import { computed, onBeforeUnmount, ref } from 'vue'
+
 	import { useFeatureFlag } from '@/helpers/feature-flags'
 	import {
+	modlexEnableCurseForge,
+	modlexEnableModrinth,
 	modlexHideServers,
 	modlexNewsSource,
-	modlexEnableModrinth,
-	modlexEnableCurseForge,
 	type NewsSource,
 	} from '@/helpers/modlex-settings'
-
-	const { addNotification } = injectNotificationManager()
 
 	const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
 
@@ -98,14 +102,41 @@
 
 	const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform')
 
+	// CurseForge физически не работает, пока заблокирован фича-флагом — показываем
+	// тумблер выключенным, даже если пользователь когда-то включил его в настройках
+	// (это сохранённое значение вернётся, как только фича разблокируется).
+	const cfDisplayValue = computed(() => (cfLocked.value ? false : modlexEnableCurseForge.value))
+
+	const inlineNotice = ref<string | null>(null)
+	let inlineNoticeTimeout: ReturnType<typeof setTimeout> | null = null
+
+	function showInlineNotice(text: string) {
+	if (inlineNoticeTimeout) clearTimeout(inlineNoticeTimeout)
+	inlineNotice.value = text
+	inlineNoticeTimeout = setTimeout(() => {
+	inlineNotice.value = null
+	}, 6000)
+	}
+
+	onBeforeUnmount(() => {
+	if (inlineNoticeTimeout) clearTimeout(inlineNoticeTimeout)
+	})
+
+	function onToggleModrinth(value: boolean) {
+	if (!value && modlexEnableModrinth.value && !cfDisplayValue.value) {
+	showInlineNotice('Нельзя отключить: должна остаться включённой хотя бы одна платформа, а CurseForge сейчас недоступен.')
+	return
+	}
+	modlexEnableModrinth.value = value
+	}
+
 	function onToggleCurseForge(value: boolean) {
 	if (cfLocked.value) {
-	addNotification({
-	title: 'Функция отключена',
-	text: cfLockedMessage.value,
-	type: 'info',
-	autoCloseMs: 6000,
-	})
+	showInlineNotice(cfLockedMessage.value)
+	return
+	}
+	if (!value && modlexEnableCurseForge.value && !modlexEnableModrinth.value) {
+	showInlineNotice('Нельзя отключить: должна остаться включённой хотя бы одна платформа.')
 	return
 	}
 	modlexEnableCurseForge.value = value
@@ -207,10 +238,39 @@
 	.toggle-lock-wrapper--locked {
 		opacity: 0.5;
 		filter: grayscale(1);
-		cursor: not-allowed;
 	}
 
 		.toggle-lock-wrapper--locked :deep(button) {
-			pointer-events: none;
+			cursor: not-allowed;
 		}
+
+	.settings-notice {
+		width: fit-content;
+		max-width: 26rem;
+		margin-bottom: 0.5rem;
+		padding: 0.6rem 1.1rem;
+		border-radius: 999px;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		background: rgba(59, 130, 246, 0.28);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+		color: #fff;
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-align: center;
+	}
+
+	.settings-notice-fade-enter-active,
+	.settings-notice-fade-leave-active {
+		transition:
+			opacity 0.2s ease,
+			transform 0.2s ease;
+	}
+
+	.settings-notice-fade-enter-from,
+	.settings-notice-fade-leave-to {
+		opacity: 0;
+		transform: translateY(-0.5rem);
+	}
 </style>

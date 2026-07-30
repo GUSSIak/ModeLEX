@@ -11,7 +11,7 @@
 //! [RFC 8252]: https://datatracker.ietf.org/doc/html/rfc8252
 
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::{LazyLock, Mutex},
     time::Duration,
 };
@@ -20,20 +20,38 @@ use hyper::body::Incoming;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use theseus::ErrorKind;
 use theseus::prelude::tcp_listen_any_loopback;
+use tokio::net::TcpListener;
 use tokio::sync::{broadcast, oneshot};
 
 static SERVER_SHUTDOWN: LazyLock<broadcast::Sender<()>> =
     LazyLock::new(|| broadcast::channel(1024).0);
 
 /// Starts a temporary HTTP server to receive OAuth 2.0 authorization code grant flow redirects
-/// on a loopback interface with an ephemeral port. The caller can know the bound socket address
-/// by listening on the counterpart channel for `listen_socket_tx`.
+/// on a loopback interface. The caller can know the bound socket address by listening on the
+/// counterpart channel for `listen_socket_tx`.
+///
+/// If `fixed_port` is `None`, an ephemeral port is used, as per [RFC 8252]'s recommendations for
+/// providers that support it (e.g. Modrinth's own account login). If `fixed_port` is `Some`, that
+/// exact port is bound instead, for providers that require a pre-registered redirect URI with a
+/// fixed port (e.g. Ely.by).
 ///
 /// If the server is stopped before receiving an authorization code, `Ok(None)` is returned.
 pub async fn listen(
     listen_socket_tx: oneshot::Sender<Result<SocketAddr, theseus::Error>>,
+    fixed_port: Option<u16>,
 ) -> Result<Option<String>, theseus::Error> {
-    let listener = match tcp_listen_any_loopback().await {
+    let bind_result = match fixed_port {
+        Some(port) => {
+            let sockets = [
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port),
+                SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), port),
+            ];
+            TcpListener::bind(&sockets[..]).await
+        }
+        None => tcp_listen_any_loopback().await,
+    };
+
+    let listener = match bind_result {
         Ok(listener) => {
             listen_socket_tx
                 .send(listener.local_addr().map_err(|e| {

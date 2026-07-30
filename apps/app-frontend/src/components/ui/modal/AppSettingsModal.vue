@@ -124,6 +124,9 @@ defineExpose({ show })
 const { progress, version: downloadingVersion } = injectAppUpdateDownloadProgress()
 
 const version = await getVersion()
+// Версия релиза modrinth/code, от которой сейчас отталкивается форк ModLEX —
+// обновляется вручную после синхронизации с апстримом.
+const MODRINTH_BASE_VERSION = '0.14.5'
 const osPlatform = getOsPlatform()
 const osVersion = getOsVersion()
 const settings = ref(await get())
@@ -189,6 +192,7 @@ const messages = defineMessages({
 					</button>
 					<div class="max-w-[200px]">
 						<p class="m-0">ModLEX App {{ version }}</p>
+						<p class="m-0 text-secondary text-sm">База Modrinth: {{ MODRINTH_BASE_VERSION }}</p>
 						<p class="m-0">
 							<span v-if="osPlatform === 'macos'">macOS</span>
 							<span v-else class="capitalize">{{ osPlatform }}</span>

@@ -43,6 +43,7 @@ pub enum MinecraftAuthStep {
     MinecraftToken,
     MinecraftEntitlements,
     MinecraftProfile,
+    ElyByProfile,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -155,6 +156,7 @@ pub async fn login_finish(
         expires: oauth_token.date
             + Duration::seconds(oauth_token.value.expires_in as i64),
         active: true,
+        kind: AccountKind::Microsoft,
     };
 
     // During login, we need to fetch the online profile at least once to get the
@@ -200,11 +202,44 @@ pub async fn offline_login(
         refresh_token: "null".to_string(),
         expires: Utc::now() + Duration::days(365 * 99),
         active: true,
+        kind: AccountKind::Offline,
     };
 
     credentials.upsert(exec).await?;
 
     Ok(credentials)
+}
+
+/// Identifies which authentication service a set of [`Credentials`] belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountKind {
+    /// A real Microsoft/Xbox account, authenticated against Mojang's services.
+    Microsoft,
+    /// A local account with no online authentication ("cracked"/offline mode).
+    Offline,
+    /// An account authenticated against Ely.by, an authlib-injector-compatible
+    /// third-party Yggdrasil service.
+    #[serde(rename = "elyby")]
+    ElyBy,
+}
+
+impl AccountKind {
+    fn as_db_str(self) -> &'static str {
+        match self {
+            Self::Microsoft => "microsoft",
+            Self::Offline => "offline",
+            Self::ElyBy => "elyby",
+        }
+    }
+
+    fn from_db_str(s: &str) -> Self {
+        match s {
+            "offline" => Self::Offline,
+            "elyby" => Self::ElyBy,
+            _ => Self::Microsoft,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -220,6 +255,7 @@ pub struct Credentials {
     pub refresh_token: String,
     pub expires: DateTime<Utc>,
     pub active: bool,
+    pub kind: AccountKind,
 }
 
 /// An entry in the player profile cache, keyed by player UUID.
@@ -281,6 +317,14 @@ impl Credentials {
         &mut self,
         exec: impl sqlx::Executor<'_, Database = sqlx::Sqlite> + Copy,
     ) -> crate::Result<()> {
+        match self.kind {
+            AccountKind::Microsoft => {}
+            AccountKind::Offline => return Ok(()),
+            AccountKind::ElyBy => {
+                return crate::state::elyby_auth::refresh(self, exec).await;
+            }
+        }
+
         // Use a margin of 5 minutes to give e.g. Minecraft and potentially
         // other operations that depend on a fresh token 5 minutes to complete
         // from now, and deal with some classes of clock skew
@@ -362,7 +406,7 @@ impl Credentials {
         cache_intent: OnlineProfileCacheIntent,
     ) -> Option<Arc<MinecraftProfile>> {
         // Если это офлайн-аккаунт — не пытаемся получить онлайн-профиль
-        if self.access_token == "null" && self.refresh_token == "null" {
+        if self.kind == AccountKind::Offline {
             return None;
         }
 
@@ -412,7 +456,21 @@ impl Credentials {
             stale_profile
         };
 
-        match minecraft_profile(&self.access_token).await {
+        let profile_result = match self.kind {
+            AccountKind::Microsoft => minecraft_profile(&self.access_token).await,
+            AccountKind::ElyBy => {
+                crate::state::elyby_auth::profile(
+                    &self.offline_profile.name,
+                    self.offline_profile.id,
+                )
+                .await
+            }
+            AccountKind::Offline => {
+                unreachable!("offline accounts return early above")
+            }
+        };
+
+        match profile_result {
             Ok(profile) => {
                 let profile = Arc::new(profile);
                 let cache_entry = ProfileCacheEntry::Hit(Arc::clone(&profile));
@@ -470,7 +528,7 @@ impl Credentials {
         &self,
     ) -> MaybeOnlineMinecraftProfile<'_> {
         // Если это офлайн-аккаунт — сразу возвращаем офлайн-профиль без попытки получить онлайн
-        if self.access_token == "null" && self.refresh_token == "null" {
+        if self.kind == AccountKind::Offline {
             return MaybeOnlineMinecraftProfile::Offline(&self.offline_profile);
         }
 
@@ -522,7 +580,7 @@ impl Credentials {
         let res = sqlx::query!(
             "
             SELECT
-                uuid, active, username, access_token, refresh_token, expires
+                uuid, active, username, access_token, refresh_token, expires, kind
             FROM minecraft_users
             WHERE active = TRUE
             "
@@ -545,6 +603,7 @@ impl Credentials {
                         .single()
                         .unwrap_or_else(Utc::now),
                     active: x.active == 1,
+                    kind: AccountKind::from_db_str(&x.kind),
                 };
                 credentials.refresh(exec).await.ok();
                 Some(credentials)
@@ -559,7 +618,7 @@ impl Credentials {
         let res = sqlx::query!(
             "
             SELECT
-                uuid, active, username, access_token, refresh_token, expires
+                uuid, active, username, access_token, refresh_token, expires, kind
             FROM minecraft_users
             "
         )
@@ -579,6 +638,7 @@ impl Credentials {
                     .single()
                     .unwrap_or_else(Utc::now),
                 active: x.active == 1,
+                kind: AccountKind::from_db_str(&x.kind),
             };
 
             async move {
@@ -612,16 +672,19 @@ impl Credentials {
             .await?;
         }
 
+        let kind = self.kind.as_db_str();
+
         sqlx::query!(
             "
-            INSERT INTO minecraft_users (uuid, active, username, access_token, refresh_token, expires)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO minecraft_users (uuid, active, username, access_token, refresh_token, expires, kind)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (uuid) DO UPDATE SET
                 active = $2,
                 username = $3,
                 access_token = $4,
                 refresh_token = $5,
-                expires = $6
+                expires = $6,
+                kind = $7
             ",
             uuid,
             self.active,
@@ -629,6 +692,7 @@ impl Credentials {
             self.access_token,
             self.refresh_token,
             expires,
+            kind,
         )
             .execute(exec)
             .await?;
@@ -685,12 +749,13 @@ impl Serialize for Credentials {
                 ),
         };
 
-        let mut ser = serializer.serialize_struct("Credentials", 5)?;
+        let mut ser = serializer.serialize_struct("Credentials", 6)?;
         ser.serialize_field("profile", &*profile)?;
         ser.serialize_field("access_token", &self.access_token)?;
         ser.serialize_field("refresh_token", &self.refresh_token)?;
         ser.serialize_field("expires", &self.expires)?;
         ser.serialize_field("active", &self.active)?;
+        ser.serialize_field("kind", &self.kind)?;
         ser.end()
     }
 }

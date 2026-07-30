@@ -1,8 +1,11 @@
 use crate::api::Result;
+use crate::api::oauth_utils;
 use chrono::{Duration, Utc};
 use tauri::plugin::TauriPlugin;
 use tauri::{Manager, Runtime, UserAttentionType};
+use tauri_plugin_opener::OpenerExt;
 use theseus::prelude::*;
+use tokio::sync::oneshot;
 
 #[tauri::command]
 pub async fn check_reachable() -> Result<()> {
@@ -73,6 +76,47 @@ pub async fn login<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn elyby_login<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Option<Credentials>> {
+    let flow = theseus::elyby_auth::begin_login()?;
+
+    let (auth_code_recv_socket_tx, auth_code_recv_socket) = oneshot::channel();
+    let auth_code = tokio::spawn(oauth_utils::auth_code_reply::listen(
+        auth_code_recv_socket_tx,
+        Some(theseus::elyby_auth::REDIRECT_PORT),
+    ));
+
+    auth_code_recv_socket.await.unwrap()?;
+
+    app.opener()
+        .open_url(flow.auth_request_uri, None::<&str>)
+        .map_err(|e| {
+            theseus::ErrorKind::OtherError(format!(
+                "Error opening Ely.by sign-in page: {e}"
+            ))
+            .as_error()
+        })?;
+
+    let Some(code) = auth_code.await.unwrap()? else {
+        return Ok(None);
+    };
+
+    let credentials = theseus::elyby_auth::finish_login(&code).await?;
+
+    if let Some(window) = app.get_window("main") {
+        window.set_focus().ok();
+    }
+
+    Ok(Some(credentials))
+}
+
+#[tauri::command]
+pub fn cancel_elyby_login() {
+    oauth_utils::auth_code_reply::stop_listeners();
+}
+
+#[tauri::command]
 pub async fn remove_user(user: uuid::Uuid) -> Result<()> {
     Ok(minecraft_auth::remove_user(user).await?)
 }
@@ -98,10 +142,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             check_reachable,
             login,
             offline_login,
+            elyby_login,
+            cancel_elyby_login,
             remove_user,
             get_default_user,
             set_default_user,
-            get_users, 
+            get_users,
         ])
         .build()
 }

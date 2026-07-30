@@ -70,30 +70,232 @@ const props = withDefaults(
 	},
 )
 
-const FROG = [
-	'\x1B[32m     _    _ \x1B[37m',
-	'\x1B[32m    (o)--(o)      \x1B[37m',
-	'\x1B[32m   /.______.\\\x1B[37m',
-	'\x1B[32m   \\________/     \x1B[37m',
-	'\x1B[32m  ./        \\.    \x1B[37m',
-	'\x1B[32m ( .        , )\x1B[37m',
-	'\x1B[32m  \\ \\_\\\\ //_/ /\x1B[37m',
-	'\x1B[32m   ~~  ~~  ~~\x1B[37m',
-]
+// 5x7 dot-matrix font — используется как маска "дыр" в матричном дожде,
+// чтобы буквы NO SIGNAL проступали как пустое место среди падающих символов.
+// Масштабируется под размер терминала в computeLetterScale/buildNoSignalMask.
+const DOT_FONT: Record<string, string[]> = {
+	N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+	O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+	S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+	I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+	G: ['01110', '10001', '10000', '10011', '10001', '10001', '01111'],
+	A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+	L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+	' ': ['000', '000', '000', '000', '000', '000', '000'],
+}
+const NO_SIGNAL_TEXT = 'NO SIGNAL'
+const FONT_HEIGHT = 7
+// Отступ внутри "логики" шрифта — держим маленьким, чтобы не съедать масштаб букв
+const LETTER_GAP_PX = 1
+// Доп. зазор между буквами в реальных колонках терминала (не масштабируется) —
+// именно он делает буквы визуально раздельными по просьбе
+const EXTRA_LETTER_GAP_COLS = 2
+// Символ и цвет, которым рисуются сами буквы (плотный тёмный силуэт, а не дыра)
+const LETTER_FILL_CHAR = '#'
+const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый
 
-const EMPTY_STATE_BUBBLES: Record<string, string[]> = {
-	server: [
-		'   __________________________________________________',
-		' /  Welcome to your \x1B[32mModrinth Server\x1B[37m!                  \\',
-		'|   Press the green start button to start your server! |',
-		' \\____________________________________________________/',
-	],
-	instance: [
-		'   _____________________________________________________________',
-		' /  Start your instance in the top right to start               \\',
-		'|   receiving live logs!                                        |',
-		' \\_____________________________________________________________/',
-	],
+const RAIN_CHARS =
+	'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
+
+const TICK_MS = 80
+const INTRO_MS = 1800 // плавное появление дождя при старте, как в оригинале
+const BOTTOM_FADE_ROWS = 10 // зона плавного угасания дождя у самого низа
+
+function randomRainChar(): string {
+	return RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)]
+}
+
+/** Подбирает масштаб букв так, чтобы слово занимало большую часть экрана, но помещалось. */
+function computeLetterScale(cols: number, rows: number): { scaleX: number; scaleY: number } {
+	const letters = NO_SIGNAL_TEXT.split('')
+	const gapCount = letters.length - 1
+	const baseWidth =
+		letters.reduce((sum, ch) => sum + (DOT_FONT[ch]?.[0]?.length ?? 0) + LETTER_GAP_PX, 0) -
+		LETTER_GAP_PX
+	// Фиксированные зазоры между буквами вычитаем из бюджета ширины заранее,
+	// чтобы они не "съедали" сам масштаб букв — только доступное место под них
+	const availableCols = Math.max(1, cols - gapCount * EXTRA_LETTER_GAP_COLS)
+
+	const maxScaleYByHeight = Math.max(1, Math.floor((rows * 0.55) / FONT_HEIGHT))
+	const maxScaleXByWidth = Math.max(1, Math.floor((availableCols * 0.85) / baseWidth))
+
+	// Символы в моноширинном терминале примерно вдвое выше, чем широкие,
+	// поэтому по колонкам масштабируем сильнее — чтобы "пиксели" были почти квадратными.
+	const scaleY = Math.min(maxScaleYByHeight, 6)
+	const scaleX = Math.min(maxScaleXByWidth, scaleY * 2)
+
+	return { scaleX: Math.max(1, scaleX), scaleY: Math.max(1, scaleY) }
+}
+
+/** Строит по центру увеличенную маску букв под текущий размер терминала. */
+function buildNoSignalMask(
+	cols: number,
+	rows: number,
+): { mask: boolean[][]; top: number; bottom: number } {
+	const mask: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false))
+	const { scaleX, scaleY } = computeLetterScale(cols, rows)
+
+	const letters = NO_SIGNAL_TEXT.split('')
+	const gapCount = letters.length - 1
+	const wordWidth =
+		letters.reduce((sum, ch) => sum + (DOT_FONT[ch]?.[0]?.length ?? 0) * scaleX, 0) +
+		gapCount * (LETTER_GAP_PX * scaleX + EXTRA_LETTER_GAP_COLS)
+	const wordHeight = FONT_HEIGHT * scaleY
+
+	if (cols < wordWidth + 2 || rows < wordHeight + 2) {
+		return { mask, top: -1, bottom: -1 }
+	}
+
+	const startCol = Math.floor((cols - wordWidth) / 2)
+	const startRow = Math.floor((rows - wordHeight) / 2)
+
+	let col = startCol
+	for (const ch of letters) {
+		const glyph = DOT_FONT[ch] ?? DOT_FONT[' ']
+		const glyphWidth = glyph[0].length
+		for (let r = 0; r < FONT_HEIGHT; r++) {
+			for (let c = 0; c < glyphWidth; c++) {
+				if (glyph[r][c] !== '1') continue
+				for (let dy = 0; dy < scaleY; dy++) {
+					for (let dx = 0; dx < scaleX; dx++) {
+						const targetRow = startRow + r * scaleY + dy
+						const targetCol = col + c * scaleX + dx
+						if (targetRow >= 0 && targetRow < rows && targetCol >= 0 && targetCol < cols) {
+							mask[targetRow][targetCol] = true
+						}
+					}
+				}
+			}
+		}
+		col += glyphWidth * scaleX + LETTER_GAP_PX * scaleX + EXTRA_LETTER_GAP_COLS
+	}
+
+	return { mask, top: startRow, bottom: startRow + wordHeight - 1 }
+}
+
+interface RainColumn {
+	head: number
+	speed: number
+	length: number
+}
+
+// Насколько строк выше/ниже слова "утолщается" фон, чтобы буквы точно читались
+const AMBIENT_MARGIN_ROWS = 2
+// Базовый шанс наличия символа в зоне букв (не 100%, чтобы фон чуть "дышал")
+const AMBIENT_DENSITY = 0.99
+
+let rainTimer: ReturnType<typeof setInterval> | null = null
+let rainMask: boolean[][] = []
+let rainCols = 0
+let rainRows = 0
+let rainStartRow = 1
+let rainColumns: RainColumn[] = []
+let rainCellChars: string[][] = []
+let rainStartedAt = 0
+let ambientTop = -1
+let ambientBottom = -1
+
+function spawnColumn(rows: number): RainColumn {
+	return {
+		head: -Math.floor(Math.random() * rows * 0.3),
+		speed: 0.35 + Math.random() * 0.5,
+		length: 8 + Math.floor(Math.random() * 16),
+	}
+}
+
+function renderRainFrame() {
+	if (!terminal.value) return
+
+	const introFactor = Math.min(1, (Date.now() - rainStartedAt) / INTRO_MS)
+
+	let frame = '\x1B[?25l' // скрыть курсор на время анимации
+	for (let r = 0; r < rainRows; r++) {
+		frame += `\x1B[${rainStartRow + r};1H\x1B[2K`
+		let line = ''
+		// плавное угасание у самого низа доступной области — эффект стекающей краски
+		const bottomFade = Math.min(1, Math.max(0, (rainRows - 1 - r) / BOTTOM_FADE_ROWS))
+
+		const inAmbientZone = ambientTop >= 0 && r >= ambientTop && r <= ambientBottom
+
+		for (let c = 0; c < rainCols; c++) {
+			if (rainMask[r]?.[c]) {
+				line += `${LETTER_FILL_COLOR}${LETTER_FILL_CHAR}\x1B[0m`
+				continue
+			}
+
+			const column = rainColumns[c]
+			const headRow = Math.floor(column.head)
+			const inTrail = r <= headRow && r >= headRow - column.length
+			const distFromHead = headRow - r
+			const trailFade = inTrail ? 1 - distFromHead / column.length : 0
+			const rainVisibility = trailFade * introFactor * bottomFade
+
+			// В зоне букв всегда держим плотный (но чуть "дышащий") фон — иначе
+			// дыры-буквы теряются среди естественных пропусков разреженного дождя.
+			const visibility = inAmbientZone
+				? Math.max(rainVisibility, AMBIENT_DENSITY * introFactor)
+				: rainVisibility
+
+			if (Math.random() > visibility) {
+				line += ' '
+				continue
+			}
+
+			// символ клетки почти не меняется каждый кадр — только изредка,
+			// чтобы дождь мягко "жил", а не мерцал резко на весь экран
+			if (!rainCellChars[r][c] || Math.random() < 0.06) {
+				rainCellChars[r][c] = randomRainChar()
+			}
+			const ch = rainCellChars[r][c]
+
+			if (inTrail && distFromHead === 0) {
+				line += `\x1B[1;97m${ch}\x1B[0m`
+			} else if (inTrail && trailFade > 0.6) {
+				line += `\x1B[1;32m${ch}\x1B[0m`
+			} else {
+				line += `\x1B[32m${ch}\x1B[0m`
+			}
+		}
+		frame += line
+	}
+	terminal.value.write(frame)
+
+	for (const column of rainColumns) {
+		column.head += column.speed
+		if (column.head - column.length > rainRows) {
+			Object.assign(column, spawnColumn(rainRows))
+		}
+	}
+}
+
+function startMatrixRain(startRow: number) {
+	stopMatrixRain()
+	if (!terminal.value) return
+
+	rainStartRow = startRow
+	rainCols = terminal.value.cols
+	rainRows = Math.max(0, terminal.value.rows - startRow + 1)
+	if (rainRows <= 0) return
+
+	const built = buildNoSignalMask(rainCols, rainRows)
+	rainMask = built.mask
+	ambientTop = built.top >= 0 ? Math.max(0, built.top - AMBIENT_MARGIN_ROWS) : -1
+	ambientBottom = built.bottom >= 0 ? Math.min(rainRows - 1, built.bottom + AMBIENT_MARGIN_ROWS) : -1
+	rainColumns = Array.from({ length: rainCols }, () => spawnColumn(rainRows))
+	rainCellChars = Array.from({ length: rainRows }, () => Array(rainCols).fill(''))
+	rainStartedAt = Date.now()
+
+	rainTimer = setInterval(renderRainFrame, TICK_MS)
+}
+
+function stopMatrixRain() {
+	if (rainTimer) {
+		clearInterval(rainTimer)
+		rainTimer = null
+	}
+	if (terminal.value) {
+		terminal.value.write('\x1B[?25h') // вернуть курсор
+	}
 }
 
 const emit = defineEmits<{
@@ -127,6 +329,12 @@ const {
 		nextTick(() => {
 			snapToRows()
 		})
+		term.onResize(() => {
+			// Полная переотрисовка вместо простого рестарта дождя — иначе после
+			// возврата из полноэкранного режима верхняя часть терминала у xterm
+			// может остаться "замороженной" со старого рендера.
+			if (showingEmptyState.value) nextTick(() => writeEmptyState())
+		})
 		emit('ready', term)
 	},
 })
@@ -134,17 +342,13 @@ const {
 function writeEmptyState() {
 	if (!terminal.value || !props.emptyStateType) return
 	terminal.value.reset()
-	const bubble = EMPTY_STATE_BUBBLES[props.emptyStateType]
-	if (bubble) {
-		for (const line of [...bubble, ...FROG]) {
-			terminal.value.writeln(line)
-		}
-	}
 	showingEmptyState.value = true
+	nextTick(() => startMatrixRain(1))
 }
 
 function clearEmptyState() {
 	if (!showingEmptyState.value) return
+	stopMatrixRain()
 	terminal.value?.reset()
 	showingEmptyState.value = false
 }
@@ -198,6 +402,7 @@ onBeforeUnmount(() => {
 	window.removeEventListener('resize', handleWindowResize)
 	document.removeEventListener('pointerdown', handleDocumentPointerDown)
 	if (resizeDebounce) clearTimeout(resizeDebounce)
+	stopMatrixRain()
 })
 
 function fit() {

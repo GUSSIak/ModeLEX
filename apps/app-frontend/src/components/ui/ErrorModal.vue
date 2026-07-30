@@ -3,15 +3,17 @@ import {
 	CheckIcon,
 	CopyIcon,
 	DropdownIcon,
+	GlobeIcon,
 	HammerIcon,
 	LogInIcon,
 	UpdatedIcon,
 	WrenchIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { ButtonStyled, Collapsible, injectNotificationManager } from '@modrinth/ui'
+import { ButtonStyled, Collapsible, injectNotificationManager, OverflowMenu } from '@modrinth/ui'
 import { computed, ref } from 'vue'
 
+import { DiscordIcon, TelegramIcon } from '@/assets/external'
 import { ChatIcon } from '@/assets/icons'
 import ModalWrapper from '@/components/ui/modal/ModalWrapper.vue'
 import { trackEvent } from '@/helpers/analytics'
@@ -26,6 +28,12 @@ const errorModal = ref()
 const error = ref()
 const closable = ref(true)
 const errorCollapsed = ref(false)
+
+const supportOptions = [
+	{ id: 'discord', link: 'https://discord.gg/SYgfnjySqb', external: true },
+	{ id: 'telegram', link: 'https://t.me/modlexapp', external: true },
+	{ id: 'website', link: 'https://gussiak.github.io/', external: true },
+]
 
 const title = ref('An error occurred')
 const errorType = ref('unknown')
@@ -292,7 +300,19 @@ async function copyToClipboard(text) {
 			</div>
 			<div class="flex items-center gap-2">
 				<ButtonStyled>
-					<a :href="supportLink" @click="errorModal.hide()"><ChatIcon /> Get support</a>
+					<OverflowMenu dropdown-id="error-modal-support" :options="supportOptions">
+						<ChatIcon /> Get support
+						<DropdownIcon aria-hidden="true" class="h-4 w-4" />
+						<template #discord>
+							<DiscordIcon aria-hidden="true" /> Discord
+						</template>
+						<template #telegram>
+							<TelegramIcon aria-hidden="true" /> Telegram
+						</template>
+						<template #website>
+							<GlobeIcon aria-hidden="true" /> Website
+						</template>
+					</OverflowMenu>
 				</ButtonStyled>
 				<ButtonStyled v-if="closable">
 					<button @click="errorModal.hide()"><XIcon /> Close</button>

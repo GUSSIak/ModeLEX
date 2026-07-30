@@ -6,6 +6,7 @@ pub mod handler;
 pub mod jre;
 pub mod logs;
 pub mod metadata;
+pub mod elyby_auth;
 pub mod minecraft_auth;
 pub mod minecraft_skins;
 pub mod mr_auth;

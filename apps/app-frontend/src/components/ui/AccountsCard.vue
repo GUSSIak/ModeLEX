@@ -17,6 +17,13 @@
 				{{ formatMessage(messages.addOfflineAccount) }}
 			</button>
 		</ButtonStyled>
+		<ButtonStyled color="secondary">
+			<button :disabled="elyByLoginDisabled" @click="elyByLogin()">
+				<GlobeIcon v-if="!elyByLoginDisabled" />
+				<SpinnerIcon v-else class="animate-spin" />
+				{{ formatMessage(messages.signInWithElyBy) }}
+			</button>
+		</ButtonStyled>
 	</div>
 	<Accordion
 		v-else
@@ -35,10 +42,25 @@
 					"
 				/>
 				<div class="flex flex-col items-start w-full min-w-0">
-					<span class="truncate w-full text-left">{{
-						selectedAccount ? selectedAccount.profile.name : formatMessage(messages.selectAccount)
-					}}</span>
-					<span class="text-secondary text-xs">{{ formatMessage(messages.minecraftAccount) }}</span>
+					<span class="flex items-center gap-1 w-full min-w-0">
+						<span class="truncate text-left">{{
+							selectedAccount ? selectedAccount.profile.name : formatMessage(messages.selectAccount)
+						}}</span>
+						<span
+							v-if="selectedAccount?.kind === 'elyby'"
+							v-tooltip="'Ely.by'"
+							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+							style="background-color: #00b6a5"
+						>E</span>
+						<span
+							v-else-if="selectedAccount?.kind === 'offline'"
+							v-tooltip="formatMessage(messages.offlineModalTitle)"
+							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-5 text-secondary"
+						>
+							<WifiOffIcon class="w-3 h-3" />
+						</span>
+					</span>
+					<span class="text-secondary text-xs">{{ accountKindLabel(selectedAccount?.kind) }}</span>
 				</div>
 			</div>
 		</template>
@@ -65,6 +87,19 @@
 						>
 							{{ account.profile.name }}
 						</p>
+						<span
+							v-if="account.kind === 'elyby'"
+							v-tooltip="'Ely.by'"
+							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+							style="background-color: #00b6a5"
+						>E</span>
+						<span
+							v-else-if="account.kind === 'offline'"
+							v-tooltip="formatMessage(messages.offlineModalTitle)"
+							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-5 text-secondary"
+						>
+							<WifiOffIcon class="w-3 h-3" />
+						</span>
 					</button>
 					<ButtonStyled circular color="red" color-fill="none" hover-color-fill="background">
 						<button
@@ -88,6 +123,13 @@
 					<button @click="openOfflineModal()">
 						<UserIcon />
 						{{ formatMessage(messages.addOfflineAccount) }}
+					</button>
+				</ButtonStyled>
+				<ButtonStyled class="w-full" color="secondary">
+					<button :disabled="elyByLoginDisabled" @click="elyByLogin()">
+						<GlobeIcon v-if="!elyByLoginDisabled" />
+						<SpinnerIcon v-else class="animate-spin" />
+						{{ formatMessage(messages.signInWithElyBy) }}
 					</button>
 				</ButtonStyled>
 			</div>
@@ -136,11 +178,13 @@
 
 <script setup lang="ts">
 import {
+	GlobeIcon,
 	LogInIcon,
 	PlusIcon,
 	RadioButtonCheckedIcon,
 	RadioButtonIcon,
 	SpinnerIcon,
+	TagCategoryWifiOffIcon as WifiOffIcon,
 	TrashIcon,
 	UserIcon,
 } from '@modrinth/assets'
@@ -157,6 +201,8 @@ import { computed, onUnmounted, ref } from 'vue'
 
 import { trackEvent } from '@/helpers/analytics'
 import {
+	cancel_elyby_login,
+	elyby_login,
 	get_default_user,
 	login as login_flow,
 	offline_login,
@@ -182,10 +228,12 @@ type MinecraftCredential = {
 		id: string
 		name: string
 	}
+	kind: 'microsoft' | 'offline' | 'elyby'
 }
 
 const accounts: Ref<MinecraftCredential[]> = ref([])
 const loginDisabled = ref(false)
+const elyByLoginDisabled = ref(false)
 const defaultUser = ref<string | undefined>()
 const equippedSkin = ref<Skin | null>(null)
 const headUrlCache = ref(new Map<string, string>())
@@ -283,6 +331,19 @@ const selectedAccount = computed(() =>
 	accounts.value.find((account) => account.profile.id === defaultUser.value),
 )
 
+function accountKindLabel(kind: MinecraftCredential['kind'] | undefined) {
+	switch (kind) {
+		case 'elyby':
+			return formatMessage(messages.elybyAccountLabel)
+		case 'offline':
+			return formatMessage(messages.offlineAccountLabel)
+		default:
+			return formatMessage(messages.minecraftAccount)
+	}
+}
+
+const STEVE_HEAD_URL = 'https://launcher-files.modrinth.com/assets/steve_head.png'
+
 const avatarUrl = computed(() => {
 	if (equippedSkin.value?.texture_key) {
 		const cachedUrl = headUrlCache.value.get(equippedSkin.value.texture_key)
@@ -291,10 +352,10 @@ const avatarUrl = computed(() => {
 		}
 		return `https://mc-heads.net/avatar/${equippedSkin.value.texture_key}/128`
 	}
-	if (selectedAccount.value?.profile?.id) {
+	if (selectedAccount.value?.kind === 'microsoft' && selectedAccount.value?.profile?.id) {
 		return `https://mc-heads.net/avatar/${selectedAccount.value.profile.id}/128`
 	}
-	return 'https://launcher-files.modrinth.com/assets/steve_head.png'
+	return STEVE_HEAD_URL
 })
 
 function getAccountAvatarUrl(account: MinecraftCredential) {
@@ -307,10 +368,15 @@ function getAccountAvatarUrl(account: MinecraftCredential) {
 			return cachedUrl
 		}
 	}
+	// mc-heads.net is keyed by Mojang UUID, which offline/Ely.by accounts don't have
+	if (account.kind !== 'microsoft') {
+		return STEVE_HEAD_URL
+	}
 	return `https://mc-heads.net/avatar/${account.profile.id}/128`
 }
 
 async function setAccount(account: MinecraftCredential) {
+	equippedSkin.value = null
 	defaultUser.value = account.profile.id
 	await set_default_user(account.profile.id).catch(handleError)
 	await refreshValues()
@@ -327,6 +393,18 @@ async function login() {
 
 	trackEvent('AccountLogIn')
 	loginDisabled.value = false
+}
+
+async function elyByLogin() {
+	elyByLoginDisabled.value = true
+	const loggedIn = await elyby_login().catch(handleSevereError)
+
+	if (loggedIn) {
+		await setAccount(loggedIn)
+	}
+
+	trackEvent('AccountLogIn')
+	elyByLoginDisabled.value = false
 }
 
 async function logout(id: string) {
@@ -348,6 +426,7 @@ const unlisten = await process_listener(async (e) => {
 
 onUnmounted(() => {
 	unlisten()
+	cancel_elyby_login()
 })
 
 const messages = defineMessages({
@@ -371,6 +450,14 @@ const messages = defineMessages({
 		id: 'minecraft-account.label',
 		defaultMessage: 'Minecraft account',
 	},
+	elybyAccountLabel: {
+		id: 'minecraft-account.elyby-label',
+		defaultMessage: 'Ely.by account',
+	},
+	offlineAccountLabel: {
+		id: 'minecraft-account.offline-label',
+		defaultMessage: 'Offline account',
+	},
 	signInToMinecraft: {
 		id: 'minecraft-account.sign-in',
 		defaultMessage: 'Sign in to Minecraft',
@@ -378,6 +465,10 @@ const messages = defineMessages({
 	addOfflineAccount: {
 		id: 'minecraft-account.add-offline',
 		defaultMessage: 'Add offline account',
+	},
+	signInWithElyBy: {
+		id: 'minecraft-account.sign-in-elyby',
+		defaultMessage: 'Sign in with Ely.by',
 	},
 	offlineModalTitle: {
 		id: 'minecraft-account.offline-modal.title',
