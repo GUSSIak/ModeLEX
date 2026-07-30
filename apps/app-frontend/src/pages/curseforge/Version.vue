@@ -148,7 +148,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useBreadcrumbs } from '@/store/breadcrumbs'
+import { useBreadcrumb } from '@/providers/breadcrumbs'
 
 const formatDateTime = useFormatDateTime({
 	timeStyle: 'short',
@@ -158,7 +158,6 @@ const formatBytes = useFormatBytes()
 
 const route = useRoute()
 const router = useRouter()
-const breadcrumbs = useBreadcrumbs()
 
 const props = defineProps({
 	project: {
@@ -192,7 +191,14 @@ const props = defineProps({
 })
 
 const version = ref(props.versions.find((v) => v.id === Number(route.params.version)))
-breadcrumbs.setName('Version', version.value?.displayName || 'Version')
+
+const versionBreadcrumbLabel = computed(() => version.value?.displayName || 'Version')
+useBreadcrumb({
+	slot: 'curseforge-version',
+	id: () => `curseforge-version:${String(route.params.version ?? '')}`,
+	label: versionBreadcrumbLabel,
+	to: () => route.fullPath,
+})
 
 // CfFile.id — число, installedVersion приходит строкой, поэтому сравниваем через String()
 const isInstalledVersion = computed(
@@ -204,7 +210,6 @@ watch(
 	async () => {
 		if (route.params.version) {
 			version.value = props.versions.find((v) => v.id === Number(route.params.version))
-			breadcrumbs.setName('Version', version.value?.displayName || 'Version')
 		}
 	},
 )

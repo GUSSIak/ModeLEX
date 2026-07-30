@@ -175,18 +175,17 @@ import {
 	resolveLatestFile,
 } from '@/helpers/curseforge'
 import { process_listener } from '@/helpers/events'
-import { get as getInstance, get_content_items as getContentItems } from '@/helpers/profile'
+import { get as getInstance, get_content_items as getContentItems } from '@/helpers/instance'
 import { get_game_versions, get_loaders } from '@/helpers/tags'
+import { provideBreadcrumbParent, useBreadcrumb } from '@/providers/breadcrumbs'
 import { injectServerInstall } from '@/providers/server-install'
 import { createServerInstallContent } from '@/providers/setup/server-install-content'
-import { useBreadcrumbs } from '@/store/breadcrumbs'
 
 dayjs.extend(relativeTime)
 
 const { handleError } = injectNotificationManager()
 const route = useRoute()
 const router = useRouter()
-const breadcrumbs = useBreadcrumbs()
 const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
@@ -223,6 +222,15 @@ const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
 
 serverInstallContent.watchServerContextChanges()
 await serverInstallContent.initServerContext()
+
+const projectBreadcrumbLabel = ref(String(route.params.id ?? 'CurseForge'))
+const projectBreadcrumb = useBreadcrumb({
+	slot: 'curseforge-project',
+	id: () => `curseforge-project:${String(route.params.id ?? '')}`,
+	label: projectBreadcrumbLabel,
+	to: () => route.fullPath,
+})
+provideBreadcrumbParent(projectBreadcrumb)
 
 const instanceFilters = computed(() => {
 	if (!instance.value) {
@@ -441,7 +449,7 @@ async function fetchProjectData() {
 
 		files.value = fileListSafe
 		members.value = data.value.authors
-		breadcrumbs.setName('Project', data.value.title)
+		projectBreadcrumbLabel.value = data.value.title
 
 		if (route.query.i) {
 			instance.value = await getInstance(route.query.i as string).catch(handleError)

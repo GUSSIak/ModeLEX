@@ -148,48 +148,22 @@ export default new createRouter({
 					path: '',
 					name: 'CurseForgeDescription',
 					component: CurseForge.Description,
-					meta: {
-						useContext: true,
-						breadcrumb: [{ name: '?CurseForgeProject' }],
-					},
 				},
 				{
 					path: 'versions',
 					name: 'CurseForgeVersions',
 					component: CurseForge.Versions,
-					meta: {
-						useContext: true,
-						breadcrumb: [
-							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
-							{ name: 'Versions' },
-						],
-					},
 				},
 				{
 					path: 'version/:version',
 					name: 'CurseForgeVersion',
 					component: CurseForge.Version,
 					props: true,
-					meta: {
-						useContext: true,
-						breadcrumb: [
-							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
-							{ name: 'Versions', link: '/curseforge/{id}/versions' },
-							{ name: '?Version' },
-						],
-					},
 				},
 				{
 					path: 'gallery',
 					name: 'CurseForgeGallery',
 					component: CurseForge.Gallery,
-					meta: {
-						useContext: true,
-						breadcrumb: [
-							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
-							{ name: 'Gallery' },
-						],
-					},
 				},
 			],
 		},

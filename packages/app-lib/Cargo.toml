@@ -5,8 +5,6 @@ version = "1.0.0-local"
 edition.workspace = true
 
 [dependencies]
-lazy_static = "1.4"
-dotenvy = "0.15"
 ariadne = { workspace = true }
 async-minecraft-ping = { workspace = true, features = ["srv"] }
 async-recursion = { workspace = true }
@@ -36,6 +34,7 @@ data-url = { workspace = true }
 derive_more = { workspace = true, features = ["display"] }
 dirs = { workspace = true }
 discord-rich-presence = { workspace = true }
+dotenvy = "0.15"
 dunce = { workspace = true }
 either = { workspace = true }
 encoding_rs = { workspace = true }
@@ -52,6 +51,7 @@ httpdate = { workspace = true }
 image = { workspace = true, features = ["gif", "jpeg", "png", "webp"] }
 indicatif = { workspace = true, optional = true }
 itertools = { workspace = true }
+lazy_static = "1.4"
 modrinth-content-management = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-mini = { workspace = true }
