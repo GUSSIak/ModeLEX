@@ -87,7 +87,7 @@ pub async fn cf_install_mod(
 #[tauri::command]
 pub async fn cf_remove_mod(profile_path: String, mod_id: u32) -> Result<()> {
     use theseus::api::curseforge::read_sidecar;
-    use theseus::api::profile::get_full_path;
+    use theseus::api::instance::get_full_path;
 
     let mut sidecar = read_sidecar(&profile_path).await;
     let to_remove: Vec<String> = sidecar

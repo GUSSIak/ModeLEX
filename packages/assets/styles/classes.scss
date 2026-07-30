@@ -898,8 +898,10 @@ a:not(.no-click-animation),
 
 	img {
 		max-width: 100%;
-		height: auto;
 		display: inline-block;
+	}
+	img:not([height]) {
+		height: auto;
 	}
 
 	html:not(.dark-mode, .oled-mode) & img[src$='#gh-dark-mode-only'] {
@@ -1005,6 +1007,11 @@ a:not(.no-click-animation),
 
 			> :last-child:not(summary) {
 				margin-bottom: 0 !important;
+			}
+
+			> details:not([open]) summary {
+				margin: -0.5em -0.5em 0;
+				border-radius: var(--radius-xs);
 			}
 		}
 	}

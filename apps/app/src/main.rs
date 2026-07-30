@@ -52,7 +52,7 @@ async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
     
     tracing::info!("🔍 11. Allowing fs scope for profiles_dir...");
     app.fs_scope()
-        .allow_directory(state.directories.profiles_dir(), true)?;
+        .allow_directory(state.directories.instances_dir(), true)?;
     tracing::info!("🔍 12. FS scope allowed for profiles_dir");
 
     tracing::info!("🔍 initialize_state: COMPLETED");
@@ -172,7 +172,7 @@ fn main() {
     builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(payload) = args.get(1) {
-                tracing::info!("Handling deep link from arg {payload}");
+                tracing::info!("Handling command-line deep link");
                 let payload = payload.clone();
                 tauri::async_runtime::spawn(api::utils::handle_command(
                     payload,
@@ -218,7 +218,7 @@ fn main() {
                             .unwrap_or(request);
 
                     tauri::async_runtime::spawn(async move {
-                        tracing::info!("Handling deep link {actual_request}");
+                        tracing::info!("Handling macOS deep link");
 
                         let mut payload = mtx_copy_copy.lock().await;
                         if payload.is_none() {
@@ -234,7 +234,7 @@ fn main() {
             #[cfg(not(target_os = "macos"))]
             app.listen("deep-link://new-url", |url| {
                 let payload = url.payload().to_owned();
-                tracing::info!("Handling deep link {payload}");
+                tracing::info!("Handling deep link");
                 tauri::async_runtime::spawn(api::utils::handle_command(
                     payload,
                 ));
@@ -256,16 +256,18 @@ fn main() {
         .plugin(api::auth::init())
         .plugin(api::mr_auth::init())
         .plugin(api::import::init())
+        .plugin(api::install::init())
+        .plugin(api::instance::init())
         .plugin(api::logs::init())
         .plugin(api::jre::init())
         .plugin(api::metadata::init())
         .plugin(api::minecraft_skins::init())
-        .plugin(api::pack::init())
         .plugin(api::process::init())
-        .plugin(api::profile::init())
-        .plugin(api::profile_create::init())
+        .plugin(api::reports::init())
         .plugin(api::settings::init())
+        .plugin(api::shortcuts::init())
         .plugin(api::tags::init())
+        .plugin(api::users::init())
         .plugin(api::utils::init())
         .plugin(api::cache::init())
         .plugin(api::files::init())

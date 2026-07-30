@@ -76,8 +76,14 @@
 					v-if="showIconInSelected && selectedOption?.icon"
 					class="h-5 w-5 shrink-0"
 				/>
-				<span class="min-w-0 truncate text-primary font-semibold leading-tight">
-					<slot name="selected" :label="triggerText">{{ triggerText }}</slot>
+				<span
+					v-if="selectedOption"
+					class="min-w-0 truncate text-primary font-semibold leading-tight"
+				>
+					<slot name="selected" :label="selectedTriggerText">{{ selectedTriggerText }}</slot>
+				</span>
+				<span v-else class="min-w-0 truncate text-secondary opacity-70 font-medium leading-tight">
+					{{ placeholderText }}
 				</span>
 			</div>
 			<div class="flex shrink-0 items-center gap-1">
@@ -116,6 +122,7 @@
 						ref="optionsScrollbarRef"
 						class="combobox-options-scrollbar bg-surface-4"
 						data-overlayscrollbars-initialize
+						@mousedown.prevent.stop
 					>
 						<div
 							ref="optionsContainerRef"
@@ -390,9 +397,13 @@ const searchableInputClass = computed(() => {
 	return parts.join(' ')
 })
 
-const triggerText = computed(() => {
+const selectedTriggerText = computed(() => {
 	if (props.displayValue !== undefined) return props.displayValue
-	if (selectedOption.value) return selectedOption.value.label
+	return selectedOption.value?.label ?? ''
+})
+
+const placeholderText = computed(() => {
+	if (props.displayValue !== undefined) return props.displayValue
 	return props.placeholder
 })
 
@@ -969,9 +980,9 @@ watch(
 
 <style scoped>
 .combobox-options-scrollbar :deep(.os-theme-modrinth) {
-	--os-size: 10px;
-	--os-padding-perpendicular: 2px;
-	--os-padding-axis: 2px;
+	--os-size: 8px;
+	--os-padding-perpendicular: 0px;
+	--os-padding-axis: 0px;
 	--os-track-bg: transparent;
 	--os-track-bg-hover: transparent;
 	--os-track-bg-active: transparent;

@@ -1,4 +1,6 @@
-import { defineMessages, type MessageDescriptor } from '../composables/i18n'
+import type { Labrinth } from '@modrinth/api-client'
+
+import { defineMessage, defineMessages, type MessageDescriptor } from '../composables/i18n'
 
 export const commonMessages = defineMessages({
 	acceptButton: {
@@ -24,6 +26,10 @@ export const commonMessages = defineMessages({
 	beta: {
 		id: 'badge.beta',
 		defaultMessage: 'Beta',
+	},
+	release: {
+		id: 'badge.release',
+		defaultMessage: 'Release',
 	},
 	allProjectType: {
 		id: 'project-type.all',
@@ -104,6 +110,10 @@ export const commonMessages = defineMessages({
 	detailsLabel: {
 		id: 'label.details',
 		defaultMessage: 'Details',
+	},
+	discoverContentLabel: {
+		id: 'label.discover-content',
+		defaultMessage: 'Discover content',
 	},
 	downloadButton: {
 		id: 'button.download',
@@ -201,6 +211,10 @@ export const commonMessages = defineMessages({
 		id: 'button.open-folder',
 		defaultMessage: 'Open folder',
 	},
+	openInBrowserButton: {
+		id: 'button.open-in-browser',
+		defaultMessage: 'Open in browser',
+	},
 	openInModrinthButton: {
 		id: 'button.open-in-modrinth',
 		defaultMessage: 'Open in Modrinth',
@@ -276,6 +290,10 @@ export const commonMessages = defineMessages({
 	scopesLabel: {
 		id: 'label.scopes',
 		defaultMessage: 'Scopes',
+	},
+	permissionsLabel: {
+		id: 'label.permissions',
+		defaultMessage: 'Permissions',
 	},
 	searchLabel: {
 		id: 'label.search',
@@ -423,11 +441,15 @@ export const commonMessages = defineMessages({
 	},
 	hideInstalledContentLabel: {
 		id: 'label.hide-installed-content',
-		defaultMessage: 'Hide already installed content',
+		defaultMessage: 'Hide content already installed',
 	},
 	hideSelectedContentLabel: {
 		id: 'label.hide-selected-content',
 		defaultMessage: 'Hide selected content',
+	},
+	serverOnlyLabel: {
+		id: 'label.server-only',
+		defaultMessage: 'Server only',
 	},
 	installedModpackTitle: {
 		id: 'label.installed-modpack',
@@ -534,6 +556,10 @@ export const commonMessages = defineMessages({
 	copyLinkButton: {
 		id: 'button.copy-link',
 		defaultMessage: 'Copy link',
+	},
+	switchToVersionButton: {
+		id: 'button.switch-to-version',
+		defaultMessage: 'Switch to version',
 	},
 	switchVersionButton: {
 		id: 'button.switch-version',
@@ -1046,12 +1072,16 @@ export const commonSettingsMessages = defineMessages({
 		defaultMessage: 'Personal access tokens',
 	},
 	profile: {
-		id: 'settings.profile.title',
-		defaultMessage: 'Public profile',
+		id: 'settings.profile.navigation-title',
+		defaultMessage: 'Profile',
 	},
 	sessions: {
 		id: 'settings.sessions.title',
 		defaultMessage: 'Sessions',
+	},
+	social: {
+		id: 'settings.social.title',
+		defaultMessage: 'Social',
 	},
 })
 
@@ -1123,6 +1153,10 @@ export const commonProjectSettingsMessages = defineMessages({
 	view: {
 		id: 'project.settings.view.title',
 		defaultMessage: 'View',
+	},
+	withheldVersionsWarningResolve: {
+		id: 'project.versions.withheld-versions-warning.resolve-button',
+		defaultMessage: 'Resolve',
 	},
 })
 
@@ -1285,3 +1319,64 @@ export const externalProjectLicenseStatusMessages = defineMessages({
 		defaultMessage: 'Unidentified',
 	},
 })
+
+export const projectCompatibilityMessages = defineMessages({
+	title: {
+		id: `project.about.compatibility.title`,
+		defaultMessage: 'Compatibility',
+	},
+	minecraftJava: {
+		id: `project.about.compatibility.game.minecraftJava`,
+		defaultMessage: 'Minecraft: Java Edition',
+	},
+	platforms: {
+		id: `project.about.compatibility.platforms`,
+		defaultMessage: 'Platforms',
+	},
+	platformsPlural: {
+		id: `project.about.compatibility.platforms-plural`,
+		defaultMessage: '{count, plural, one {Platform} other {Platforms}}',
+	},
+	environments: {
+		id: `project.about.compatibility.environments`,
+		defaultMessage: 'Supported environments',
+	},
+})
+
+export const fileTypeMessages: Record<
+	Labrinth.Versions.v3.FileType | 'primary',
+	MessageDescriptor
+> = {
+	primary: defineMessage({
+		id: 'version.file-type.primary',
+		defaultMessage: 'Primary',
+	}),
+	unknown: defineMessage({
+		id: 'version.file-type.unknown',
+		defaultMessage: 'Other',
+	}),
+	'required-resource-pack': defineMessage({
+		id: 'version.file-type.required-resource-pack',
+		defaultMessage: 'Required resource pack',
+	}),
+	'optional-resource-pack': defineMessage({
+		id: 'version.file-type.optional-resource-pack',
+		defaultMessage: 'Optional resource pack',
+	}),
+	'sources-jar': defineMessage({
+		id: 'version.file-type.sources-jar',
+		defaultMessage: 'Source jar',
+	}),
+	'dev-jar': defineMessage({
+		id: 'version.file-type.dev-jar',
+		defaultMessage: 'Dev jar',
+	}),
+	'javadoc-jar': defineMessage({
+		id: 'version.file-type.javadoc-jar',
+		defaultMessage: 'Javadoc jar',
+	}),
+	signature: defineMessage({
+		id: 'version.file-type.signature',
+		defaultMessage: 'Signature file',
+	}),
+}

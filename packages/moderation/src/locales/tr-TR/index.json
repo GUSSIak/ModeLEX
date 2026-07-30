@@ -17,6 +17,12 @@
   "nags.add-java-address.title": {
     "defaultMessage": "Java adresleri ekle"
   },
+  "nags.add-license-details.description": {
+    "defaultMessage": "Özel lisansınız için geçerli bir URL ve isim veya SPDX tanımlayıcısı ekleyin."
+  },
+  "nags.add-license-details.title": {
+    "defaultMessage": "Lisans detaylarını ekleyin"
+  },
   "nags.add-links-server.description": {
     "defaultMessage": "Modrinth'in dışında herhangi ilgili bağlantı ekleyin, website, mağaza veya Discord daveti gibi."
   },
@@ -28,6 +34,15 @@
   },
   "nags.add-links.title": {
     "defaultMessage": "Dış bağlantı ekle"
+  },
+  "nags.all-languages.description": {
+    "defaultMessage": "Mevcut olan bütün dilleri seçtiniz. Lütfen sadece sunucunuzun desteklediği dilleri seçin."
+  },
+  "nags.all-languages.title": {
+    "defaultMessage": "Doğru dilleri seçin"
+  },
+  "nags.all-tags-selected.description": {
+    "defaultMessage": "Bütün {totalAvailableTags} alınabilecek etiketi seçtin. Bu etiketlerin amacına uygun değil. Etiketler, kullanıcıların ilgili projeleri bulmasına yardımcı olmalıdır. Lütfen sadece projenle ilgili etiketleri seç."
   },
   "nags.all-tags-selected.title": {
     "defaultMessage": "Uygun etiketleri seç"
@@ -131,8 +146,17 @@
   "nags.moderator-feedback.title": {
     "defaultMessage": "Geri bildirimleri incele"
   },
+  "nags.multiple-resolution-tags.description": {
+    "defaultMessage": "{count} çözünürlük etiketi şeçtiniz ({tags}). Kaynak paketlerinin genelde birincil çözünürlüklerine uyan bir çözünürlük etiketi olmalıdır."
+  },
   "nags.multiple-resolution-tags.title": {
     "defaultMessage": "Doğru boyutu seç"
+  },
+  "nags.review-permissions.description": {
+    "defaultMessage": "Mod paketinizdeki harici içerikleri dağıtma izniniz olduğuna dair kanıt sağladığınızdan emin olun."
+  },
+  "nags.review-permissions.title": {
+    "defaultMessage": "Harici izinleri incele"
   },
   "nags.select-compatibility.description": {
     "defaultMessage": "Sunucunuzun desteklediği sürümleri seçin ve bir Mod Paketi seçin ya da kendinizinkini yükleyin."
@@ -176,6 +200,9 @@
   "nags.settings.links.title": {
     "defaultMessage": "Bağlantı ayarlarına göz at"
   },
+  "nags.settings.permissions.title": {
+    "defaultMessage": "İzinler panelini ziyaret et"
+  },
   "nags.settings.tags.title": {
     "defaultMessage": "Etiket ayarlarına göz at"
   },
@@ -194,6 +221,9 @@
   "nags.summary-special-formatting.title": {
     "defaultMessage": "Özetini düzenle"
   },
+  "nags.summary-too-short.description": {
+    "defaultMessage": "Özetin {length} karakter. Bilgilendirici ve çekici bir özet için en az {minChars} karakter önerilir."
+  },
   "nags.summary-too-short.title": {
     "defaultMessage": "Özeti uzat"
   },
@@ -203,11 +233,20 @@
   "nags.title-contains-technical-info.title": {
     "defaultMessage": "İsmi düzenle"
   },
+  "nags.too-many-languages.description": {
+    "defaultMessage": "{languageCount, plural,one {# dil}other {# dil}} seçtiniz. Lütfen sadece sunucunuzun aktif olarak desteklediği dilleri seçiniz."
+  },
+  "nags.too-many-languages.title": {
+    "defaultMessage": "Doğru dilleri seçin"
+  },
   "nags.too-many-tags-server.description": {
     "defaultMessage": "{tagCount,plural,one {#etiket}other {#etiketler}} etiket seçtiniz. Projenizin ilgili arama sonuçlarında görünmesini sağlamak için {maxTagCount} veya daha az etikete indirmeyi düşünün."
   },
   "nags.too-many-tags-server.title": {
     "defaultMessage": "Uygun etiketleri seç"
+  },
+  "nags.too-many-tags.description": {
+    "defaultMessage": "{tagCount} etiket seçtiniz. Projenizin ilgili arama sonuçlarında görünmesini sağlamak için {maxTagCount} veya daha az etikete indirmeyi düşünün."
   },
   "nags.too-many-tags.title": {
     "defaultMessage": "Uygun etiketleri seç"
@@ -240,3 +279,4 @@
     "defaultMessage": "Bağlantı ayarlarına göz at"
   }
 }
+

@@ -21,9 +21,29 @@ export interface ContentOwner {
 	link?: string | RouteLocationRaw | (() => void)
 }
 
+export interface ContentSource {
+	project: ContentCardProject
+	link?: string | RouteLocationRaw | (() => void)
+}
+
 export type ClientWarningType = 'retained' | 'depends' | 'environment'
 
-export type ContentSource = 'modrinth' | 'curseforge'
+export type ContentSourceKind =
+	| 'local'
+	| 'modrinth_modpack'
+	| 'server_project'
+	| 'modrinth_hosting'
+	| 'imported_modpack'
+	| 'shared_instance'
+
+export interface ContentActionWarning {
+	admonitionHeader: string
+	admonitionBody: string
+	actionLabel: string
+}
+
+/** MODLEX: which marketplace a piece of content was installed from */
+export type ContentPlatform = 'modrinth' | 'curseforge'
 
 export interface ContentCardTableItem {
 	id: string
@@ -32,6 +52,7 @@ export interface ContentCardTableItem {
 	version?: ContentCardVersion
 	versionLink?: string | RouteLocationRaw
 	owner?: ContentOwner
+	source?: ContentSource
 	enabled?: boolean
 	disabled?: boolean
 	disabledTooltip?: string | null
@@ -41,13 +62,22 @@ export interface ContentCardTableItem {
 	hasUpdate?: boolean
 	isClientOnly?: boolean
 	clientWarning?: ClientWarningType | null
+	hideDelete?: boolean
 	hideSwitchVersion?: boolean
 	overflowOptions?: OverflowMenuOption[]
-	source?: ContentSource
+	/** MODLEX: which marketplace this content was installed from */
+	platform?: ContentPlatform
 }
 
 export type ContentCardTableSortColumn = 'project' | 'version'
 export type ContentCardTableSortDirection = 'asc' | 'desc'
+
+export interface BulkOperationStatus {
+	message?: string
+	progress?: number
+	total?: number
+	waiting?: boolean
+}
 
 /** Content item returned from the app backend API - maps to ContentCardTableItem for display */
 export interface ContentItem extends Omit<
@@ -67,6 +97,9 @@ export interface ContentItem extends Omit<
 	pack_client_depends?: boolean
 	cf_mod_id?: number
 	installing?: boolean
+	source_kind?: ContentSourceKind | null
+	external?: boolean
+	external_url?: string
 }
 
 export type ContentModpackCardProject = Pick<

@@ -249,7 +249,7 @@ pub struct CfInstalledMeta {
 }
 
 async fn sidecar_path(profile_path: &str) -> crate::Result<PathBuf> {
-    let base = crate::api::profile::get_full_path(profile_path).await?;
+    let base = crate::api::instance::get_full_path(profile_path).await?;
     Ok(base.join(".modlex").join("cf_mods.json"))
 }
 
@@ -657,7 +657,7 @@ pub async fn install_mod(
 
         let hash = sha1_async(bytes.clone()).await?;
 
-        let profile_base = crate::api::profile::get_full_path(profile_path).await?;
+        let profile_base = crate::api::instance::get_full_path(profile_path).await?;
         let mods_dir = profile_base.join("mods");
         tokio::fs::create_dir_all(&mods_dir).await.map_err(|e| {
             crate::ErrorKind::OtherError(format!("mods dir: {e}")).as_error()
@@ -734,16 +734,16 @@ pub async fn install_modpack(
         _ => crate::prelude::ModLoader::Vanilla,
     };
 
-    let profile_path = crate::api::profile::create::profile_create(
+    let instance = crate::api::instance::create(
         profile_name,
         game_version.to_string(),
         loader_mod,
         None,
         None,
-        None,
-        None,
+        crate::state::InstanceLink::Unmanaged,
     )
     .await?;
+    let profile_path = instance.instance.id;
 
     if let Some(logo) = &cf_mod.logo {
         let icon_url = logo.thumbnail_url.as_deref().unwrap_or(&logo.url);
@@ -759,10 +759,16 @@ pub async fn install_modpack(
                 )
                 .await
                 {
-                    let _ = crate::api::profile::edit(&profile_path, |prof| {
-                        prof.icon_path = Some(icon_path.to_string_lossy().to_string());
-                        async { Ok(()) }
-                    }).await;
+                    let _ = crate::api::instance::edit(
+                        &profile_path,
+                        crate::state::EditInstance {
+                            icon_path: Some(Some(
+                                icon_path.to_string_lossy().to_string(),
+                            )),
+                            ..Default::default()
+                        },
+                    )
+                    .await;
                 }
             }
         }
@@ -831,7 +837,7 @@ pub async fn install_modpack(
                     .strip_prefix("overrides/")
                     .or_else(|| name.strip_prefix("client-overrides/"))
                     .unwrap_or(&name);
-                let profile_base = crate::api::profile::get_full_path(&profile_path).await?;
+                let profile_base = crate::api::instance::get_full_path(&profile_path).await?;
                 let dest = profile_base.join(rel);
                 if let Some(parent) = dest.parent() {
                     let _ = tokio::fs::create_dir_all(parent).await;
