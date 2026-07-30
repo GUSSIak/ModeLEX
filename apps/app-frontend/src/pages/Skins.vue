@@ -237,8 +237,7 @@ const messages = defineMessages({
 	},
 	elybySkinListBlurredNotice: {
 		id: 'app.skins.elyby-skin-list-blurred-notice',
-		defaultMessage:
-			'For now, changing your skin is only possible on the official Ely.by website.',
+		defaultMessage: 'For now, changing your skin is only possible on the official Ely.by website.',
 	},
 	elybyCatalogNoticeHeader: {
 		id: 'app.skins.elyby-catalog-notice.header',
@@ -409,9 +408,7 @@ const isSkinManagementReadOnly = computed(
 const hasPendingSkinChange = computed(
 	() => !skinsMatch(selectedSkin.value, originalSelectedSkin.value),
 )
-const isSkinPreviewLoading = computed(
-	() => isSwitchingAccount.value || isLoadingSkinTexture.value,
-)
+const isSkinPreviewLoading = computed(() => isSwitchingAccount.value || isLoadingSkinTexture.value)
 
 let userCheckInterval: number | null = null
 let pendingSkinRefreshTimeout: number | null = null
@@ -1367,7 +1364,9 @@ await loadSkins()
 			</div>
 			<VirtualSkinSectionList
 				ref="skinSectionList"
-				:class="{ 'pointer-events-none select-none blur-sm': nonMicrosoftReadOnlyReason === 'elyby-account' }"
+				:class="{
+					'pointer-events-none select-none blur-sm': nonMicrosoftReadOnlyReason === 'elyby-account',
+				}"
 				:saved-skins="savedSkins"
 				:default-skin-sections="defaultSkinSections"
 				:get-baked-skin-textures="getBakedSkinTextures"

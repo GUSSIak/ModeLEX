@@ -94,8 +94,7 @@ const EXTRA_LETTER_GAP_COLS = 2
 const LETTER_FILL_CHAR = '#'
 const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый
 
-const RAIN_CHARS =
-	'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
+const RAIN_CHARS = 'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
 
 const TICK_MS = 80
 const INTRO_MS = 1800 // плавное появление дождя при старте, как в оригинале
@@ -280,7 +279,8 @@ function startMatrixRain(startRow: number) {
 	const built = buildNoSignalMask(rainCols, rainRows)
 	rainMask = built.mask
 	ambientTop = built.top >= 0 ? Math.max(0, built.top - AMBIENT_MARGIN_ROWS) : -1
-	ambientBottom = built.bottom >= 0 ? Math.min(rainRows - 1, built.bottom + AMBIENT_MARGIN_ROWS) : -1
+	ambientBottom =
+		built.bottom >= 0 ? Math.min(rainRows - 1, built.bottom + AMBIENT_MARGIN_ROWS) : -1
 	rainColumns = Array.from({ length: rainCols }, () => spawnColumn(rainRows))
 	rainCellChars = Array.from({ length: rainRows }, () => Array(rainCols).fill(''))
 	rainStartedAt = Date.now()

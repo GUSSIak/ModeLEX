@@ -16,7 +16,7 @@
 
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 
-import { featureFlags, LOCAL_FEATURE_FLAGS, type FeatureFlags } from './feature-flags'
+import { type FeatureFlags, featureFlags, LOCAL_FEATURE_FLAGS } from './feature-flags'
 
 const FLAGS_URL = 'https://gussiak.github.io/flags.json'
 

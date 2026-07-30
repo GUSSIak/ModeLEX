@@ -9,8 +9,8 @@ import {
 	PaintbrushIcon,
 	Settings2Icon,
 	ShieldIcon,
-	ToggleRightIcon,
 	SparklesIcon,
+	ToggleRightIcon,
 	UserIcon,
 } from '@modrinth/assets'
 import {
@@ -27,7 +27,6 @@ import { getVersion } from '@tauri-apps/api/app'
 import { platform as getOsPlatform, version as getOsVersion } from '@tauri-apps/plugin-os'
 import { computed, provide, ref, watch } from 'vue'
 
-import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
 import PrivacySettings from '@/components/ui/settings/account/PrivacySettings.vue'
 import ProfileSettings from '@/components/ui/settings/account/ProfileSettings.vue'
 import SocialSettings from '@/components/ui/settings/account/SocialSettings.vue'
@@ -38,6 +37,7 @@ import LanguageSettings from '@/components/ui/settings/display/LanguageSettings.
 import DefaultInstanceSettings from '@/components/ui/settings/instances/DefaultInstanceSettings.vue'
 import JavaSettings from '@/components/ui/settings/instances/JavaSettings.vue'
 import ResourceManagementSettings from '@/components/ui/settings/instances/ResourceManagementSettings.vue'
+import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
 import { get, set } from '@/helpers/settings.ts'
 import {
 	appSettingsModalContextKey,
@@ -228,7 +228,7 @@ const { progress, version: downloadingVersion } = injectAppUpdateDownloadProgres
 const version = await getVersion()
 // Версия релиза modrinth/code, от которой сейчас отталкивается форк ModLEX —
 // обновляется вручную после синхронизации с апстримом.
-const MODRINTH_BASE_VERSION = '0.14.5'
+const MODRINTH_BASE_VERSION = '0.17.3'
 const osPlatform = getOsPlatform()
 const osVersion = getOsVersion()
 const settings = ref(await get())

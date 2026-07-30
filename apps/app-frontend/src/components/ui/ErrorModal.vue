@@ -285,15 +285,9 @@ async function copyToClipboard(text) {
 					<OverflowMenu dropdown-id="error-modal-support" :options="supportOptions">
 						<ChatIcon /> Get support
 						<DropdownIcon aria-hidden="true" class="h-4 w-4" />
-						<template #discord>
-							<DiscordIcon aria-hidden="true" /> Discord
-						</template>
-						<template #telegram>
-							<TelegramIcon aria-hidden="true" /> Telegram
-						</template>
-						<template #website>
-							<GlobeIcon aria-hidden="true" /> Website
-						</template>
+						<template #discord> <DiscordIcon aria-hidden="true" /> Discord </template>
+						<template #telegram> <TelegramIcon aria-hidden="true" /> Telegram </template>
+						<template #website> <GlobeIcon aria-hidden="true" /> Website </template>
 					</OverflowMenu>
 				</ButtonStyled>
 				<ButtonStyled v-if="closable">

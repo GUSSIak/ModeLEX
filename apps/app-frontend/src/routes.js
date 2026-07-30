@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import * as Pages from '@/pages'
+import * as CurseForge from '@/pages/curseforge'
 import * as Hosting from '@/pages/hosting/manage'
 import * as Instance from '@/pages/instance'
 import * as Library from '@/pages/library'
 import * as Project from '@/pages/project'
-import * as CurseForge from '@/pages/curseforge'
 
 /**
  * Configures application routing. Add page to pages/index and then add to route table here.
@@ -159,7 +159,10 @@ export default new createRouter({
 					component: CurseForge.Versions,
 					meta: {
 						useContext: true,
-						breadcrumb: [{ name: '?CurseForgeProject', link: '/curseforge/{id}/' }, { name: 'Versions' }],
+						breadcrumb: [
+							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
+							{ name: 'Versions' },
+						],
 					},
 				},
 				{
@@ -182,7 +185,10 @@ export default new createRouter({
 					component: CurseForge.Gallery,
 					meta: {
 						useContext: true,
-						breadcrumb: [{ name: '?CurseForgeProject', link: '/curseforge/{id}/' }, { name: 'Gallery' }],
+						breadcrumb: [
+							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
+							{ name: 'Gallery' },
+						],
 					},
 				},
 			],

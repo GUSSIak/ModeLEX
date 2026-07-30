@@ -251,9 +251,7 @@ export function findInstalledCounterpart(
 ): ContentItem | undefined {
 	const target = normalizeToken(name)
 	if (!target) return undefined
-	return contentItems.find(
-		(item) => item.project && normalizeToken(item.project.title) === target,
-	)
+	return contentItems.find((item) => item.project && normalizeToken(item.project.title) === target)
 }
 
 /**

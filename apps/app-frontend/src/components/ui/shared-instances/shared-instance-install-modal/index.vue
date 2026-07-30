@@ -282,7 +282,6 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { computed, nextTick, ref } from 'vue'
 
 import { config } from '@/config'
-import { hide_ads_window, show_ads_window } from '@/helpers/ads'
 import { toError } from '@/helpers/errors'
 import type { SharedInstanceInstallPreview } from '@/helpers/install'
 import { create_report } from '@/helpers/reports'
@@ -462,7 +461,6 @@ function handleCancel() {
 function handleHide() {
 	resetReportState()
 	creator.value = null
-	show_ads_window()
 }
 function resetReportState() {
 	reportMode.value = false
@@ -502,7 +500,6 @@ function showReport(
 }
 function showPreview(previewValue: SharedInstanceInstallPreview, event?: MouseEvent) {
 	preview.value = previewValue
-	hide_ads_window()
 	modal.value?.show(event)
 	void nextTick(() => forceCheckTableScroll())
 }

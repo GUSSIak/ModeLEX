@@ -72,7 +72,7 @@ export async function users() {
  * @returns {Promise<Credentials>}
  */
 export async function offline_login(name) {
-    return await invoke('plugin:auth|offline_login', { name })
+	return await invoke('plugin:auth|offline_login', { name })
 }
 
 /**

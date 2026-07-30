@@ -1,14 +1,14 @@
 // apps/app-frontend/src/helpers/modlex-settings.ts
 
-import { ref, watch, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { featureFlags } from './feature-flags'
 
 const STORAGE_KEYS = {
-	hideServers:        'modlex_hide_servers',
-	newsSource:         'modlex_news_source',
-	enableModrinth:     'modlex_enable_modrinth',
-	enableCurseForge:   'modlex_enable_curseforge',
+	hideServers: 'modlex_hide_servers',
+	newsSource: 'modlex_news_source',
+	enableModrinth: 'modlex_enable_modrinth',
+	enableCurseForge: 'modlex_enable_curseforge',
 } as const
 
 export type NewsSource = 'github' | 'modrinth' | 'off'
@@ -31,12 +31,12 @@ export const modlexNewsSource = ref<NewsSource>(
 	readString(STORAGE_KEYS.newsSource, 'github') as NewsSource,
 )
 
-export const modlexUseGithubNews   = computed(() => modlexNewsSource.value === 'github')
-export const modlexHideNews        = computed(() => modlexNewsSource.value === 'off')
+export const modlexUseGithubNews = computed(() => modlexNewsSource.value === 'github')
+export const modlexHideNews = computed(() => modlexNewsSource.value === 'off')
 export const modlexUseModrinthNews = computed(() => modlexNewsSource.value === 'modrinth')
 
 // ── Платформы поиска ───────────────────────────────────────────────────────
-export const modlexEnableModrinth   = ref(readBool(STORAGE_KEYS.enableModrinth, true))
+export const modlexEnableModrinth = ref(readBool(STORAGE_KEYS.enableModrinth, true))
 export const modlexEnableCurseForge = ref(readBool(STORAGE_KEYS.enableCurseForge, true))
 
 /** Какие платформы реально доступны (хотя бы одна должна быть включена) */
@@ -56,16 +56,28 @@ function broadcast() {
 	window.dispatchEvent(
 		new CustomEvent('modlex-settings-changed', {
 			detail: {
-				hideServers:        modlexHideServers.value,
-				newsSource:         modlexNewsSource.value,
-				enableModrinth:     modlexEnableModrinth.value,
-				enableCurseForge:   modlexEnableCurseForge.value,
+				hideServers: modlexHideServers.value,
+				newsSource: modlexNewsSource.value,
+				enableModrinth: modlexEnableModrinth.value,
+				enableCurseForge: modlexEnableCurseForge.value,
 			},
 		}),
 	)
 }
 
-watch(modlexHideServers,      (v) => { localStorage.setItem(STORAGE_KEYS.hideServers, String(v)); broadcast() })
-watch(modlexNewsSource,       (v) => { localStorage.setItem(STORAGE_KEYS.newsSource, v); broadcast() })
-watch(modlexEnableModrinth,   (v) => { localStorage.setItem(STORAGE_KEYS.enableModrinth, String(v)); broadcast() })
-watch(modlexEnableCurseForge, (v) => { localStorage.setItem(STORAGE_KEYS.enableCurseForge, String(v)); broadcast() })
+watch(modlexHideServers, (v) => {
+	localStorage.setItem(STORAGE_KEYS.hideServers, String(v))
+	broadcast()
+})
+watch(modlexNewsSource, (v) => {
+	localStorage.setItem(STORAGE_KEYS.newsSource, v)
+	broadcast()
+})
+watch(modlexEnableModrinth, (v) => {
+	localStorage.setItem(STORAGE_KEYS.enableModrinth, String(v))
+	broadcast()
+})
+watch(modlexEnableCurseForge, (v) => {
+	localStorage.setItem(STORAGE_KEYS.enableCurseForge, String(v))
+	broadcast()
+})

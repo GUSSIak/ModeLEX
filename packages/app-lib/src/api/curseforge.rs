@@ -749,15 +749,9 @@ pub async fn install_modpack(
         let icon_url = logo.thumbnail_url.as_deref().unwrap_or(&logo.url);
         if let Ok(icon_bytes) = reqwest::get(icon_url).await {
             if let Ok(bytes) = icon_bytes.bytes().await {
-                let filename = icon_url.rsplit('/').next().unwrap_or("icon.png");
                 let state = State::get().await?;
-                if let Ok(icon_path) = crate::util::fetch::write_cached_icon(
-                    filename,
-                    &state.directories.caches_dir(),
-                    bytes,
-                    &state.io_semaphore,
-                )
-                .await
+                if let Ok(icon_path) =
+                    crate::api::instance::cache_icon(bytes, &state).await
                 {
                     let _ = crate::api::instance::edit(
                         &profile_path,

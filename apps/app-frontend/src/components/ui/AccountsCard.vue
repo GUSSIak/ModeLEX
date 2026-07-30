@@ -51,7 +51,8 @@
 							v-tooltip="'Ely.by'"
 							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
 							style="background-color: #00b6a5"
-						>E</span>
+							>E</span
+						>
 						<span
 							v-else-if="selectedAccount?.kind === 'offline'"
 							v-tooltip="formatMessage(messages.offlineModalTitle)"
@@ -92,7 +93,8 @@
 							v-tooltip="'Ely.by'"
 							class="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
 							style="background-color: #00b6a5"
-						>E</span>
+							>E</span
+						>
 						<span
 							v-else-if="account.kind === 'offline'"
 							v-tooltip="formatMessage(messages.offlineModalTitle)"
@@ -142,7 +144,9 @@
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
 		@click.self="closeOfflineModal()"
 	>
-		<div class="bg-bg border border-solid border-surface-5 rounded-xl p-6 w-80 flex flex-col gap-4 shadow-2xl">
+		<div
+			class="bg-bg border border-solid border-surface-5 rounded-xl p-6 w-80 flex flex-col gap-4 shadow-2xl"
+		>
 			<h3 class="m-0 text-base font-semibold text-contrast">
 				{{ formatMessage(messages.offlineModalTitle) }}
 			</h3>
@@ -173,7 +177,6 @@
 			</div>
 		</div>
 	</div>
-
 </template>
 
 <script setup lang="ts">
@@ -269,8 +272,8 @@ async function confirmOfflineLogin() {
 			await refreshValues()
 		}
 		showOfflineModal.value = false
-	} catch (e: any) {
-		offlineError.value = e?.message ?? 'Неизвестная ошибка'
+	} catch (e) {
+		offlineError.value = e instanceof Error ? e.message : 'Неизвестная ошибка'
 	} finally {
 		offlineLoading.value = false
 	}

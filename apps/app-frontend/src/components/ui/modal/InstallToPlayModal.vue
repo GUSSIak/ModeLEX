@@ -3,7 +3,6 @@
 		ref="modal"
 		:header="formatMessage(messages.installToPlay)"
 		:closable="true"
-		:on-hide="show_ads_window"
 		max-width="544px"
 		width="544px"
 	>

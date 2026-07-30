@@ -1,54 +1,71 @@
 <template>
 	<div v-if="data">
 		<Teleport to="#sidebar-teleport-target">
-			<ProjectSidebarCompatibility v-if="!isServerProject"
-										 :project="data"
-										 :tags="{ loaders: allLoaders, gameVersions: allGameVersions }"
-										 :project-v3="projectV3"
-										 class="project-sidebar-section" />
-			<ProjectSidebarLinks link-target="_blank"
-								 :project="data"
-								 :project-v3="projectV3"
-								 class="project-sidebar-section" />
+			<ProjectSidebarCompatibility
+				v-if="!isServerProject"
+				:project="data"
+				:tags="{ loaders: allLoaders, gameVersions: allGameVersions }"
+				:project-v3="projectV3"
+				class="project-sidebar-section"
+			/>
+			<ProjectSidebarLinks
+				link-target="_blank"
+				:project="data"
+				:project-v3="projectV3"
+				class="project-sidebar-section"
+			/>
 			<ProjectSidebarTags :project="data" class="project-sidebar-section" />
-			<ProjectSidebarCreators :organization="organization"
-									:members="members"
-									:org-link="(slug) => `https://www.curseforge.com/members/${slug}`"
-									:user-link="(username) => `https://www.curseforge.com/members/${username}`"
-									link-target="_blank"
-									class="project-sidebar-section" />
-			<ProjectSidebarDetails :project="data"
-								   :has-versions="files.length > 0"
-								   :link-target="`_blank`"
-								   :hide-license="isServerProject"
-								   :show-followers="isServerProject"
-								   class="project-sidebar-section" />
+			<ProjectSidebarCreators
+				:organization="organization"
+				:members="members"
+				:org-link="(slug) => `https://www.curseforge.com/members/${slug}`"
+				:user-link="(username) => `https://www.curseforge.com/members/${username}`"
+				link-target="_blank"
+				class="project-sidebar-section"
+			/>
+			<ProjectSidebarDetails
+				:project="data"
+				:has-versions="files.length > 0"
+				:link-target="`_blank`"
+				:hide-license="isServerProject"
+				:show-followers="isServerProject"
+				class="project-sidebar-section"
+			/>
 		</Teleport>
 		<div class="flex flex-col gap-4 p-6">
-			<div v-if="projectInstallContext"
-				 class="sticky top-0 z-20 -mx-6 -mt-6 rounded-tl-[--radius-xl] border-0 border-b border-solid bg-surface-1 p-3 border-surface-5">
+			<div
+				v-if="projectInstallContext"
+				class="sticky top-0 z-20 -mx-6 -mt-6 rounded-tl-[--radius-xl] border-0 border-b border-solid bg-surface-1 p-3 border-surface-5"
+			>
 				<BrowseInstallHeader :install-context="projectInstallContext" />
 			</div>
 			<InstanceIndicator v-if="instance && !projectInstallContext" :instance="instance" />
 			<template v-if="data">
-				<ProjectHeader :project="data"
-							   :project-v3="projectV3"
-							   @contextmenu.prevent.stop="handleRightClick">
+				<ProjectHeader
+					:project="data"
+					:project-v3="projectV3"
+					@contextmenu.prevent.stop="handleRightClick"
+				>
 					<template #actions>
 						<ButtonStyled size="large" color="brand">
-							<button v-tooltip="installButtonTooltip"
-									:disabled="installButtonDisabled"
-									@click="install(null)">
-								<SpinnerIcon v-if="installButtonLoading && !installButtonInstalled"
-											 class="animate-spin" />
+							<button
+								v-tooltip="installButtonTooltip"
+								:disabled="installButtonDisabled"
+								@click="install(null)"
+							>
+								<SpinnerIcon
+									v-if="installButtonLoading && !installButtonInstalled"
+									class="animate-spin"
+								/>
 								<DownloadIcon v-else-if="!installButtonInstalled && !serverProjectSelected" />
 								<CheckIcon v-else />
 								{{ installButtonLabel }}
 							</button>
 						</ButtonStyled>
 						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu :tooltip="`More options`"
-										  :options="[
+							<OverflowMenu
+								:tooltip="`More options`"
+								:options="[
 									{
 										id: 'open-in-browser',
 										link: `https://www.curseforge.com/minecraft/mc-mods/${data.slug}`,
@@ -64,35 +81,34 @@
 										link: `https://support.curseforge.com/`,
 									},
 								]"
-										  aria-label="More options">
+								aria-label="More options"
+							>
 								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser>
-									<ExternalIcon /> Open in browser
-								</template>
-								<template #report>
-									<ReportIcon /> Report
-								</template>
+								<template #open-in-browser> <ExternalIcon /> Open in browser </template>
+								<template #report> <ReportIcon /> Report </template>
 							</OverflowMenu>
 						</ButtonStyled>
 					</template>
 				</ProjectHeader>
 				<NavTabs :links="navLinks" />
-				<RouterView v-if="route.path.startsWith('/curseforge')"
-							:project="data"
-							:versions="files"
-							:members="members"
-							:instance="instance"
-							:install="install"
-							:installed="installed"
-							:installing="installing"
-							:installed-version="installedVersion" />
+				<RouterView
+					v-if="route.path.startsWith('/curseforge')"
+					:project="data"
+					:versions="files"
+					:members="members"
+					:instance="instance"
+					:install="install"
+					:installed="installed"
+					:installing="installing"
+					:installed-version="installedVersion"
+				/>
 			</template>
-			<template v-else>
-				Project data couldn't be loaded.
-			</template>
+			<template v-else> Project data couldn't be loaded. </template>
 		</div>
-		<SelectedProjectsFloatingBar v-if="projectInstallContext"
-									 :install-context="projectInstallContext" />
+		<SelectedProjectsFloatingBar
+			v-if="projectInstallContext"
+			:install-context="projectInstallContext"
+		/>
 		<ContextMenu ref="options" @option-clicked="handleOptionsClick">
 			<template #install>
 				<DownloadIcon /> {{ formatMessage(commonMessages.installButton) }}
@@ -109,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-	import {
+import {
 	CheckIcon,
 	ClipboardCopyIcon,
 	DownloadIcon,
@@ -118,8 +134,8 @@
 	MoreVerticalIcon,
 	ReportIcon,
 	SpinnerIcon,
-	} from '@modrinth/assets'
-	import {
+} from '@modrinth/assets'
+import {
 	BrowseInstallHeader,
 	ButtonStyled,
 	commonMessages,
@@ -137,665 +153,652 @@
 	requestInstall,
 	SelectedProjectsFloatingBar,
 	useVIntl,
-	} from '@modrinth/ui'
-	import { convertFileSrc } from '@tauri-apps/api/core'
-	import { openUrl } from '@tauri-apps/plugin-opener'
-	import dayjs from 'dayjs'
-	import relativeTime from 'dayjs/plugin/relativeTime'
-	import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
-	import { useRoute, useRouter } from 'vue-router'
+} from '@modrinth/ui'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-	import ContextMenu from '@/components/ui/ContextMenu.vue'
-	import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
-	import {
-	cf_install_mod,
-	cf_install_modpack,
+import ContextMenu from '@/components/ui/ContextMenu.vue'
+import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
+import {
 	cf_get_files,
 	cf_get_mod_details,
+	cf_install_mod,
+	cf_install_modpack,
 	cf_remove_mod,
 	cfClassIdToProjectType,
 	extractFileTarget,
 	findInstalledCounterpart,
 	resolveLatestFile,
-	} from '@/helpers/curseforge'
-	import { process_listener } from '@/helpers/events'
-	import { get_loader_versions as getLoaderManifest } from '@/helpers/metadata'
-	import {
-	get as getInstance,
-	get_content_items as getContentItems,
-	} from '@/helpers/profile'
-	import { get_game_versions, get_loaders } from '@/helpers/tags'
-	import { injectContentInstall } from '@/providers/content-install'
-	import { injectServerInstall } from '@/providers/server-install'
-	import { createServerInstallContent } from '@/providers/setup/server-install-content'
-	import { useBreadcrumbs } from '@/store/breadcrumbs'
-	import { useTheming } from '@/store/state.js'
+} from '@/helpers/curseforge'
+import { process_listener } from '@/helpers/events'
+import { get as getInstance, get_content_items as getContentItems } from '@/helpers/profile'
+import { get_game_versions, get_loaders } from '@/helpers/tags'
+import { injectServerInstall } from '@/providers/server-install'
+import { createServerInstallContent } from '@/providers/setup/server-install-content'
+import { useBreadcrumbs } from '@/store/breadcrumbs'
 
-	dayjs.extend(relativeTime)
+dayjs.extend(relativeTime)
 
-	const { handleError } = injectNotificationManager()
-	const { install: installVersion } = injectContentInstall()
-	const route = useRoute()
-	const router = useRouter()
-	const breadcrumbs = useBreadcrumbs()
-	const themeStore = useTheming()
-	const { formatMessage } = useVIntl()
+const { handleError } = injectNotificationManager()
+const route = useRoute()
+const router = useRouter()
+const breadcrumbs = useBreadcrumbs()
+const { formatMessage } = useVIntl()
 
-	const messages = defineMessages({
+const messages = defineMessages({
 	backToBrowse: {
-	id: 'app.project.install-context.back-to-browse',
-	defaultMessage: 'Back to discover',
+		id: 'app.project.install-context.back-to-browse',
+		defaultMessage: 'Back to discover',
 	},
 	installContentToInstance: {
-	id: 'app.project.install-context.install-content-to-instance',
-	defaultMessage: 'Install content to instance',
+		id: 'app.project.install-context.install-content-to-instance',
+		defaultMessage: 'Install content to instance',
 	},
 	alreadyInstalled: {
-	id: 'app.project.install-button.already-installed',
-	defaultMessage: 'This project is already installed',
+		id: 'app.project.install-button.already-installed',
+		defaultMessage: 'This project is already installed',
 	},
-	})
+})
 
-	const { installingServerProjects, playServerProject, showAddServerToInstanceModal } =
-	injectServerInstall()
-	const installing = ref(false)
-	const data = shallowRef(null)
-	const files = shallowRef([])
-	const members = shallowRef([])
-	const categories = shallowRef([])
-	const organization = shallowRef(null)
-	const instance = ref(null)
-	const instanceProjects = ref(null)
+injectServerInstall()
+const installing = ref(false)
+const data = shallowRef(null)
+const files = shallowRef([])
+const members = shallowRef([])
+const organization = shallowRef(null)
+const instance = ref(null)
 
-	const installed = ref(false)
-	const installedVersion = ref(null)
-	const isServerProject = ref(false)
-	const projectV3 = shallowRef(null)
-	const serverPing = ref(undefined)
-	const serverStatusOnline = ref(false)
-	const serverInstancePath = ref(null)
-	const serverPlaying = ref(false)
-	const serverSetupModalRef = ref(null)
-	const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
+const installed = ref(false)
+const installedVersion = ref(null)
+const isServerProject = ref(false)
+const projectV3 = shallowRef(null)
+const serverInstancePath = ref(null)
+const serverPlaying = ref(false)
+const serverSetupModalRef = ref(null)
+const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
 
-	serverInstallContent.watchServerContextChanges()
-	await serverInstallContent.initServerContext()
+serverInstallContent.watchServerContextChanges()
+await serverInstallContent.initServerContext()
 
-	const instanceFilters = computed(() => {
+const instanceFilters = computed(() => {
 	if (!instance.value) {
-	return {}
+		return {}
 	}
 
 	const loaders = []
 	if (data.value?.project_type === 'mod') {
-	if (instance.value.loader !== 'vanilla') {
-	loaders.push(instance.value.loader)
-	}
-	if (instance.value.loader === 'vanilla' || data.value.loaders?.includes('datapack')) {
-	loaders.push('datapack')
-	}
+		if (instance.value.loader !== 'vanilla') {
+			loaders.push(instance.value.loader)
+		}
+		if (instance.value.loader === 'vanilla' || data.value.loaders?.includes('datapack')) {
+			loaders.push('datapack')
+		}
 	}
 
 	return { l: loaders, g: instance.value.game_version }
-	})
+})
 
-	function buildProjectHref(path, extraQuery = {}) {
+function buildProjectHref(path, extraQuery = {}) {
 	const params = new URLSearchParams()
 	for (const [key, val] of Object.entries({ ...route.query, ...extraQuery })) {
-	if (Array.isArray(val)) {
-	for (const v of val) params.append(key, v)
-	} else if (val) {
-	params.append(key, String(val))
-	}
+		if (Array.isArray(val)) {
+			for (const v of val) params.append(key, v)
+		} else if (val) {
+			params.append(key, String(val))
+		}
 	}
 	const qs = params.toString()
 	return qs ? `${path}?${qs}` : path
-	}
+}
 
-	const projectDescriptionHref = computed(() => buildProjectHref(`/curseforge/${route.params.id}`))
-	const versionsHref = computed(() =>
+const projectDescriptionHref = computed(() => buildProjectHref(`/curseforge/${route.params.id}`))
+const versionsHref = computed(() =>
 	buildProjectHref(`/curseforge/${route.params.id}/versions`, instanceFilters.value),
-	)
-	const projectGalleryHref = computed(() => buildProjectHref(`/curseforge/${route.params.id}/gallery`))
+)
+const projectGalleryHref = computed(() =>
+	buildProjectHref(`/curseforge/${route.params.id}/gallery`),
+)
 
-	const navLinks = computed(() => {
+const navLinks = computed(() => {
 	const links = [
-	{
-	label: 'Description',
-	href: projectDescriptionHref.value,
-	},
-	{
-	label: 'Versions',
-	href: versionsHref.value,
-	subpages: ['version'],
-	shown: projectV3.value?.minecraft_server == null,
-	},
+		{
+			label: 'Description',
+			href: projectDescriptionHref.value,
+		},
+		{
+			label: 'Versions',
+			href: versionsHref.value,
+			subpages: ['version'],
+			shown: projectV3.value?.minecraft_server == null,
+		},
 	]
 	if (data.value?.gallery && data.value.gallery.length > 0) {
-	links.push({
-	label: 'Gallery',
-	href: projectGalleryHref.value,
-	})
+		links.push({
+			label: 'Gallery',
+			href: projectGalleryHref.value,
+		})
 	}
 	return links
-	})
+})
 
-	const projectBrowseBackUrl = computed(() => {
+const projectBrowseBackUrl = computed(() => {
 	const browsePath = route.query.b
 	if (typeof browsePath === 'string' && browsePath.startsWith('/browse/')) return browsePath
 	const type = data.value?.project_type ? `${data.value.project_type}` : 'mod'
 	return `/browse/${type}`
-	})
+})
 
-	const projectInstallContext = computed(() => {
+const projectInstallContext = computed(() => {
 	const serverData = serverInstallContent.serverContextServerData.value
 	if (serverData) {
-	return {
-	name: serverData.name,
-	loader: serverData.loader ?? '',
-	gameVersion: serverData.mc_version ?? '',
-	serverId: serverInstallContent.serverIdQuery.value,
-	upstream: serverData.upstream,
-	iconSrc: null,
-	isMedal: serverData.is_medal,
-	backUrl: projectBrowseBackUrl.value,
-	backLabel: formatMessage(messages.backToBrowse),
-	heading: serverInstallContent.serverBrowseHeading.value,
-	queuedCount: serverInstallContent.queuedServerInstallCount.value,
-	selectedProjects: serverInstallContent.selectedServerInstallProjects.value,
-	isInstallingSelected: serverInstallContent.isInstallingQueuedServerInstalls.value,
-	installProgress: serverInstallContent.queuedInstallProgress.value,
-	clearQueued: serverInstallContent.clearQueuedServerInstalls,
-	clearSelected: serverInstallContent.clearQueuedServerInstalls,
-	discardSelectedAndBack: serverInstallContent.discardQueuedServerInstallsAndBack,
-	installSelected: serverInstallContent.installQueuedServerInstallsAndBack,
-	}
+		return {
+			name: serverData.name,
+			loader: serverData.loader ?? '',
+			gameVersion: serverData.mc_version ?? '',
+			serverId: serverInstallContent.serverIdQuery.value,
+			upstream: serverData.upstream,
+			iconSrc: null,
+			isMedal: serverData.is_medal,
+			backUrl: projectBrowseBackUrl.value,
+			backLabel: formatMessage(messages.backToBrowse),
+			heading: serverInstallContent.serverBrowseHeading.value,
+			queuedCount: serverInstallContent.queuedServerInstallCount.value,
+			selectedProjects: serverInstallContent.selectedServerInstallProjects.value,
+			isInstallingSelected: serverInstallContent.isInstallingQueuedServerInstalls.value,
+			installProgress: serverInstallContent.queuedInstallProgress.value,
+			clearQueued: serverInstallContent.clearQueuedServerInstalls,
+			clearSelected: serverInstallContent.clearQueuedServerInstalls,
+			discardSelectedAndBack: serverInstallContent.discardQueuedServerInstallsAndBack,
+			installSelected: serverInstallContent.installQueuedServerInstallsAndBack,
+		}
 	}
 
 	if (instance.value) {
-	return {
-	name: instance.value.name,
-	loader: instance.value.loader,
-	gameVersion: instance.value.game_version,
-	iconSrc: instance.value.icon_path ? convertFileSrc(instance.value.icon_path) : null,
-	backUrl: projectBrowseBackUrl.value,
-	backLabel: formatMessage(messages.backToBrowse),
-	heading: formatMessage(messages.installContentToInstance),
-	}
+		return {
+			name: instance.value.name,
+			loader: instance.value.loader,
+			gameVersion: instance.value.game_version,
+			iconSrc: instance.value.icon_path ? convertFileSrc(instance.value.icon_path) : null,
+			backUrl: projectBrowseBackUrl.value,
+			backLabel: formatMessage(messages.backToBrowse),
+			heading: formatMessage(messages.installContentToInstance),
+		}
 	}
 
 	return null
-	})
+})
 
-	const serverProjectInstallContext = computed(
+const serverProjectInstallContext = computed(
 	() =>
-	!!serverInstallContent.serverContextServerData.value &&
-	['modpack', 'mod', 'plugin', 'datapack'].includes(data.value?.project_type),
-	)
-	const serverProjectSelected = computed(
+		!!serverInstallContent.serverContextServerData.value &&
+		['modpack', 'mod', 'plugin', 'datapack'].includes(data.value?.project_type),
+)
+const serverProjectSelected = computed(
 	() => !!data.value && serverInstallContent.queuedServerInstallProjectIds.value.has(data.value.id),
-	)
-	const serverProjectInstalled = computed(
+)
+const serverProjectInstalled = computed(
 	() =>
-	!!data.value &&
-	(serverInstallContent.serverContentProjectIds.value.has(data.value.id) ||
-	serverInstallContent.serverContextServerData.value?.upstream?.project_id === data.value.id),
-	)
-	const installButtonLoading = computed(
+		!!data.value &&
+		(serverInstallContent.serverContentProjectIds.value.has(data.value.id) ||
+			serverInstallContent.serverContextServerData.value?.upstream?.project_id === data.value.id),
+)
+const installButtonLoading = computed(
 	() => installing.value || serverInstallContent.isInstallingQueuedServerInstalls.value,
-	)
-	const installButtonValidating = computed(
+)
+const installButtonValidating = computed(
 	() =>
-	serverProjectInstallContext.value &&
-	installing.value &&
-	data.value?.project_type !== 'modpack' &&
-	!serverInstallContent.isInstallingQueuedServerInstalls.value,
-	)
-	const installButtonInstalled = computed(() =>
+		serverProjectInstallContext.value &&
+		installing.value &&
+		data.value?.project_type !== 'modpack' &&
+		!serverInstallContent.isInstallingQueuedServerInstalls.value,
+)
+const installButtonInstalled = computed(() =>
 	serverProjectInstallContext.value ? serverProjectInstalled.value : installed.value,
-	)
-	const installButtonDisabled = computed(
+)
+const installButtonDisabled = computed(
 	() => installButtonInstalled.value || installButtonLoading.value,
-	)
-	const installButtonLabel = computed(() => {
+)
+const installButtonLabel = computed(() => {
 	if (installButtonInstalled.value) return formatMessage(commonMessages.installedLabel)
 	if (installButtonValidating.value) return formatMessage(commonMessages.validatingLabel)
 	if (installButtonLoading.value) return formatMessage(commonMessages.installingLabel)
 	if (serverProjectSelected.value) return formatMessage(commonMessages.selectedLabel)
 	return formatMessage(commonMessages.installButton)
-	})
-	const installButtonTooltip = computed(() => {
+})
+const installButtonTooltip = computed(() => {
 	if (installButtonInstalled.value) return formatMessage(messages.alreadyInstalled)
 	return null
-	})
+})
 
-	const [allLoaders, allGameVersions] = await Promise.all([
+const [allLoaders, allGameVersions] = await Promise.all([
 	get_loaders().catch(handleError).then(ref),
 	get_game_versions().catch(handleError).then(ref),
-	])
+])
 
-	async function fetchProjectData() {
+async function fetchProjectData() {
 	const modId = Number(route.params.id)
 
 	if (isNaN(modId) || modId <= 0) {
-	handleError('Invalid mod ID')
-	return
+		handleError('Invalid mod ID')
+		return
 	}
 
 	try {
-	const [details, fileList] = await Promise.all([
-	cf_get_mod_details(modId).catch((err) => {
-	console.error('Failed to fetch mod details:', err)
-	return null
-	}),
-	cf_get_files(modId).catch((err) => {
-	console.error('Failed to fetch files:', err)
-	return []
-	}),
-	])
+		const [details, fileList] = await Promise.all([
+			cf_get_mod_details(modId).catch((err) => {
+				console.error('Failed to fetch mod details:', err)
+				return null
+			}),
+			cf_get_files(modId).catch((err) => {
+				console.error('Failed to fetch files:', err)
+				return []
+			}),
+		])
 
-	if (!details) {
-	handleError('Project not found on CurseForge')
-	return
-	}
+		if (!details) {
+			handleError('Project not found on CurseForge')
+			return
+		}
 
-	const modData = details.mod_data || {}
-	const screenshots = details.screenshots || []
-	const categoriesData = modData.categories || []
-	const authorsData = modData.authors || []
-	const fileListSafe = fileList || []
+		const modData = details.mod_data || {}
+		const screenshots = details.screenshots || []
+		const categoriesData = modData.categories || []
+		const authorsData = modData.authors || []
+		const fileListSafe = fileList || []
 
-	data.value = {
-	id: modData.id ? String(modData.id) : String(modId),
-	title: modData.name || 'Unknown Project',
-	name: modData.name || 'Unknown Project',
-	slug: modData.slug || String(modId),
-	summary: modData.summary || 'No description available',
-	body: details.description || 'No description available',
-	icon_url: modData.logo?.thumbnailUrl || modData.logo?.url || null,
-	project_type: cfClassIdToProjectType(modData.classId),
-	gallery: screenshots.map((s) => ({
-	url: s.url || '',
-	thumbnail: s.thumbnailUrl || s.url || '',
-	title: s.title || '',
-	description: s.title || '',
-	created: new Date().toISOString(),
-	})),
-	categories: categoriesData.map((c) => c.name || 'Unknown'),
-	additional_categories: [],
-	authors: authorsData.map((a) => ({
-	username: a.name || 'Unknown',
-	name: a.name || 'Unknown',
-	avatar_url: 'https://www.curseforge.com/favicon.ico',
-	})),
-	downloads: Math.floor(modData.downloadCount || 0),
-	date_modified: modData.dateModified || new Date().toISOString(),
-	loaders: fileListSafe.flatMap((f) => f.gameVersions || []),
-	versions: [],
-	}
+		data.value = {
+			id: modData.id ? String(modData.id) : String(modId),
+			title: modData.name || 'Unknown Project',
+			name: modData.name || 'Unknown Project',
+			slug: modData.slug || String(modId),
+			summary: modData.summary || 'No description available',
+			body: details.description || 'No description available',
+			icon_url: modData.logo?.thumbnailUrl || modData.logo?.url || null,
+			project_type: cfClassIdToProjectType(modData.classId),
+			gallery: screenshots.map((s) => ({
+				url: s.url || '',
+				thumbnail: s.thumbnailUrl || s.url || '',
+				title: s.title || '',
+				description: s.title || '',
+				created: new Date().toISOString(),
+			})),
+			categories: categoriesData.map((c) => c.name || 'Unknown'),
+			additional_categories: [],
+			authors: authorsData.map((a) => ({
+				username: a.name || 'Unknown',
+				name: a.name || 'Unknown',
+				avatar_url: 'https://www.curseforge.com/favicon.ico',
+			})),
+			downloads: Math.floor(modData.downloadCount || 0),
+			date_modified: modData.dateModified || new Date().toISOString(),
+			loaders: fileListSafe.flatMap((f) => f.gameVersions || []),
+			versions: [],
+		}
 
-	files.value = fileListSafe
-	members.value = data.value.authors
-	breadcrumbs.setName('Project', data.value.title)
+		files.value = fileListSafe
+		members.value = data.value.authors
+		breadcrumbs.setName('Project', data.value.title)
 
-	if (route.query.i) {
-	instance.value = await getInstance(route.query.i as string).catch(handleError)
-	if (instance.value) {
-	const contentItems = await getContentItems(route.query.i as string).catch(() => [])
-	const installedItem = contentItems.find((item) => item.cf_mod_id === modId)
-	if (installedItem) {
-	installed.value = true
-	installedVersion.value = installedItem.version?.id ?? null
-	} else {
-	// Тот же мод уже установлен с Modrinth — по совпадению названия
-	const counterpart = findInstalledCounterpart(data.value.title, contentItems)
-	if (counterpart) {
-	installed.value = true
-	installedVersion.value = null
-	}
-	}
-	}
-	}
+		if (route.query.i) {
+			instance.value = await getInstance(route.query.i as string).catch(handleError)
+			if (instance.value) {
+				const contentItems = await getContentItems(route.query.i as string).catch(() => [])
+				const installedItem = contentItems.find((item) => item.cf_mod_id === modId)
+				if (installedItem) {
+					installed.value = true
+					installedVersion.value = installedItem.version?.id ?? null
+				} else {
+					// Тот же мод уже установлен с Modrinth — по совпадению названия
+					const counterpart = findInstalledCounterpart(data.value.title, contentItems)
+					if (counterpart) {
+						installed.value = true
+						installedVersion.value = null
+					}
+				}
+			}
+		}
 	} catch (error) {
-	console.error('Error in fetchProjectData:', error)
-	handleError('Failed to load project data')
+		console.error('Error in fetchProjectData:', error)
+		handleError('Failed to load project data')
 	}
-	}
+}
 
-	await fetchProjectData()
+await fetchProjectData()
 
-	let unlistenProcesses
-	process_listener((e) => {
+let unlistenProcesses
+process_listener((e) => {
 	if (
-	e.event === 'finished' &&
-	serverInstancePath.value &&
-	e.profile_path_id === serverInstancePath.value
+		e.event === 'finished' &&
+		serverInstancePath.value &&
+		e.profile_path_id === serverInstancePath.value
 	) {
-	serverPlaying.value = false
+		serverPlaying.value = false
 	}
-	}).then((unlisten) => {
+}).then((unlisten) => {
 	unlistenProcesses = unlisten
-	})
+})
 
-	onUnmounted(() => {
+onUnmounted(() => {
 	unlistenProcesses?.()
-	})
+})
 
-	watch(
+watch(
 	() => route.params.id,
 	async () => {
-	if (route.params.id && route.path.startsWith('/curseforge')) {
-	await fetchProjectData()
-	}
+		if (route.params.id && route.path.startsWith('/curseforge')) {
+			await fetchProjectData()
+		}
 	},
-	)
+)
 
-	async function install(version) {
+async function install(version) {
 	if (serverProjectInstallContext.value && data.value) {
-	if (serverProjectSelected.value) {
-	serverInstallContent.removeQueuedServerInstall(data.value.id)
-	return
-	}
-	if (installButtonDisabled.value) return
+		if (serverProjectSelected.value) {
+			serverInstallContent.removeQueuedServerInstall(data.value.id)
+			return
+		}
+		if (installButtonDisabled.value) return
 
-	installing.value = true
-	try {
-	const contentType = data.value.project_type
-	await requestInstall({
-	project: {
-	...data.value,
-	project_id: data.value.id,
-	icon_url: data.value.icon_url,
-	},
-	contentType,
-	mode: contentType === 'modpack' ? 'immediate' : 'queue',
-	selectedFilters: [],
-	providedFilters: [],
-	overriddenProvidedFilterTypes: [],
-	targetPreferences: getTargetInstallPreferences(
-	{
-	gameVersion: serverInstallContent.serverContextServerData.value?.mc_version,
-	loader: serverInstallContent.serverContextServerData.value?.loader,
-	},
-	contentType,
-	),
-	getProjectVersions: async () => files.value,
-	queue: {
-	get: serverInstallContent.getQueuedServerInstallPlans,
-	set: serverInstallContent.setQueuedServerInstallPlans,
-	},
-	install: (plan) =>
-	serverInstallContent.openServerModpackInstallFlow({
-	projectId: plan.projectId,
-	versionId: plan.versionId,
-	name: plan.project.title ?? plan.project.name ?? data.value.title,
-	iconUrl: plan.project.icon_url ?? undefined,
-	}),
-	})
-	} catch (err) {
-	handleError(err)
-	} finally {
-	installing.value = false
-	}
-	return
+		installing.value = true
+		try {
+			const contentType = data.value.project_type
+			await requestInstall({
+				project: {
+					...data.value,
+					project_id: data.value.id,
+					icon_url: data.value.icon_url,
+				},
+				contentType,
+				mode: contentType === 'modpack' ? 'immediate' : 'queue',
+				selectedFilters: [],
+				providedFilters: [],
+				overriddenProvidedFilterTypes: [],
+				targetPreferences: getTargetInstallPreferences(
+					{
+						gameVersion: serverInstallContent.serverContextServerData.value?.mc_version,
+						loader: serverInstallContent.serverContextServerData.value?.loader,
+					},
+					contentType,
+				),
+				getProjectVersions: async () => files.value,
+				queue: {
+					get: serverInstallContent.getQueuedServerInstallPlans,
+					set: serverInstallContent.setQueuedServerInstallPlans,
+				},
+				install: (plan) =>
+					serverInstallContent.openServerModpackInstallFlow({
+						projectId: plan.projectId,
+						versionId: plan.versionId,
+						name: plan.project.title ?? plan.project.name ?? data.value.title,
+						iconUrl: plan.project.icon_url ?? undefined,
+					}),
+			})
+		} catch (err) {
+			handleError(err)
+		} finally {
+			installing.value = false
+		}
+		return
 	}
 
 	// Модпаки всегда создают отдельный инстанс, независимо от текущего instance
 	if (data.value?.project_type === 'modpack') {
-	installing.value = true
-	try {
-	const modId = Number(data.value.id)
-	const preselected = version ? files.value.find((f) => f.id === version) : undefined
-	const target = preselected
-	? { file: preselected, ...extractFileTarget(preselected) }
-	: resolveLatestFile(files.value)
-	if (!target) {
-	throw new Error('No CurseForge files available for this modpack')
-	}
-	const profilePath = await cf_install_modpack(
-	modId,
-	target.file.id,
-	target.gameVersion,
-	target.loader,
-	)
-	if (profilePath) {
-	router.push(`/instance/${profilePath}`)
-	}
-	} catch (err) {
-	handleError(err)
-	} finally {
-	installing.value = false
-	}
-	return
+		installing.value = true
+		try {
+			const modId = Number(data.value.id)
+			const preselected = version ? files.value.find((f) => f.id === version) : undefined
+			const target = preselected
+				? { file: preselected, ...extractFileTarget(preselected) }
+				: resolveLatestFile(files.value)
+			if (!target) {
+				throw new Error('No CurseForge files available for this modpack')
+			}
+			const profilePath = await cf_install_modpack(
+				modId,
+				target.file.id,
+				target.gameVersion,
+				target.loader,
+			)
+			if (profilePath) {
+				router.push(`/instance/${profilePath}`)
+			}
+		} catch (err) {
+			handleError(err)
+		} finally {
+			installing.value = false
+		}
+		return
 	}
 
 	if (!instance.value) {
-	router.push(`/browse?select=${data.value.id}`)
-	return
+		router.push(`/browse?select=${data.value.id}`)
+		return
 	}
 
 	installing.value = true
 	try {
-	const fileToInstall = version
-	? files.value.find((f) => f.id === version)
-	: files.value[0]
-	if (!fileToInstall) {
-	throw new Error('No file available for installation')
-	}
+		const fileToInstall = version ? files.value.find((f) => f.id === version) : files.value[0]
+		if (!fileToInstall) {
+			throw new Error('No file available for installation')
+		}
 
-	if (installed.value) {
-	await cf_remove_mod(instance.value.path, Number(data.value.id))
-	}
+		if (installed.value) {
+			await cf_remove_mod(instance.value.path, Number(data.value.id))
+		}
 
-	await cf_install_mod(
-	instance.value.path,
-	Number(data.value.id),
-	fileToInstall.id,
-	instance.value.game_version,
-	instance.value.loader,
-	)
+		await cf_install_mod(
+			instance.value.path,
+			Number(data.value.id),
+			fileToInstall.id,
+			instance.value.game_version,
+			instance.value.loader,
+		)
 
-	installed.value = true
-	installedVersion.value = fileToInstall.id
+		installed.value = true
+		installedVersion.value = fileToInstall.id
 	} catch (err) {
-	handleError(err)
+		handleError(err)
 	} finally {
-	installing.value = false
+		installing.value = false
 	}
-	}
+}
 
-	const options = ref(null)
-	const handleRightClick = (event) => {
+const options = ref(null)
+const handleRightClick = (event) => {
 	options.value.showMenu(event, data.value, [
-	{
-	name: 'install',
-	},
-	{
-	type: 'divider',
-	},
-	{
-	name: 'open_link',
-	},
-	{
-	name: 'copy_link',
-	},
+		{
+			name: 'install',
+		},
+		{
+			type: 'divider',
+		},
+		{
+			name: 'open_link',
+		},
+		{
+			name: 'copy_link',
+		},
 	])
-	}
-	const handleOptionsClick = (args) => {
+}
+const handleOptionsClick = (args) => {
 	switch (args.option) {
-	case 'install':
-	install(null)
-	break
-	case 'open_link':
-	openUrl(`https://www.curseforge.com/minecraft/mc-mods/${args.item.slug}`)
-	break
-	case 'copy_link':
-	navigator.clipboard.writeText(
-	`https://www.curseforge.com/minecraft/mc-mods/${args.item.slug}`,
-	)
-	break
+		case 'install':
+			install(null)
+			break
+		case 'open_link':
+			openUrl(`https://www.curseforge.com/minecraft/mc-mods/${args.item.slug}`)
+			break
+		case 'copy_link':
+			navigator.clipboard.writeText(
+				`https://www.curseforge.com/minecraft/mc-mods/${args.item.slug}`,
+			)
+			break
 	}
-	}
+}
 </script>
 
 <style scoped lang="scss">
-	.root-container {
+.root-container {
+	display: flex;
+	flex-direction: row;
+	min-height: 100%;
+}
+
+.project-sidebar {
+	position: fixed;
+	width: calc(300px + 1.5rem);
+	min-height: calc(100vh - 3.25rem);
+	height: fit-content;
+	max-height: calc(100vh - 3.25rem);
+	padding: 1rem 0.5rem 1rem 1rem;
+	overflow-y: auto;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		width: 0;
+		background: transparent;
+	}
+}
+
+.sidebar-card {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.content-container {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 1rem;
+	margin-left: calc(300px + 1rem);
+}
+
+.button-group {
+	display: flex;
+	flex-wrap: wrap;
+	flex-direction: row;
+	gap: 0.5rem;
+}
+
+.stats {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	gap: var(--gap-md);
+
+	.stat {
 		display: flex;
 		flex-direction: row;
-		min-height: 100%;
-	}
+		align-items: center;
+		width: fit-content;
+		gap: var(--gap-xs);
+		--stat-strong-size: 1.25rem;
 
-	.project-sidebar {
-		position: fixed;
-		width: calc(300px + 1.5rem);
-		min-height: calc(100vh - 3.25rem);
-		height: fit-content;
-		max-height: calc(100vh - 3.25rem);
-		padding: 1rem 0.5rem 1rem 1rem;
-		overflow-y: auto;
-		-ms-overflow-style: none;
-		scrollbar-width: none;
+		strong {
+			font-size: var(--stat-strong-size);
+		}
 
-		&::-webkit-scrollbar {
-			width: 0;
-			background: transparent;
+		p {
+			margin: 0;
+		}
+
+		svg {
+			min-height: var(--stat-strong-size);
+			min-width: var(--stat-strong-size);
 		}
 	}
 
-	.sidebar-card {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
+	.date {
+		margin-top: auto;
 	}
+}
 
-	.content-container {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		padding: 1rem;
-		margin-left: calc(300px + 1rem);
-	}
+.tabs {
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+	margin-bottom: var(--gap-md);
+	justify-content: space-between;
 
-	.button-group {
-		display: flex;
-		flex-wrap: wrap;
-		flex-direction: row;
-		gap: 0.5rem;
-	}
-
-	.stats {
-		display: flex;
-		flex-direction: column;
-		flex-wrap: wrap;
-		gap: var(--gap-md);
-
-		.stat {
-			display: flex;
-			flex-direction: row;
-			align-items: center;
-			width: fit-content;
-			gap: var(--gap-xs);
-			--stat-strong-size: 1.25rem;
-
-			strong {
-				font-size: var(--stat-strong-size);
-			}
-
-			p {
-				margin: 0;
-			}
-
-			svg {
-				min-height: var(--stat-strong-size);
-				min-width: var(--stat-strong-size);
-			}
-		}
-
-		.date {
-			margin-top: auto;
-		}
-	}
-
-	.tabs {
+	.tab {
 		display: flex;
 		flex-direction: row;
-		gap: 1rem;
-		margin-bottom: var(--gap-md);
-		justify-content: space-between;
+		align-items: center;
+		border-radius: var(--border-radius);
+		cursor: pointer;
+		transition: background-color 0.2s ease-in-out;
 
-		.tab {
-			display: flex;
-			flex-direction: row;
-			align-items: center;
-			border-radius: var(--border-radius);
-			cursor: pointer;
-			transition: background-color 0.2s ease-in-out;
+		&:hover {
+			background-color: var(--color-raised-bg);
+		}
 
-			&:hover {
-				background-color: var(--color-raised-bg);
-			}
-
-			&.router-view-active {
-				background-color: var(--color-raised-bg);
-			}
+		&.router-view-active {
+			background-color: var(--color-raised-bg);
 		}
 	}
+}
 
-	.links {
-		a {
-			display: inline-flex;
-			align-items: center;
-			border-radius: 1rem;
-			color: var(--color-text);
+.links {
+	a {
+		display: inline-flex;
+		align-items: center;
+		border-radius: 1rem;
+		color: var(--color-text);
 
+		svg,
+		img {
+			height: 1rem;
+			width: 1rem;
+		}
+
+		span {
+			margin-left: 0.25rem;
+			text-decoration: underline;
+			line-height: 2rem;
+		}
+
+		&:focus-visible,
+		&:hover {
 			svg,
-			img {
-				height: 1rem;
-				width: 1rem;
-			}
-
+			img,
 			span {
-				margin-left: 0.25rem;
-				text-decoration: underline;
-				line-height: 2rem;
-			}
-
-			&:focus-visible,
-			&:hover {
-				svg,
-				img,
-				span {
-					color: var(--color-heading);
-				}
-			}
-
-			&:active {
-				svg,
-				img,
-				span {
-					color: var(--color-text-dark);
-				}
-			}
-
-			&:not(:last-child)::after {
-				content: '•';
-				margin: 0 0.25rem;
+				color: var(--color-heading);
 			}
 		}
-	}
 
-	.install-loading {
-		scale: 0.2;
-		height: 1rem;
-		width: 1rem;
-		margin-right: -1rem;
+		&:active {
+			svg,
+			img,
+			span {
+				color: var(--color-text-dark);
+			}
+		}
 
-		:deep(svg) {
-			color: var(--color-contrast);
+		&:not(:last-child)::after {
+			content: '•';
+			margin: 0 0.25rem;
 		}
 	}
+}
 
-	.project-sidebar-section {
-		@apply p-4 flex flex-col gap-2 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid;
+.install-loading {
+	scale: 0.2;
+	height: 1rem;
+	width: 1rem;
+	margin-right: -1rem;
+
+	:deep(svg) {
+		color: var(--color-contrast);
 	}
+}
+
+.project-sidebar-section {
+	@apply p-4 flex flex-col gap-2 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid;
+}
 </style>

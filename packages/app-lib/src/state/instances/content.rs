@@ -18,7 +18,7 @@ pub struct ContentItem {
     pub date_added: Option<String>,
     pub source_kind: Option<ContentSourceKind>,
     //modlex CurseForge
-    pub source: Option<String>,
+    pub platform: Option<String>,
     pub cf_mod_id: Option<u32>,
     //modlex
 }

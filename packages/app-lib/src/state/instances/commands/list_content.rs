@@ -529,6 +529,10 @@ pub(crate) async fn dependencies_to_content_items(
                 update_version_id: None,
                 date_added: None,
                 source_kind: None,
+                // MODLEX: CurseForge support — dependencies aren't installed files,
+                // so there's no sidecar entry to enrich from
+                platform: None,
+                cf_mod_id: None,
             })
         })
         .collect::<Vec<_>>();
@@ -906,9 +910,40 @@ async fn content_files_to_content_items(
                 update_version_id: file.update_version_id.clone(),
                 date_added: modification_times[index].clone(),
                 source_kind: file.source_kind,
+                // MODLEX: CurseForge support (filled in below from the sidecar)
+                platform: None,
+                cf_mod_id: None,
             }
         })
         .collect::<Vec<_>>();
+
+    // MODLEX: обогащаем CF-моды данными из сайдкара
+    // CF всегда побеждает — даже если мод есть на Modrinth, но скачан с CF
+    let cf_sidecar = crate::api::curseforge::read_sidecar(&instance.path).await;
+    if !cf_sidecar.0.is_empty() {
+        for item in &mut items {
+            if let Some(cf_meta) = cf_sidecar.0.get(&item.id) {
+                item.platform = Some("curseforge".to_string());
+                item.cf_mod_id = Some(cf_meta.mod_id);
+                // CF всегда перезаписывает project — игнорируем совпадение с Modrinth
+                item.project = Some(ContentItemProject {
+                    id: cf_meta.mod_id.to_string(),
+                    slug: None,
+                    title: cf_meta.title.clone(),
+                    icon_url: cf_meta.icon_url.clone(),
+                });
+                item.version = Some(ContentItemVersion {
+                    id: cf_meta.file_id.to_string(),
+                    version_number: cf_meta.version.clone(),
+                    file_name: cf_meta.file_name.clone(),
+                    date_published: None,
+                });
+            } else if item.project.is_some() {
+                item.platform = Some("modrinth".to_string());
+            }
+        }
+    }
+
     sort_content_items(&mut items);
 
     Ok(items)

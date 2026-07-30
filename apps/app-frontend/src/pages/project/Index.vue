@@ -284,8 +284,8 @@ import {
 	get_version,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { process_listener } from '@/helpers/events'
 import { findInstalledCounterpart } from '@/helpers/curseforge'
+import { process_listener } from '@/helpers/events'
 import {
 	get as getInstance,
 	get_content_items as getContentItems,

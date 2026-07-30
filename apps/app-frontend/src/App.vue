@@ -46,7 +46,6 @@ import {
 	provideNotificationManager,
 	providePageContext,
 	providePopupNotificationManager,
-	TextLogo,
 	useDebugLogger,
 	useFormatBytes,
 	useHostingIntercom,
@@ -94,6 +93,14 @@ import { get_user, get_version } from '@/helpers/cache.js'
 import { command_listener, notification_listener, warning_listener } from '@/helpers/events.js'
 import { install_create_modpack_instance, install_get_modpack_preview } from '@/helpers/install'
 import { can_current_user_use_shared_instances, get as getInstance, run } from '@/helpers/instance'
+import {
+	refreshFeatureFlags,
+	startFeatureFlagPolling,
+	stopFeatureFlagPolling,
+} from '@/helpers/modlex-feature-flags'
+import { fetchModlexNews } from '@/helpers/modlex-github-news'
+// ===== ModLEX IMPORTS =====
+import { modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
 import { get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { mergeUrlQuery, parseModrinthLink } from '@/helpers/project-links.ts'
 import { get as getSettings, set as setSettings } from '@/helpers/settings.ts'
@@ -135,16 +142,7 @@ import { useError } from '@/store/error.js'
 import { useTheming } from '@/store/state'
 import { appMessages } from '@/utils/app-messages'
 
-// ===== ModLEX IMPORTS =====
-import { modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
-import { fetchModlexNews } from '@/helpers/modlex-github-news'
-import {
-	refreshFeatureFlags,
-	startFeatureFlagPolling,
-	stopFeatureFlagPolling,
-} from '@/helpers/modlex-feature-flags'
 // ===== END ModLEX IMPORTS =====
-
 import { generateSkinPreviews } from './helpers/rendering/batch-skin-renderer'
 import { get_available_capes, get_available_skins } from './helpers/skins'
 import { AppNotificationManager } from './providers/app-notifications'
@@ -210,8 +208,6 @@ const { handleError, addNotification } = notificationManager
 const popupNotificationManager = new AppPopupNotificationManager()
 providePopupNotificationManager(popupNotificationManager)
 const { addPopupNotification } = popupNotificationManager
-let adsConsentPopupId = null
-let unlistenAdsConsent
 
 const appVersion = getVersion()
 const tauriApiClient = new TauriModrinthClient({
@@ -301,17 +297,17 @@ const newsLoading = ref(false)
 
 async function loadNews() {
 	const source = modlexNewsSource.value
-	
+
 	// Если выключено — сразу очищаем и выходим
 	if (source === 'off') {
 		news.value = []
 		newsLoading.value = false
 		return
 	}
-	
+
 	news.value = []
 	newsLoading.value = true
-	
+
 	try {
 		if (source === 'github') {
 			const items = await fetchModlexNews()
@@ -341,9 +337,11 @@ async function loadNews() {
 			if (cached) {
 				news.value = JSON.parse(cached)
 			}
-		} catch {}
+		} catch {
+			// ignore corrupted cache
+		}
 	} finally {
-		await new Promise(resolve => setTimeout(resolve, 300))
+		await new Promise((resolve) => setTimeout(resolve, 300))
 		newsLoading.value = false
 	}
 }
@@ -397,11 +395,6 @@ const authUnreachable = computed(() => {
 
 // ===== MODLEX: скрытие кнопки серверов =====
 const hideServersTab = ref(false)
-
-async function updateHideServersTab() {
-	// Используем импортированный ref из modlex-settings
-	hideServersTab.value = modlexHideServers.value
-}
 // ===== END MODLEX =====
 
 onMounted(async () => {
@@ -411,12 +404,6 @@ onMounted(async () => {
 	startFeatureFlagPolling()
 
 	await useCheckDisableMouseover()
-	try {
-		unlistenAdsConsent = await ads_consent_listener(handleAdsConsentRequired)
-		handleAdsConsentRequired(await should_show_ads_consent_popup())
-	} catch (error) {
-		handleError(error)
-	}
 
 	document.querySelector('body').addEventListener('click', handleClick)
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
@@ -442,7 +429,6 @@ onUnmounted(async () => {
 	clearDelayedUpdatePopup()
 	stopFeatureFlagPolling()
 
-	await unlistenAdsConsent?.()
 	await unlistenUpdateDownload?.()
 })
 
@@ -537,54 +523,6 @@ const messages = defineMessages({
 		defaultMessage: 'Playing as',
 	},
 })
-
-function handleAdsConsentRequired(required) {
-	if (!required) {
-		if (adsConsentPopupId !== null) {
-			popupNotificationManager.removeNotification(adsConsentPopupId)
-			adsConsentPopupId = null
-		}
-		return
-	}
-
-	if (
-		adsConsentPopupId !== null &&
-		popupNotificationManager.getNotifications().some((item) => item.id === adsConsentPopupId)
-	) {
-		return
-	}
-
-	const notification = addPopupNotification({
-		title: formatMessage(messages.adsConsentTitle),
-		text: formatMessage(messages.adsConsentBody),
-		type: 'info',
-		hideIcon: true,
-		autoCloseMs: null,
-		dismissible: false,
-		buttons: [
-			{
-				label: formatMessage(messages.adsConsentManage),
-				action: () => perform_ads_consent_action('manage').catch(handleError),
-				color: 'standard',
-				keepOpen: true,
-			},
-			{
-				label: formatMessage(messages.adsConsentReject),
-				action: () => perform_ads_consent_action('reject').catch(handleError),
-				color: 'brand',
-				keepOpen: true,
-			},
-			{
-				label: formatMessage(messages.adsConsentAccept),
-				action: () => perform_ads_consent_action('accept').catch(handleError),
-				color: 'brand',
-				keepOpen: true,
-			},
-		],
-	})
-
-	adsConsentPopupId = notification.id
-}
 
 async function setupApp() {
 	const {
@@ -1826,8 +1764,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 							<FriendsList :credentials="credentials" :sign-in="() => requestSignIn()" />
 						</suspense>
 					</div>
-					<PrideFundraiserBanner v-if="prideFundraiserEnabled"
-										   class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid" />
+					<PrideFundraiserBanner
+						v-if="prideFundraiserEnabled"
+						class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid"
+					/>
 					<!-- ===== MODLEX NEWS ===== -->
 					<div v-if="modlexNewsSource !== 'off'" class="p-4 flex flex-col items-center">
 						<!-- Заголовок -->
@@ -1835,19 +1775,32 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 						<!-- Состояние загрузки -->
 						<div v-if="newsLoading" class="w-full flex flex-col items-center justify-center py-8">
-							<div class="w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+							<div
+								class="w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"
+							></div>
 							<p class="text-secondary text-sm mt-3">Загрузка новостей...</p>
 						</div>
 
 						<!-- Новости -->
-						<div v-else-if="news && news.length > 0" class="space-y-4 flex flex-col items-center w-full">
-							<NewsArticleCard v-for="(item, index) in news"
-											 :key="`news-${index}`"
-											 :article="item" />
+						<div
+							v-else-if="news && news.length > 0"
+							class="space-y-4 flex flex-col items-center w-full"
+						>
+							<NewsArticleCard
+								v-for="(item, index) in news"
+								:key="`news-${index}`"
+								:article="item"
+							/>
 							<ButtonStyled color="brand" size="large">
-								<a :href="modlexNewsSource === 'github' ? 'https://github.com/gussiak/ModeLEX/releases' : 'https://modrinth.com/news'"
-								   target="_blank"
-								   class="my-4">
+								<a
+									:href="
+										modlexNewsSource === 'github'
+											? 'https://github.com/gussiak/ModeLEX/releases'
+											: 'https://modrinth.com/news'
+									"
+									target="_blank"
+									class="my-4"
+								>
 									<NewspaperIcon />
 									{{ modlexNewsSource === 'github' ? 'View all releases' : 'View all news' }}
 								</a>
@@ -1954,33 +1907,33 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	-webkit-app-region: no-drag;
 }
 
-	.app-contents {
-		position: absolute;
-		z-index: 1;
-		left: var(--left-bar-width);
-		top: var(--top-bar-height);
-		right: 0;
-		bottom: 0;
-		height: calc(100vh - var(--top-bar-height));
-		background-color: var(--color-bg);
-		border-top-left-radius: var(--radius-xl);
-		display: grid;
-		grid-template-columns: 1fr 0px;
-		// transition: grid-template-columns 0.4s ease-in-out;
+.app-contents {
+	position: absolute;
+	z-index: 1;
+	left: var(--left-bar-width);
+	top: var(--top-bar-height);
+	right: 0;
+	bottom: 0;
+	height: calc(100vh - var(--top-bar-height));
+	background-color: var(--color-bg);
+	border-top-left-radius: var(--radius-xl);
+	display: grid;
+	grid-template-columns: 1fr 0px;
+	// transition: grid-template-columns 0.4s ease-in-out;
 
-		&.sidebar-enabled {
-			grid-template-columns: 1fr 300px;
-		}
-		// Анимация для новостей
-		.news-enter-active {
-			transition: all 0.3s ease-out;
-		}
-
-		.news-enter-from {
-			opacity: 0;
-			transform: translateY(-10px);
-		}
+	&.sidebar-enabled {
+		grid-template-columns: 1fr 300px;
 	}
+	// Анимация для новостей
+	.news-enter-active {
+		transition: all 0.3s ease-out;
+	}
+
+	.news-enter-from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+}
 
 .loading-indicator-container {
 	border-top-left-radius: var(--radius-xl);

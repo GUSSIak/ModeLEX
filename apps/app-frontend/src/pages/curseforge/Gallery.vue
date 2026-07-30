@@ -37,11 +37,7 @@
 							</button>
 						</ButtonStyled>
 						<ButtonStyled circular>
-							<a
-								class="open btn icon-only"
-								target="_blank"
-								:href="expandedGalleryItem.url"
-							>
+							<a class="open btn icon-only" target="_blank" :href="expandedGalleryItem.url">
 								<ExternalIcon aria-hidden="true" />
 							</a>
 						</ButtonStyled>
