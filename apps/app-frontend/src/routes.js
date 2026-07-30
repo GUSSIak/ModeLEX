@@ -5,6 +5,7 @@ import * as Hosting from '@/pages/hosting/manage'
 import * as Instance from '@/pages/instance'
 import * as Library from '@/pages/library'
 import * as Project from '@/pages/project'
+import * as CurseForge from '@/pages/curseforge'
 
 /**
  * Configures application routing. Add page to pages/index and then add to route table here.
@@ -192,20 +193,60 @@ export default new createRouter({
 			],
 		},
 		{
+			path: '/curseforge/:id',
+			name: 'CurseForgeProject',
+			component: CurseForge.Index,
+			props: true,
+			children: [
+				{
+					path: '',
+					name: 'CurseForgeDescription',
+					component: CurseForge.Description,
+					meta: {
+						useContext: true,
+						breadcrumb: [{ name: '?CurseForgeProject' }],
+					},
+				},
+				{
+					path: 'versions',
+					name: 'CurseForgeVersions',
+					component: CurseForge.Versions,
+					meta: {
+						useContext: true,
+						breadcrumb: [{ name: '?CurseForgeProject', link: '/curseforge/{id}/' }, { name: 'Versions' }],
+					},
+				},
+				{
+					path: 'version/:version',
+					name: 'CurseForgeVersion',
+					component: CurseForge.Version,
+					props: true,
+					meta: {
+						useContext: true,
+						breadcrumb: [
+							{ name: '?CurseForgeProject', link: '/curseforge/{id}/' },
+							{ name: 'Versions', link: '/curseforge/{id}/versions' },
+							{ name: '?Version' },
+						],
+					},
+				},
+				{
+					path: 'gallery',
+					name: 'CurseForgeGallery',
+					component: CurseForge.Gallery,
+					meta: {
+						useContext: true,
+						breadcrumb: [{ name: '?CurseForgeProject', link: '/curseforge/{id}/' }, { name: 'Gallery' }],
+					},
+				},
+			],
+		},
+		{
 			path: '/instance/:id',
 			name: 'Instance',
 			component: Instance.Index,
 			props: true,
 			children: [
-				// {
-				//   path: '',
-				//   name: 'Overview',
-				//   component: Instance.Overview,
-				//   meta: {
-				//     useRootContext: true,
-				//     breadcrumb: [{ name: '?Instance' }],
-				//   },
-				// },
 				{
 					path: 'worlds',
 					name: 'InstanceWorlds',
@@ -248,7 +289,6 @@ export default new createRouter({
 					component: Instance.Logs,
 					meta: {
 						useRootContext: true,
-						// renderMode: 'fixed',
 						breadcrumb: [{ name: '?Instance', link: '/instance/{id}/' }, { name: 'Logs' }],
 					},
 				},
@@ -259,7 +299,6 @@ export default new createRouter({
 	linkExactActiveClass: 'router-link-exact-active',
 	scrollBehavior(to, from) {
 		if (to.path === from.path) return
-		// Sometimes Vue's scroll behavior is not working as expected, so we need to manually scroll to top (especially on Linux)
 		document.querySelector('.app-viewport')?.scrollTo(0, 0)
 		return {
 			el: '.app-viewport',

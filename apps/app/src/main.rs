@@ -26,20 +26,36 @@ mod updater_impl_noop;
 #[tracing::instrument(skip_all)]
 #[tauri::command]
 async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
-    tracing::info!("Initializing app event state...");
+    tracing::info!("🔍 initialize_state: START");
+    
+    tracing::info!("🔍 1. Initializing app event state...");
     theseus::EventState::init(app.clone()).await?;
+    tracing::info!("🔍 2. App event state initialized");
 
-    tracing::info!("Initializing app state...");
+    tracing::info!("🔍 3. Initializing app state...");
     State::init(app.config().identifier.clone()).await?;
+    tracing::info!("🔍 4. App state initialized");
 
+    tracing::info!("🔍 5. Getting state...");
     let state = State::get().await?;
+    tracing::info!("🔍 6. State retrieved");
+
+    tracing::info!("🔍 7. Allowing asset protocol for caches_dir...");
     app.asset_protocol_scope()
         .allow_directory(state.directories.caches_dir(), true)?;
+    tracing::info!("🔍 8. Asset protocol allowed for caches_dir");
+    
+    tracing::info!("🔍 9. Allowing asset protocol for icons...");
     app.asset_protocol_scope()
         .allow_directory(state.directories.caches_dir().join("icons"), true)?;
+    tracing::info!("🔍 10. Asset protocol allowed for icons");
+    
+    tracing::info!("🔍 11. Allowing fs scope for profiles_dir...");
     app.fs_scope()
         .allow_directory(state.directories.profiles_dir(), true)?;
+    tracing::info!("🔍 12. FS scope allowed for profiles_dir");
 
+    tracing::info!("🔍 initialize_state: COMPLETED");
     Ok(())
 }
 
@@ -47,8 +63,10 @@ async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
 #[tracing::instrument(skip_all)]
 #[tauri::command]
 fn show_window(app: tauri::AppHandle) {
+    tracing::info!("🔍 show_window: START");
     let win = app.get_window("main").unwrap();
     if let Err(e) = win.show() {
+        tracing::error!("🔍 show_window: ERROR - {}", e);
         DialogBuilder::message()
             .set_level(MessageLevel::Error)
             .set_title("Initialization error")
@@ -60,6 +78,7 @@ fn show_window(app: tauri::AppHandle) {
             .unwrap();
         panic!("cannot display application window")
     } else {
+        tracing::info!("🔍 show_window: Window shown");
         let _ = win.set_focus();
     }
 }
@@ -149,6 +168,7 @@ fn main() {
         );
     }
 
+    tracing::info!("🔍 A: Registering standard plugins...");
     builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(payload) = args.get(1) {
@@ -181,6 +201,7 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
+            tracing::info!("🔍 B: Setup callback START");
             #[cfg(target_os = "macos")]
             {
                 let payload = macos::deep_link::get_or_init_payload(app);
@@ -226,9 +247,11 @@ fn main() {
                 tracing::warn!("Failed to set window shadow: {e}");
             }
 
+            tracing::info!("🔍 B: Setup callback COMPLETED");
             Ok(())
         });
 
+    tracing::info!("🔍 C: Registering custom plugins...");
     builder = builder
         .plugin(api::auth::init())
         .plugin(api::mr_auth::init())
@@ -246,9 +269,12 @@ fn main() {
         .plugin(api::utils::init())
         .plugin(api::cache::init())
         .plugin(api::files::init())
-        .plugin(api::ads::init())
+//        .plugin(api::ads::init())
         .plugin(api::friends::init())
         .plugin(api::worlds::init())
+        //modlex
+        .plugin(api::curseforge::init())
+        //modlex
         .manage(PendingUpdateData::default())
         .invoke_handler(tauri::generate_handler![
             initialize_state,
@@ -263,11 +289,13 @@ fn main() {
             restart_app,
         ]);
 
-    tracing::info!("Initializing app...");
+    tracing::info!("🔍 D: Building tauri app...");
     let app = builder.build(tauri_context);
+    tracing::info!("🔍 E: Tauri app built");
 
     match app {
         Ok(app) => {
+            tracing::info!("🔍 F: Running app...");
             app.run(|app, event| {
                 #[cfg(not(any(feature = "updater", target_os = "macos")))]
                 let _ = app;
@@ -370,9 +398,10 @@ fn main() {
                     }
                 }
             });
+            tracing::info!("🔍 G: App finished");
         }
         Err(e) => {
-            tracing::error!("Error while running tauri application: {:?}", e);
+            tracing::error!("🔍 H: Error building app: {:?}", e);
 
             #[cfg(target_os = "windows")]
             {

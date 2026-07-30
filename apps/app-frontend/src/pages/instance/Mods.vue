@@ -1106,7 +1106,13 @@ provideContentManager({
 			icon_url: null,
 		},
 		projectLink: item.project?.id
-			? { path: `/project/${item.project.id}`, query: { i: props.instance.path } }
+			? {
+					path:
+						item.source === 'curseforge'
+							? `/curseforge/${item.project.id}`
+							: `/project/${item.project.id}`,
+					query: { i: props.instance.path },
+				}
 			: undefined,
 		version: item.version ?? {
 			id: item.file_name,
@@ -1116,7 +1122,10 @@ provideContentManager({
 		versionLink:
 			item.project?.id && item.version?.id
 				? {
-						path: `/project/${item.project.id}/version/${item.version.id}`,
+						path:
+							item.source === 'curseforge'
+								? `/curseforge/${item.project.id}/version/${item.version.id}`
+								: `/project/${item.project.id}/version/${item.version.id}`,
 						query: { i: props.instance.path },
 					}
 				: undefined,
@@ -1128,6 +1137,7 @@ provideContentManager({
 			: undefined,
 		enabled: item.enabled,
 		installing: item.installing,
+		source: item.source,
 	}),
 	filterPersistKey: props.instance.path,
 })

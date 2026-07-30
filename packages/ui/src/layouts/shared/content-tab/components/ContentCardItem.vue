@@ -30,6 +30,7 @@ import type {
 	ContentCardProject,
 	ContentCardVersion,
 	ContentOwner,
+	ContentSource,
 } from '../types'
 
 const { formatMessage } = useVIntl()
@@ -54,6 +55,7 @@ interface Props {
 	clientWarning?: ClientWarningType | null
 	hideSwitchVersion?: boolean
 	overflowOptions?: OverflowMenuOption[]
+	source?: ContentSource
 	disabled?: boolean
 	disabledTooltip?: string | null
 	toggleDisabled?: boolean
@@ -75,6 +77,7 @@ const props = withDefaults(defineProps<Props>(), {
 	clientWarning: null,
 	hideSwitchVersion: false,
 	overflowOptions: undefined,
+	source: undefined,
 	disabled: false,
 	disabledTooltip: undefined,
 	toggleDisabled: false,
@@ -180,6 +183,15 @@ const deleteHovered = ref(false)
 						>
 							{{ project.title }}
 						</AutoLink>
+						<span
+							v-if="source === 'curseforge'"
+							v-tooltip="'CurseForge'"
+							class="inline-flex size-4 shrink-0 items-center justify-center"
+						>
+							<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
+							</svg>
+						</span>
 						<Tooltip
 							v-if="isClientOnly"
 							theme="dismissable-prompt"

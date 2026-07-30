@@ -316,6 +316,24 @@ fn main() {
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
                     ),
+            )
+            .plugin(
+                "curseforge",
+                InlinedPlugin::new()
+                    .commands(&[
+                        "cf_search",
+                        "cf_get_mod",
+                        "cf_get_files",
+                        "cf_install_mod",
+                        "cf_remove_mod",
+                        "cf_install_modpack",
+                        "cf_get_description",
+                        "cf_get_categories",
+                        "cf_get_mod_details",
+                    ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
             ),
     )
     .expect("Failed to run tauri-build");

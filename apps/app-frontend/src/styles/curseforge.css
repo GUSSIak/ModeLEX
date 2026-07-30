@@ -1,0 +1,27 @@
+/* CurseForge Theme Variables */
+:root {
+  --cf-primary: #F16436;
+  --cf-primary-hover: #d4532a;
+  --cf-primary-active: #b8431f;
+  --cf-primary-light: #ff8a61;
+  --cf-primary-bg: rgba(241, 100, 54, 0.1);
+  --cf-primary-border: rgba(241, 100, 54, 0.3);
+  --cf-gradient-border: rgba(241, 100, 54, 0.2);
+  --cf-badge-bg: rgba(241, 100, 54, 0.15);
+  --cf-badge-text: #F16436;
+  --cf-badge-border: rgba(241, 100, 54, 0.3);
+}
+
+/* CF Sidebar specific overrides */
+.cf-sidebar-wrapper .filter-checkbox:checked {
+  accent-color: var(--cf-primary);
+}
+
+.cf-sidebar-wrapper .filter-option.active {
+  background: var(--cf-primary-bg);
+  color: var(--cf-primary);
+}
+
+.cf-sidebar-wrapper .filter-option:hover {
+  background: rgba(241, 100, 54, 0.08);
+}

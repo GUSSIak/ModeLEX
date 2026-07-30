@@ -83,13 +83,11 @@ import ModpackAlreadyInstalledModal from '@/components/ui/modal/ModpackAlreadyIn
 import UpdateToPlayModal from '@/components/ui/modal/UpdateToPlayModal.vue'
 import NavButton from '@/components/ui/NavButton.vue'
 import PrideFundraiserBanner from '@/components/ui/PrideFundraiserBanner.vue'
-import PromotionWrapper from '@/components/ui/PromotionWrapper.vue'
 import QuickInstanceSwitcher from '@/components/ui/QuickInstanceSwitcher.vue'
 import SplashScreen from '@/components/ui/SplashScreen.vue'
 import WindowControls from '@/components/ui/WindowControls.vue'
 import { useCheckDisableMouseover } from '@/composables/macCssFix.js'
 import { config } from '@/config'
-import { hide_ads_window, init_ads_window, show_ads_window } from '@/helpers/ads.js'
 import { debugAnalytics, initAnalytics, trackEvent } from '@/helpers/analytics'
 import { check_reachable } from '@/helpers/auth.js'
 import { get_user, get_version } from '@/helpers/cache.js'
@@ -136,6 +134,11 @@ import { useTheming } from '@/store/state'
 // ===== ModLEX IMPORTS =====
 import { modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
 import { fetchModlexNews } from '@/helpers/modlex-github-news'
+import {
+	refreshFeatureFlags,
+	startFeatureFlagPolling,
+	stopFeatureFlagPolling,
+} from '@/helpers/modlex-feature-flags'
 // ===== END ModLEX IMPORTS =====
 
 import { generateSkinPreviews } from './helpers/rendering/batch-skin-renderer'
@@ -217,6 +220,14 @@ const { data: authenticatedModrinthUser } = useQuery({
 	enabled: () => !!credentials.value?.session,
 	retry: false,
 })
+
+const hasPlus = computed(
+	() =>
+		!!credentials.value?.user &&
+		(hasMidasBadge(credentials.value.user) ||
+			hasActivePride26Midas(authenticatedModrinthUser.value?.campaigns?.pride_26)),
+)
+
 providePageContext({
 	hierarchicalSidebarAvailable: ref(true),
 	showAds: ref(false),
@@ -234,8 +245,6 @@ providePageContext({
 })
 provideModalBehavior({
 	noblur: computed(() => !themeStore.advancedRendering),
-	onShow: () => hide_ads_window(),
-	onHide: () => show_ads_window(),
 })
 
 const {
@@ -360,17 +369,22 @@ async function updateHideServersTab() {
 // ===== END MODLEX =====
 
 onMounted(async () => {
+	// Проверяем фича-флаги раньше всего остального — чтобы залоченные функции
+	// были заблокированы уже к моменту, когда пользователь может куда-то кликнуть
+	await refreshFeatureFlags()
+	startFeatureFlagPolling()
+
 	await useCheckDisableMouseover()
 
 	document.querySelector('body').addEventListener('click', handleClick)
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
 
 	checkUpdates()
-	
+
 	// ===== MODLEX: загружаем настройки и новости =====
 	hideServersTab.value = modlexHideServers.value
 	await loadNews()
-	
+
 	// Слушаем изменения настроек
 	window.addEventListener('modlex-settings-changed', () => {
 		hideServersTab.value = modlexHideServers.value
@@ -384,6 +398,7 @@ onUnmounted(async () => {
 	document.querySelector('body').removeEventListener('auxclick', handleAuxClick)
 	unsubscribeSidebarToggle()
 	clearDelayedUpdatePopup()
+	stopFeatureFlagPolling()
 
 	await unlistenUpdateDownload?.()
 })
@@ -766,17 +781,6 @@ async function logOut() {
 	await fetchCredentials()
 }
 
-const hasPlus = computed(
-	() =>
-		!!credentials.value?.user &&
-		(hasMidasBadge(credentials.value.user) ||
-			hasActivePride26Midas(authenticatedModrinthUser.value?.campaigns?.pride_26)),
-)
-
-const showAd = computed(
-	() => sidebarVisible.value && !hasPlus.value && credentials.value !== undefined,
-)
-
 async function fetchIntercomToken() {
 	const creds = await getCreds()
 	if (!creds?.session) {
@@ -802,14 +806,6 @@ async function fetchIntercomToken() {
 	}
 	return await response.json()
 }
-
-watch(showAd, () => {
-	if (!showAd.value) {
-		hide_ads_window(true)
-	} else {
-		init_ads_window(true)
-	}
-})
 
 onMounted(() => {
 	invoke('show_window')
@@ -1345,24 +1341,20 @@ async function openSurvey() {
 		onOpen: () => console.info('Opened user survey'),
 		onClose: () => {
 			console.info('Closed user survey')
-			show_ads_window()
 		},
 		onSubmit: () => console.info('Active user survey submitted'),
 	}
 
 	try {
-		hide_ads_window()
 		if (window.Tally?.openPopup) {
 			console.info(`Opening Tally popup for user survey (form ID: ${formId})`)
 			dismissSurvey()
 			window.Tally.openPopup(formId, popupOptions)
 		} else {
 			console.warn('Tally script not yet loaded')
-			show_ads_window()
 		}
 	} catch (e) {
 		console.error('Error opening Tally popup:', e)
-		show_ads_window()
 	}
 
 	console.info(`Found user survey to show with tally_id: ${formId}`)
@@ -1738,16 +1730,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<!-- ===== END MODLEX NEWS ===== -->
 				</div>
 			</div>
-			<template v-if="showAd">
-				<a
-					href="https://modrinth.plus?app"
-					class="absolute bottom-[250px] w-full flex justify-center items-center gap-1 px-4 py-3 text-purple font-medium hover:underline z-10"
-					target="_blank"
-				>
-					<ArrowBigUpDashIcon class="text-2xl" /> Upgrade to Modrinth+
-				</a>
-				<PromotionWrapper />
-			</template>
 		</div>
 	</div>
 	<I18nDebugPanel />
@@ -1887,10 +1869,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-sidebar::after {
 	content: '';
 	position: absolute;
-	bottom: 250px;
+	bottom: 0px;
 	left: 0;
 	right: 0;
-	height: 5rem;
+	height: 15rem;
 	background: var(--brand-gradient-fade-out-color);
 	pointer-events: none;
 }

@@ -8,10 +8,6 @@
 				<h3>{{ image.title }}</h3>
 				{{ image.description }}
 			</div>
-			<span class="gallery-time">
-				<CalendarIcon />
-				{{ formatDate(new Date(image.created)) }}
-			</span>
 		</Card>
 	</div>
 	<div v-if="expandedGalleryItem" class="expanded-image-modal" @click="hideImage">
@@ -19,11 +15,7 @@
 			<img
 				class="image"
 				:class="{ 'zoomed-in': zoomedIn }"
-				:src="
-					expandedGalleryItem.raw_url
-						? expandedGalleryItem.raw_url
-						: 'https://cdn.modrinth.com/placeholder-banner.svg'
-				"
+				:src="expandedGalleryItem.url"
 				:alt="expandedGalleryItem.title ? expandedGalleryItem.title : 'gallery-image'"
 				@click.stop="() => {}"
 			/>
@@ -48,11 +40,7 @@
 							<a
 								class="open btn icon-only"
 								target="_blank"
-								:href="
-									expandedGalleryItem.raw_url
-										? expandedGalleryItem.raw_url
-										: 'https://cdn.modrinth.com/placeholder-banner.svg'
-								"
+								:href="expandedGalleryItem.url"
 							>
 								<ExternalIcon aria-hidden="true" />
 							</a>
@@ -82,7 +70,6 @@
 
 <script setup>
 import {
-	CalendarIcon,
 	ContractIcon,
 	ExpandIcon,
 	ExternalIcon,
@@ -90,18 +77,10 @@ import {
 	RightArrowIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { ButtonStyled, Card, useFormatDateTime } from '@modrinth/ui'
+import { ButtonStyled, Card } from '@modrinth/ui'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { trackEvent } from '@/helpers/analytics'
-
-const MC_SERVER_BANNER_NAME = '__mc_server_banner__'
-
-const formatDate = useFormatDateTime({
-	year: 'numeric',
-	month: 'long',
-	day: 'numeric',
-})
 
 const props = defineProps({
 	project: {
@@ -110,9 +89,7 @@ const props = defineProps({
 	},
 })
 
-const filteredGallery = computed(
-	() => props.project.gallery?.filter((img) => img.title !== MC_SERVER_BANNER_NAME) ?? [],
-)
+const filteredGallery = computed(() => props.project.gallery ?? [])
 
 const expandedGalleryItem = ref(null)
 const expandedGalleryIndex = ref(0)
@@ -207,11 +184,6 @@ onUnmounted(() => {
 		flex-grow: 1;
 		padding: 1rem;
 	}
-
-	.gallery-time {
-		padding: 0 1rem 1rem;
-		vertical-align: center;
-	}
 }
 
 .expanded-image-modal {
@@ -232,43 +204,6 @@ onUnmounted(() => {
 		position: relative;
 		width: calc(100vw - 2 * var(--gap-lg));
 		height: calc(100vh - 2 * var(--gap-lg));
-
-		.circle-button {
-			padding: 0.5rem;
-			line-height: 1;
-			display: flex;
-			max-width: 2rem;
-			color: var(--color-button-text);
-			background-color: var(--color-button-bg);
-			border-radius: var(--size-rounded-max);
-			margin: 0;
-			box-shadow: inset 0px -1px 1px rgb(17 24 39 / 10%);
-
-			&:not(:last-child) {
-				margin-right: 0.5rem;
-			}
-
-			&:hover {
-				background-color: var(--color-button-bg-hover) !important;
-
-				svg {
-					color: var(--color-button-text-hover) !important;
-				}
-			}
-
-			&:active {
-				background-color: var(--color-button-bg-active) !important;
-
-				svg {
-					color: var(--color-button-text-active) !important;
-				}
-			}
-
-			svg {
-				height: 1rem;
-				width: 1rem;
-			}
-		}
 
 		.image {
 			position: absolute;

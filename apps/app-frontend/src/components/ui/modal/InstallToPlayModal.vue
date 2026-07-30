@@ -87,7 +87,6 @@ import {
 } from '@modrinth/ui'
 import { computed, ref } from 'vue'
 
-import { hide_ads_window, show_ads_window } from '@/helpers/ads'
 import { get_project, get_project_many, get_version, get_version_many } from '@/helpers/cache.js'
 import { injectServerInstall } from '@/providers/server-install'
 
@@ -221,13 +220,11 @@ async function show(
 
 	if (modpackVersionIdVal) await fetchData(modpackVersionIdVal)
 
-	hide_ads_window()
 	modal.value?.show(e)
 }
 
 function hide() {
 	modal.value?.hide()
-	show_ads_window()
 }
 
 const messages = defineMessages({

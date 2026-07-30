@@ -57,6 +57,10 @@ pub struct ContentItem {
     pub update_version_id: Option<String>,
     /// When the file was added to the instance (file modification time)
     pub date_added: Option<String>,
+    //modlex CurseForge
+    pub source: Option<String>,
+    pub cf_mod_id: Option<u32>,
+    //modlex
 }
 
 /// Project information for content item display
@@ -568,6 +572,9 @@ async fn profile_files_to_content_items(
                 has_update: file.update_version_id.is_some(),
                 update_version_id: file.update_version_id.clone(),
                 date_added: modification_times[i].clone(),
+                // MODLEX: CurseForge support
+                source: None,
+                cf_mod_id: None,
             }
         })
         .collect();
@@ -588,6 +595,33 @@ async fn profile_files_to_content_items(
             .cmp(&name_b.to_lowercase())
             .then_with(|| a.file_name.cmp(&b.file_name))
     });
+
+    // MODLEX: обогащаем CF-моды данными из сайдкара
+    // CF всегда побеждает — даже если мод есть на Modrinth, но скачан с CF
+    let cf_sidecar = crate::api::curseforge::read_sidecar(profile_path).await;
+    if !cf_sidecar.0.is_empty() {
+        for item in &mut items {
+            if let Some(cf_meta) = cf_sidecar.0.get(&item.id) {
+                item.source = Some("curseforge".to_string());
+                item.cf_mod_id = Some(cf_meta.mod_id);
+                // CF всегда перезаписывает project — игнорируем совпадение с Modrinth
+                item.project = Some(ContentItemProject {
+                    id: cf_meta.mod_id.to_string(),
+                    slug: None,
+                    title: cf_meta.title.clone(),
+                    icon_url: cf_meta.icon_url.clone(),
+                });
+                item.version = Some(ContentItemVersion {
+                    id: cf_meta.file_id.to_string(),
+                    version_number: cf_meta.version.clone(),
+                    file_name: cf_meta.file_name.clone(),
+                    date_published: None,
+                });
+            } else if item.project.is_some() {
+                item.source = Some("modrinth".to_string());
+            }
+        }
+    }
 
     Ok(items)
 }
@@ -760,9 +794,18 @@ pub async fn dependencies_to_content_items(
                 has_update: false,
                 update_version_id: None,
                 date_added: None,
+                // MODLEX: CurseForge support (заполняется ниже из сайдкара)
+                source: None,
+                cf_mod_id: None,
             })
         })
         .collect();
+
+    // MODLEX: обогащаем CF-моды данными из сайдкара
+    // !!! ВАЖНО: здесь profile_path НЕ ПЕРЕДАЁТСЯ, поэтому используем пустой путь
+    // Этот метод используется только для отображения зависимостей, не для установленных модов
+    // CF-моды будут отображаться с пометкой, но без иконки (иконка будет на странице проекта)
+    // Это нормальное поведение для зависимостей
 
     items.sort_by(|a, b| {
         let name_a = a

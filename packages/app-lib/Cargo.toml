@@ -5,6 +5,8 @@ version = "1.0.0-local"
 edition.workspace = true
 
 [dependencies]
+lazy_static = "1.4"
+dotenvy = "0.15"
 ariadne = { workspace = true }
 async-compression = { workspace = true, features = ["gzip", "tokio"] }
 async-minecraft-ping = { workspace = true, features = ["srv"] }

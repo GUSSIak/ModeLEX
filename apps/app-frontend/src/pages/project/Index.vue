@@ -306,8 +306,10 @@ import {
 import { process_listener } from '@/helpers/events'
 import { get_loader_versions as getLoaderManifest } from '@/helpers/metadata'
 import { get_by_profile_path } from '@/helpers/process'
+import { findInstalledCounterpart } from '@/helpers/curseforge'
 import {
 	get as getInstance,
+	get_content_items as getContentItems,
 	get_projects as getInstanceProjects,
 	kill,
 	list as listInstances,
@@ -569,6 +571,16 @@ async function fetchProjectData() {
 		if (installedFile) {
 			installed.value = true
 			installedVersion.value = installedFile.metadata.version_id
+		} else if (route.query.i) {
+			// Тот же мод уже установлен с CurseForge — по совпадению названия
+			const contentItems = await getContentItems(route.query.i).catch(() => [])
+			const counterpart = findInstalledCounterpart(
+				data.value.title,
+				contentItems.filter((item) => item.source === 'curseforge'),
+			)
+			if (counterpart) {
+				installed.value = true
+			}
 		}
 	}
 

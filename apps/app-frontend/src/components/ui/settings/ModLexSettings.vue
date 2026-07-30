@@ -1,6 +1,7 @@
 <template>
 	<div class="flex flex-col gap-6">
-		<!-- Секция: Внешний вид -->
+
+		<!-- Внешний вид -->
 		<div class="settings-section">
 			<h2 class="settings-section__title">Внешний вид</h2>
 			<div class="setting-row">
@@ -12,7 +13,7 @@
 			</div>
 		</div>
 
-		<!-- Секция: Контент -->
+		<!-- Контент -->
 		<div class="settings-section">
 			<h2 class="settings-section__title">Контент</h2>
 			<div class="setting-row">
@@ -24,25 +25,90 @@
 								name="news-source"
 								:options="newsSourceOptions"
 								:get-option-label="getNewsLabel"
-								class="news-dropdown" />
+								class="settings-dropdown" />
 			</div>
 		</div>
+
+		<!-- Платформы поиска -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Платформы</h2>
+			<p class="settings-section__desc">
+				Управляйте источниками при поиске и установке модов.
+				Хотя бы одна платформа должна оставаться включённой.
+			</p>
+
+			<!-- Modrinth -->
+			<div class="setting-row platform-row">
+				<div class="platform-logo modrinth-logo">
+					<img src="https://cdn.modrinth.com/modrinth-new.png" alt="Modrinth" />
+				</div>
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Modrinth</h3>
+					<p class="setting-row__desc">Официальный магазин модов Modrinth.</p>
+				</div>
+				<Toggle v-model="modlexEnableModrinth"
+						:disabled="modlexEnableModrinth && !modlexEnableCurseForge" />
+			</div>
+
+			<!-- CurseForge -->
+			<div class="setting-row platform-row">
+				<div class="platform-logo cf-logo">
+					<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
+					</svg>
+				</div>
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">CurseForge</h3>
+					<p class="setting-row__desc">Крупнейший архив модов для Minecraft.</p>
+				</div>
+				<div class="toggle-lock-wrapper"
+					 :class="{ 'toggle-lock-wrapper--locked': cfLocked }">
+					<Toggle :model-value="modlexEnableCurseForge"
+							:disabled="!modlexEnableModrinth && modlexEnableCurseForge"
+							@update:model-value="onToggleCurseForge" />
+				</div>
+			</div>
+
+			<p v-if="!modlexEnableModrinth && !modlexEnableCurseForge" class="platform-warning">
+				⚠ Включите хотя бы одну платформу.
+			</p>
+		</div>
+
 	</div>
 </template>
 
 <script setup lang="ts">
-	import { DropdownSelect, Toggle } from '@modrinth/ui'
-	import { modlexHideServers, modlexNewsSource, type NewsSource } from '@/helpers/modlex-settings'
+	import { DropdownSelect, injectNotificationManager, Toggle } from '@modrinth/ui'
+	import { useFeatureFlag } from '@/helpers/feature-flags'
+	import {
+	modlexHideServers,
+	modlexNewsSource,
+	modlexEnableModrinth,
+	modlexEnableCurseForge,
+	type NewsSource,
+	} from '@/helpers/modlex-settings'
+
+	const { addNotification } = injectNotificationManager()
 
 	const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
 
 	function getNewsLabel(value: NewsSource): string {
-	const labels: Record<NewsSource, string> = {
-	github: 'GitHub',
-	modrinth: 'Modrinth',
-	off: 'Выключено',
+	return { github: 'GitHub', modrinth: 'Modrinth', off: 'Выключено' }[value] ?? value
 	}
-	return labels[value] ?? value
+
+	const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform')
+
+	function onToggleCurseForge(value: boolean) {
+	if (cfLocked.value) {
+	addNotification({
+	title: 'Функция отключена',
+	text: cfLockedMessage.value,
+	type: 'info',
+	autoCloseMs: 6000,
+	})
+	return
+	}
+	modlexEnableCurseForge.value = value
 	}
 </script>
 
@@ -62,15 +128,21 @@
 	.settings-section__title {
 		font-size: 1.1rem;
 		font-weight: 600;
-		margin-bottom: 1rem;
+		margin-bottom: 0.75rem;
 		color: var(--color-contrast);
+	}
+
+	.settings-section__desc {
+		margin: 0 0 1rem;
+		font-size: 0.875rem;
+		color: var(--color-secondary);
 	}
 
 	.setting-row {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 1.5rem;
+		gap: 1rem;
+		padding: 0.5rem 0;
 	}
 
 	.setting-row__info {
@@ -91,8 +163,54 @@
 		color: var(--color-secondary);
 	}
 
-	.news-dropdown {
+	.platform-row {
+		gap: 0.75rem;
+	}
+
+	.platform-logo {
+		width: 2rem;
+		height: 2rem;
+		flex-shrink: 0;
+		border-radius: 0.375rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+	}
+
+		.platform-logo img,
+		.platform-logo svg {
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
+		}
+
+	.modrinth-logo {
+		background: #1bd96a1a;
+	}
+
+	.cf-logo {
+		background: #F164361a;
+	}
+
+	.settings-dropdown {
 		flex-shrink: 0;
 		min-width: 140px;
 	}
+
+	.platform-warning {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		color: var(--color-orange);
+	}
+
+	.toggle-lock-wrapper--locked {
+		opacity: 0.5;
+		filter: grayscale(1);
+		cursor: not-allowed;
+	}
+
+		.toggle-lock-wrapper--locked :deep(button) {
+			pointer-events: none;
+		}
 </style>

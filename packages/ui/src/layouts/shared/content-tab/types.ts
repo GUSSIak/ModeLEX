@@ -23,6 +23,8 @@ export interface ContentOwner {
 
 export type ClientWarningType = 'retained' | 'depends' | 'environment'
 
+export type ContentSource = 'modrinth' | 'curseforge'
+
 export interface ContentCardTableItem {
 	id: string
 	project: ContentCardProject
@@ -41,6 +43,7 @@ export interface ContentCardTableItem {
 	clientWarning?: ClientWarningType | null
 	hideSwitchVersion?: boolean
 	overflowOptions?: OverflowMenuOption[]
+	source?: ContentSource
 }
 
 export type ContentCardTableSortColumn = 'project' | 'version'
@@ -62,6 +65,7 @@ export interface ContentItem extends Omit<
 	environment?: string
 	pack_client_retained?: boolean
 	pack_client_depends?: boolean
+	cf_mod_id?: number
 	installing?: boolean
 }
 

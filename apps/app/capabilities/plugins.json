@@ -21,6 +21,14 @@
 		"window-state:default",
 		"window-state:allow-restore-state",
 		"window-state:allow-save-window-state",
+		"curseforge:allow-cf-search",
+		"curseforge:allow-cf-get-mod",
+		"curseforge:allow-cf-get-files",
+		"curseforge:allow-cf-install-mod",
+		"curseforge:allow-cf-remove-mod",
+		"curseforge:allow-cf-get-categories",
+		"curseforge:allow-cf-install-modpack",
+		"curseforge:allow-cf-get-mod-details",
 		{
 			"identifier": "http:default",
 			"allow": [
@@ -111,7 +119,6 @@
 		"settings:default",
 		"tags:default",
 		"utils:default",
-		"ads:default",
 		"friends:default",
 		"worlds:default"
 	]

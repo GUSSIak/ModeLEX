@@ -1,4 +1,5 @@
 //! API for interacting with Theseus
+//packages\app-lib\src\api\mod.rs
 pub mod cache;
 pub mod friends;
 pub mod handler;
@@ -15,6 +16,9 @@ pub mod server_address;
 pub mod settings;
 pub mod tags;
 pub mod worlds;
+//modlex
+pub mod curseforge;
+//modlex
 
 pub mod data {
     pub use crate::state::{

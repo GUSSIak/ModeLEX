@@ -7367,6 +7367,7 @@ dependencies = [
  "hickory-resolver 0.25.2",
  "indicatif",
  "itertools",
+ "lazy_static",
  "notify",
  "notify-debouncer-mini",
  "p256",
