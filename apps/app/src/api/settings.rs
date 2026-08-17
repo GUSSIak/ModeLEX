@@ -1,5 +1,6 @@
 use crate::api::Result;
 use tauri::Runtime;
+use theseus::modlex_music::LocalMusicFile;
 use theseus::prelude::*;
 
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -7,7 +8,8 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             settings_get,
             settings_set,
-            cancel_directory_change
+            cancel_directory_change,
+            modlex_list_local_music_files
         ])
         .build()
 }
@@ -35,4 +37,12 @@ pub async fn cancel_directory_change<R: Runtime>(
     let identifier = &app.config().identifier;
     settings::cancel_directory_change(identifier).await?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn modlex_list_local_music_files(
+    folder: &str,
+) -> Result<Vec<LocalMusicFile>> {
+    let res = theseus::modlex_music::list_local_music_files(folder).await?;
+    Ok(res)
 }

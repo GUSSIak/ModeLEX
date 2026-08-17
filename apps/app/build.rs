@@ -223,6 +223,7 @@ fn main() {
                         "instance_update_managed_modrinth_version",
                         "instance_repair_managed_modrinth",
                         "instance_run",
+                        "instance_run_as_account",
                         "instance_kill",
                         "instance_edit",
                         "instance_edit_icon",

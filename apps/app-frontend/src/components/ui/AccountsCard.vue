@@ -70,10 +70,16 @@
 				<div v-for="account in accounts" :key="account.profile.id" class="flex gap-1 items-center">
 					<button
 						class="flex items-center flex-shrink flex-grow overflow-clip gap-2 p-2 border-0 bg-transparent cursor-pointer button-base min-w-0"
+						:class="{ 'opacity-60 cursor-wait': !!switchingAccountId }"
+						:disabled="!!switchingAccountId"
 						@click="setAccount(account)"
 					>
+						<SpinnerIcon
+							v-if="switchingAccountId === account.profile.id"
+							class="w-5 h-5 text-brand shrink-0 animate-spin"
+						/>
 						<RadioButtonCheckedIcon
-							v-if="selectedAccount && selectedAccount.profile.id === account.profile.id"
+							v-else-if="selectedAccount && selectedAccount.profile.id === account.profile.id"
 							class="w-5 h-5 text-brand shrink-0"
 						/>
 						<RadioButtonIcon v-else class="w-5 h-5 text-secondary shrink-0" />
@@ -107,6 +113,7 @@
 						<button
 							v-tooltip="formatMessage(messages.removeAccount)"
 							class="mr-2"
+							:disabled="!!switchingAccountId"
 							@click="logout(account.profile.id)"
 						>
 							<TrashIcon />
@@ -206,13 +213,13 @@ import { trackEvent } from '@/helpers/analytics'
 import {
 	cancel_elyby_login,
 	elyby_login,
-	get_default_user,
 	login as login_flow,
 	offline_login,
 	remove_user,
 	set_default_user,
 	users,
 } from '@/helpers/auth'
+import { currentAccountId as defaultUser, refreshCurrentAccountId } from '@/helpers/current-account'
 import { process_listener } from '@/helpers/events'
 import { getPlayerHeadUrl } from '@/helpers/rendering/batch-skin-renderer.ts'
 import type { Skin } from '@/helpers/skins'
@@ -237,7 +244,7 @@ type MinecraftCredential = {
 const accounts: Ref<MinecraftCredential[]> = ref([])
 const loginDisabled = ref(false)
 const elyByLoginDisabled = ref(false)
-const defaultUser = ref<string | undefined>()
+const switchingAccountId = ref<string | null>(null)
 const equippedSkin = ref<Skin | null>(null)
 const headUrlCache = ref(new Map<string, string>())
 
@@ -281,7 +288,7 @@ async function confirmOfflineLogin() {
 // --- /Offline login ---
 
 async function refreshValues() {
-	defaultUser.value = await get_default_user().catch(handleError)
+	await refreshCurrentAccountId().catch(handleError)
 	const userList = await users().catch(handleError)
 	accounts.value = Array.isArray(userList) ? [...userList] : []
 	accounts.value.sort((a, b) => (a.profile?.name ?? '').localeCompare(b.profile?.name ?? ''))
@@ -379,11 +386,17 @@ function getAccountAvatarUrl(account: MinecraftCredential) {
 }
 
 async function setAccount(account: MinecraftCredential) {
+	if (switchingAccountId.value) return
+	switchingAccountId.value = account.profile.id
 	equippedSkin.value = null
-	defaultUser.value = account.profile.id
-	await set_default_user(account.profile.id).catch(handleError)
-	await refreshValues()
-	emit('change')
+	try {
+		await set_default_user(account.profile.id).catch(handleError)
+		defaultUser.value = account.profile.id
+		await refreshValues()
+		emit('change')
+	} finally {
+		switchingAccountId.value = null
+	}
 }
 
 async function login() {

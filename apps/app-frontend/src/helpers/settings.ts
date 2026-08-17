@@ -69,7 +69,43 @@ export type AppSettings = {
 	pending_update_toast_for_version: string | null
 	auto_download_updates: boolean | null
 
+	modlex_vk_token?: string | null
+	modlex_vk_user_id?: number | null
+	modlex_soundcloud_enabled: boolean
+	modlex_local_music_path?: string | null
+	modlex_music_default_source: 'vk' | 'soundcloud' | 'local'
+	modlex_playlists: ModlexPlaylist[]
+
+	modlex_update_channel: 'stable' | 'beta'
+	modlex_tester_id?: string | null
+
 	version: number
+}
+
+export type ModlexTrackSource = 'local' | 'soundcloud' | 'vk' | 'radio'
+
+export type ModlexTrackRef = {
+	source: ModlexTrackSource
+	ref: string
+	title: string
+	artist: string
+	duration: number
+}
+
+export type ModlexPlaylist = {
+	name: string
+	tracks: ModlexTrackRef[]
+}
+
+export type ModlexLocalMusicFile = {
+	path: string
+	file_name: string
+}
+
+export async function modlexListLocalMusicFiles(
+	folder: string,
+): Promise<ModlexLocalMusicFile[]> {
+	return await invoke('plugin:settings|modlex_list_local_music_files', { folder })
 }
 
 // Get full settings object

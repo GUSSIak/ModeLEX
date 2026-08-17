@@ -16,7 +16,55 @@
 				</div>
 				<Toggle v-model="modlexHideServers" />
 			</div>
+			<div v-if="musicFeatureEnabled" class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Скрыть вкладку "Музыка"</h3>
+					<p class="setting-row__desc">Убирает кнопку музыкального плеера мода ModLEX Core из бокового меню.</p>
+				</div>
+				<Toggle v-model="modlexHideMusicTab" />
+			</div>
 		</div>
+
+		<!-- Запуск -->
+		<div v-if="multiLaunchFeatureEnabled" class="settings-section">
+			<h2 class="settings-section__title">Запуск</h2>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Отключить запуск нескольких аккаунтов</h3>
+					<p class="setting-row__desc">
+						Убирает кнопку "Запуск как несколько аккаунтов" со страницы инстанса.
+					</p>
+				</div>
+				<Toggle v-model="modlexHideMultiLaunch" />
+			</div>
+		</div>
+
+		<!-- Обновления -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Обновления</h2>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Канал обновлений</h3>
+					<p class="setting-row__desc">
+						{{
+							updateChannel === 'beta'
+								? 'Сейчас вы на бета-канале — получаете тестовые версии раньше остальных.'
+								: 'Публичный канал — стабильные версии.'
+						}}
+					</p>
+				</div>
+				<ButtonStyled v-if="updateChannel === 'stable'" color="brand">
+					<button type="button" @click="betaModal?.show()">Включить бета-канал</button>
+				</ButtonStyled>
+				<ButtonStyled v-else type="outlined">
+					<button type="button" :disabled="switchingChannel" @click="returnToStableChannel">
+						Вернуться на публичный канал
+					</button>
+				</ButtonStyled>
+			</div>
+		</div>
+
+		<BetaChannelModal ref="betaModal" @approved="onBetaApproved" />
 
 		<!-- Контент -->
 		<div class="settings-section">
@@ -80,17 +128,22 @@
 </template>
 
 <script setup lang="ts">
-import { DropdownSelect, Toggle } from '@modrinth/ui'
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { ButtonStyled, DropdownSelect, Toggle } from '@modrinth/ui'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
+	modlexHideMultiLaunch,
+	modlexHideMusicTab,
 	modlexHideServers,
 	modlexNewsSource,
 	type NewsSource,
 } from '@/helpers/modlex-settings'
+import { get as getSettings, set as setSettings } from '@/helpers/settings'
+import { requestImmediateUpdateCheck } from '@/providers/app-update'
 
 const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
 
@@ -99,10 +152,13 @@ function getNewsLabel(value: NewsSource): string {
 }
 
 const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform')
+const { enabled: musicFeatureEnabled } = useFeatureFlag('modlex_music')
+const { enabled: multiLaunchFeatureEnabled } = useFeatureFlag('multi_account_launch')
 
-// CurseForge физически не работает, пока заблокирован фича-флагом — показываем
-// тумблер выключенным, даже если пользователь когда-то включил его в настройках
-// (это сохранённое значение вернётся, как только фича разблокируется).
+// CurseForge приостановлен (сложная логика интерфейса ещё не готова), пока
+// заблокирован фича-флагом — показываем тумблер выключенным, даже если
+// пользователь когда-то включил его в настройках (это сохранённое значение
+// вернётся, как только фича разблокируется).
 const cfDisplayValue = computed(() => (cfLocked.value ? false : modlexEnableCurseForge.value))
 
 const inlineNotice = ref<string | null>(null)
@@ -115,6 +171,47 @@ function showInlineNotice(text: string) {
 		inlineNotice.value = null
 	}, 6000)
 }
+
+// ===== MODLEX: канал обновлений =====
+const updateChannel = ref<'stable' | 'beta'>('stable')
+const switchingChannel = ref(false)
+const betaModal = ref<InstanceType<typeof BetaChannelModal>>()
+
+onMounted(async () => {
+	updateChannel.value = (await getSettings()).modlex_update_channel ?? 'stable'
+})
+
+async function onBetaApproved() {
+	switchingChannel.value = true
+	try {
+		const settings = await getSettings()
+		settings.modlex_update_channel = 'beta'
+		await setSettings(settings)
+		updateChannel.value = 'beta'
+		// Небольшая задержка — чтобы пользователь успел увидеть подтверждение
+		// в модалке перед тем, как она закроется.
+		setTimeout(() => betaModal.value?.hide(), 1200)
+		// Немедленно перепроверяет обновления на новом канале и, если что-то
+		// найдётся, сама скачивает и ставит — без ручного подтверждения
+		// "Перезапустить и обновить", в отличие от обычного публичного канала.
+		await requestImmediateUpdateCheck()
+	} finally {
+		switchingChannel.value = false
+	}
+}
+
+async function returnToStableChannel() {
+	switchingChannel.value = true
+	try {
+		const settings = await getSettings()
+		settings.modlex_update_channel = 'stable'
+		await setSettings(settings)
+		updateChannel.value = 'stable'
+	} finally {
+		switchingChannel.value = false
+	}
+}
+// ===== END MODLEX =====
 
 onBeforeUnmount(() => {
 	if (inlineNoticeTimeout) clearTimeout(inlineNoticeTimeout)

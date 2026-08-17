@@ -33,7 +33,11 @@ async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
     tracing::info!("🔍 2. App event state initialized");
 
     tracing::info!("🔍 3. Initializing app state...");
-    State::init(app.config().identifier.clone()).await?;
+    State::init(
+        app.config().identifier.clone(),
+        app.package_info().version.to_string(),
+    )
+    .await?;
     tracing::info!("🔍 4. App state initialized");
 
     tracing::info!("🔍 5. Getting state...");
@@ -285,6 +289,7 @@ fn main() {
             get_update_size,
             enqueue_update_for_installation,
             remove_enqueued_update,
+            check_update_channel,
             set_restart_after_pending_update,
             toggle_decorations,
             show_window,

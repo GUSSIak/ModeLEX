@@ -49,6 +49,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_update_managed_modrinth_version,
             instance_repair_managed_modrinth,
             instance_run,
+            instance_run_as_account,
             instance_kill,
             instance_edit,
             instance_edit_icon,
@@ -762,6 +763,35 @@ pub async fn instance_run(
         None => QuickPlayType::None,
     };
     Ok(theseus::instance::run(instance_id, quick_play).await?)
+}
+
+#[tauri::command]
+pub async fn instance_run_as_account(
+    instance_id: &str,
+    account_id: uuid::Uuid,
+    server_address: Option<String>,
+    memory_mb: Option<u32>,
+    extra_launch_args: Option<Vec<String>>,
+) -> Result<ProcessMetadata> {
+    let quick_play = match server_address {
+        Some(addr) => QuickPlayType::Server(ServerAddress::Unresolved(addr)),
+        None => QuickPlayType::None,
+    };
+    let overrides = if memory_mb.is_some() || extra_launch_args.is_some() {
+        Some(theseus::instance::EphemeralLaunchOverrides {
+            memory: memory_mb.map(|maximum| MemorySettings { maximum }),
+            extra_launch_args,
+        })
+    } else {
+        None
+    };
+    Ok(theseus::instance::run_as_account(
+        instance_id,
+        account_id,
+        quick_play,
+        overrides,
+    )
+    .await?)
 }
 
 #[tauri::command]

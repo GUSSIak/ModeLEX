@@ -867,12 +867,16 @@ pub async fn launch_minecraft(
 
     let env_args = Vec::from(env_args);
 
-    // Check if instance has a running process, and reject running the command if it does
+    // Check if this account already has this instance running, and reject running the
+    // command if it does. Different accounts may run the same instance concurrently.
     // Done late so a quick double call doesn't launch two instances
     let existing_processes = process::get_by_instance_id(&instance.id).await?;
-    if let Some(process) = existing_processes.first() {
+    if let Some(process) = existing_processes
+        .iter()
+        .find(|process| process.account_id == credentials.offline_profile.id)
+    {
         return Err(crate::ErrorKind::LauncherError(format!(
-            "Instance {} is already running as process {}",
+            "This account is already playing instance {} as process {}",
             instance.id, process.uuid
         ))
         .as_error());
@@ -1082,6 +1086,7 @@ pub async fn launch_minecraft(
             &instance.id,
             &instance.path,
             &instance.name,
+            credentials.offline_profile.id,
             command,
             post_exit_hook,
             state.directories.instance_logs_dir(&instance.path),

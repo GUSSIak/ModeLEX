@@ -41,7 +41,7 @@
 			</div>
 			<InstanceIndicator v-if="instance && !projectInstallContext" :instance="instance" />
 			<template v-if="data">
-				<ProjectHeader
+				<ProjectPageHeader
 					:project="data"
 					:project-v3="projectV3"
 					@contextmenu.prevent.stop="handleRightClick"
@@ -89,7 +89,7 @@
 							</OverflowMenu>
 						</ButtonStyled>
 					</template>
-				</ProjectHeader>
+				</ProjectPageHeader>
 				<NavTabs :links="navLinks" />
 				<RouterView
 					v-if="route.path.startsWith('/curseforge')"
@@ -144,7 +144,7 @@ import {
 	injectNotificationManager,
 	NavTabs,
 	OverflowMenu,
-	ProjectHeader,
+	ProjectPageHeader,
 	ProjectSidebarCompatibility,
 	ProjectSidebarCreators,
 	ProjectSidebarDetails,

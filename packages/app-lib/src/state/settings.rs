@@ -45,7 +45,49 @@ pub struct Settings {
     pub pending_update_toast_for_version: Option<String>,
     pub auto_download_updates: Option<bool>,
 
+    /// VK access token pasted in by advanced users for the ModLEX Core music player.
+    /// Obtained by the user through their own separate tooling; never collected via a
+    /// login form. Stored locally only and forwarded to the mod's signed session file.
+    pub modlex_vk_token: Option<String>,
+    pub modlex_vk_user_id: Option<i64>,
+    pub modlex_soundcloud_enabled: bool,
+    pub modlex_local_music_path: Option<String>,
+    pub modlex_music_default_source: String,
+    pub modlex_playlists: Vec<ModlexPlaylist>,
+
+    /// "stable" | "beta" — какой канал манифеста обновлений проверять.
+    pub modlex_update_channel: String,
+    /// Локально сгенерированный при первом валидном вводе тестового кода
+    /// идентификатор — переиспользуется при каждой последующей проверке,
+    /// чтобы не требовать повторного одобрения на каждый запуск.
+    pub modlex_tester_id: Option<String>,
+
     pub version: usize,
+}
+
+/// A single queueable track, independent of its source — mirrors the ModLEX Core mod's
+/// `trackRef` shape exactly (see `EXCLUSIVE.md`'s "TODO для лаунчера: ПЛЕЙЛИСТЫ" section).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ModlexTrackRef {
+    /// `"local" | "soundcloud" | "vk" | "radio"`
+    pub source: String,
+    /// Meaning depends on `source`: absolute file path (local), permalink URL
+    /// (soundcloud), `"<owner_id>_<audio_id>"` (vk), or a direct stream URL (radio).
+    pub r#ref: String,
+    pub title: String,
+    pub artist: String,
+    /// Seconds; 0 if unknown.
+    pub duration: u32,
+}
+
+/// A named, ordered, user-composed list of tracks — created and edited entirely in the
+/// launcher, handed to the mod as a starting point via the session handshake. The mod's
+/// own in-game queue is build-on-the-fly only; saved multi-source playlists are the
+/// launcher's responsibility.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ModlexPlaylist {
+    pub name: String,
+    pub tracks: Vec<ModlexTrackRef>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, Hash, PartialEq)]
@@ -86,6 +128,9 @@ impl Settings {
                 hook_pre_launch, hook_wrapper, hook_post_exit,
                 custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,
                 skipped_update, pending_update_toast_for_version, auto_download_updates,
+                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,
+                modlex_music_default_source, json(modlex_playlists) modlex_playlists,
+                modlex_update_channel, modlex_tester_id,
                 version
             FROM settings
             "
@@ -145,6 +190,18 @@ impl Settings {
             pending_update_toast_for_version: res
                 .pending_update_toast_for_version,
             auto_download_updates: res.auto_download_updates.map(|x| x == 1),
+            modlex_vk_token: res.modlex_vk_token,
+            modlex_vk_user_id: res.modlex_vk_user_id,
+            modlex_soundcloud_enabled: res.modlex_soundcloud_enabled,
+            modlex_local_music_path: res.modlex_local_music_path,
+            modlex_music_default_source: res.modlex_music_default_source,
+            modlex_playlists: res
+                .modlex_playlists
+                .as_ref()
+                .and_then(|x| serde_json::from_str(x).ok())
+                .unwrap_or_default(),
+            modlex_update_channel: res.modlex_update_channel,
+            modlex_tester_id: res.modlex_tester_id,
             version: res.version as usize,
         })
     }
@@ -160,6 +217,7 @@ impl Settings {
         let extra_launch_args = serde_json::to_string(&self.extra_launch_args)?;
         let custom_env_vars = serde_json::to_string(&self.custom_env_vars)?;
         let feature_flags = serde_json::to_string(&self.feature_flags)?;
+        let modlex_playlists = serde_json::to_string(&self.modlex_playlists)?;
         let version = self.version as i64;
 
         sqlx::query!(
@@ -207,7 +265,17 @@ impl Settings {
                 pending_update_toast_for_version = $31,
                 auto_download_updates = $32,
 
-                version = $33
+                modlex_vk_token = $33,
+                modlex_vk_user_id = $34,
+                modlex_soundcloud_enabled = $35,
+                modlex_local_music_path = $36,
+                modlex_music_default_source = $37,
+                modlex_playlists = jsonb($38),
+
+                modlex_update_channel = $39,
+                modlex_tester_id = $40,
+
+                version = $41
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -241,6 +309,14 @@ impl Settings {
             self.skipped_update,
             self.pending_update_toast_for_version,
             self.auto_download_updates,
+            self.modlex_vk_token,
+            self.modlex_vk_user_id,
+            self.modlex_soundcloud_enabled,
+            self.modlex_local_music_path,
+            self.modlex_music_default_source,
+            modlex_playlists,
+            self.modlex_update_channel,
+            self.modlex_tester_id,
             version,
         )
         .execute(exec)

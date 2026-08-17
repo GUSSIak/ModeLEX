@@ -23,6 +23,7 @@ import {
 	ServerStackIcon,
 	SettingsIcon,
 	ShirtIcon,
+	TagCategoryAudioIcon as AudioIcon,
 	UserIcon,
 } from '@modrinth/assets'
 import {
@@ -91,6 +92,7 @@ import { debugAnalytics, initAnalytics, trackEvent } from '@/helpers/analytics'
 import { check_reachable } from '@/helpers/auth.js'
 import { get_user, get_version } from '@/helpers/cache.js'
 import { command_listener, notification_listener, warning_listener } from '@/helpers/events.js'
+import { useFeatureFlag } from '@/helpers/feature-flags'
 import { install_create_modpack_instance, install_get_modpack_preview } from '@/helpers/install'
 import { can_current_user_use_shared_instances, get as getInstance, run } from '@/helpers/instance'
 import {
@@ -100,7 +102,7 @@ import {
 } from '@/helpers/modlex-feature-flags'
 import { fetchModlexNews } from '@/helpers/modlex-github-news'
 // ===== ModLEX IMPORTS =====
-import { modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
+import { modlexHideMusicTab, modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
 import { get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { mergeUrlQuery, parseModrinthLink } from '@/helpers/project-links.ts'
 import { get as getSettings, set as setSettings } from '@/helpers/settings.ts'
@@ -109,6 +111,7 @@ import { hasActivePride26Midas, hasMidasBadge } from '@/helpers/user-campaigns.t
 import { parse_modrinth_user_link } from '@/helpers/users'
 import {
 	areUpdatesEnabled,
+	checkUpdateChannel,
 	enqueueUpdateForInstallation,
 	getOS,
 	getUpdateSize,
@@ -395,9 +398,74 @@ const authUnreachable = computed(() => {
 
 // ===== MODLEX: скрытие кнопки серверов =====
 const hideServersTab = ref(false)
+const hideMusicTab = ref(false)
+const { enabled: musicFeatureEnabled } = useFeatureFlag('modlex_music')
+// ===== END MODLEX =====
+
+// ===== MODLEX: секретная кодовая фраза для devMode =====
+// Печатается в любом месте приложения (кроме текстовых полей) — раскрывает
+// скрытые в открытой бете фичи через devMode (см. helpers/feature-flags.ts).
+// Специально не завязано на клики по видимому UI-элементу, чтобы не находилось
+// случайно.
+//
+// Сравниваем по event.code (физическая клавиша), а не event.key (символ) —
+// иначе при активной русской раскладке физическая "M" даёт "ь", а не "m", и
+// фраза никогда не совпадёт.
+let devModeSecretCodes = []
+let devModeSecretBuffer = []
+
+function isEditableTarget(target) {
+	if (!(target instanceof HTMLElement)) return false
+	return (
+		target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+	)
+}
+
+function secretToKeyCodes(secret) {
+	return secret.split('').map((char) => (/[0-9]/.test(char) ? `Digit${char}` : `Key${char.toUpperCase()}`))
+}
+
+async function toggleDevModeFromSecret() {
+	themeStore.devMode = !themeStore.devMode
+	const currentSettings = await getSettings()
+	currentSettings.developer_mode = !!themeStore.devMode
+	await setSettings(currentSettings)
+
+	addNotification({
+		title: 'ModLEX',
+		text: themeStore.devMode ? 'Режим разработчика включён.' : 'Режим разработчика выключен.',
+		type: themeStore.devMode ? 'success' : 'info',
+	})
+}
+
+function handleDevModeSecretKeydown(event) {
+	if (!devModeSecretCodes.length || isEditableTarget(event.target)) return
+	// Работает только при открытых настройках — не ловит нажатия по всему приложению
+	if (!appSettingsModal.value?.isSettingsOpen) return
+
+	devModeSecretBuffer = [...devModeSecretBuffer, event.code].slice(-devModeSecretCodes.length)
+
+	if (devModeSecretBuffer.every((code, i) => code === devModeSecretCodes[i])) {
+		devModeSecretBuffer = []
+		toggleDevModeFromSecret()
+	}
+}
 // ===== END MODLEX =====
 
 onMounted(async () => {
+	// ===== MODLEX: подключаем слушатель секретной фразы независимо и раньше
+	// всего остального — чтобы сбой в другой части onMounted (сеть и т.п.) не
+	// помешал ему зарегистрироваться =====
+	try {
+		const appVersion = await getVersion()
+		devModeSecretCodes = secretToKeyCodes(`modlex${appVersion.replace(/\D/g, '')}bgfc`)
+		window.addEventListener('keydown', handleDevModeSecretKeydown)
+		console.log('[devMode secret] слушатель подключён, ожидаемые коды:', devModeSecretCodes.join(','))
+	} catch (err) {
+		console.error('[devMode secret] не удалось подключить слушатель:', err)
+	}
+	// ===== END MODLEX =====
+
 	// Проверяем фича-флаги раньше всего остального — чтобы залоченные функции
 	// были заблокированы уже к моменту, когда пользователь может куда-то кликнуть
 	await refreshFeatureFlags()
@@ -412,11 +480,13 @@ onMounted(async () => {
 
 	// ===== MODLEX: загружаем настройки и новости =====
 	hideServersTab.value = modlexHideServers.value
+	hideMusicTab.value = modlexHideMusicTab.value
 	await loadNews()
 
 	// Слушаем изменения настроек
 	window.addEventListener('modlex-settings-changed', () => {
 		hideServersTab.value = modlexHideServers.value
+		hideMusicTab.value = modlexHideMusicTab.value
 		loadNews()
 	})
 	// ===== END MODLEX =====
@@ -425,6 +495,7 @@ onMounted(async () => {
 onUnmounted(async () => {
 	document.querySelector('body').removeEventListener('click', handleClick)
 	document.querySelector('body').removeEventListener('auxclick', handleAuxClick)
+	window.removeEventListener('keydown', handleDevModeSecretKeydown)
 	unsubscribeSidebarToggle()
 	clearDelayedUpdatePopup()
 	stopFeatureFlagPolling()
@@ -1273,7 +1344,8 @@ async function checkUpdates() {
 	}
 
 	async function performCheck() {
-		const update = await invoke('plugin:updater|check')
+		const channel = (await getSettings()).modlex_update_channel ?? 'stable'
+		const update = await checkUpdateChannel(channel)
 		if (!update) {
 			console.log('No update available')
 			return
@@ -1405,10 +1477,41 @@ async function installUpdate() {
 	}, 250)
 }
 
+// ===== MODLEX: канал обновлений — принудительная перепроверка + автоустановка
+// (для переключения на бета-канал из настроек, без обычного ручного шага
+// "Перезапустить и обновить") =====
+async function recheckAndAutoInstallUpdate() {
+	const channel = (await getSettings()).modlex_update_channel ?? 'stable'
+	const update = await checkUpdateChannel(channel)
+	if (!update) {
+		console.log('No update available on channel', channel)
+		return
+	}
+
+	appUpdateDownload.progress.value = 0
+	finishedDownloading.value = false
+	downloading.value = true
+	updateSize.value = null
+	availableUpdate.value = update
+
+	try {
+		await enqueueUpdateForInstallation(update.rid)
+		downloading.value = false
+		finishedDownloading.value = true
+		markAppUpdateActionable(update.version, 'downloaded')
+		await installUpdate()
+	} catch (e) {
+		downloading.value = false
+		handleError(e)
+	}
+}
+// ===== END MODLEX =====
+
 setAppUpdateActions({
 	download: downloadAvailableUpdate,
 	install: installUpdate,
 	changelog: () => openUrl('https://modrinth.com/news/changelog?filter=app'),
+	recheckAndAutoInstall: recheckAndAutoInstallUpdate,
 })
 
 async function openModrinthProjectLinkInApp(parsed) {
@@ -1536,6 +1639,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			</NavButton>
 			<NavButton v-tooltip.right="formatMessage(appMessages.skinSelectorLabel)" to="/skins">
 				<ShirtIcon />
+			</NavButton>
+			<NavButton
+				v-if="!hideMusicTab && musicFeatureEnabled"
+				v-tooltip.right="'Музыка'"
+				to="/music"
+			>
+				<AudioIcon />
 			</NavButton>
 			<NavButton
 				v-tooltip.right="formatMessage(messages.library)"

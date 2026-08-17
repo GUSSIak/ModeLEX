@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::State;
@@ -25,7 +25,10 @@ struct CacheEntry<T> {
 
 #[derive(Clone)]
 pub struct CfCache {
-    categories: Arc<Mutex<Option<CacheEntry<Vec<CfCategory>>>>>,
+    // Ключ — classId (0 = "все категории", т.е. запрос без classId). Раньше это
+    // был один общий слот на все classId, из-за чего запрос категорий модпаков
+    // затирал в кеше категории модов (и наоборот) до истечения TTL.
+    categories: Arc<Mutex<HashMap<u32, CacheEntry<Vec<CfCategory>>>>>,
     mods: Arc<Mutex<HashMap<u32, CacheEntry<CfMod>>>>,
     details: Arc<Mutex<HashMap<u32, CacheEntry<CfModDetails>>>>,
     search: Arc<Mutex<HashMap<String, CacheEntry<CfSearchResult>>>>,
@@ -34,7 +37,7 @@ pub struct CfCache {
 impl CfCache {
     pub fn new() -> Self {
         Self {
-            categories: Arc::new(Mutex::new(None)),
+            categories: Arc::new(Mutex::new(HashMap::new())),
             mods: Arc::new(Mutex::new(HashMap::new())),
             details: Arc::new(Mutex::new(HashMap::new())),
             search: Arc::new(Mutex::new(HashMap::new())),
@@ -46,7 +49,7 @@ impl CfCache {
     }
 
     pub fn clear(&self) {
-        self.categories.lock().unwrap().take();
+        self.categories.lock().unwrap().clear();
         self.mods.lock().unwrap().clear();
         self.details.lock().unwrap().clear();
         self.search.lock().unwrap().clear();
@@ -65,34 +68,13 @@ pub async fn clear_cache() -> crate::Result<()> {
     Ok(())
 }
 
+// Встраивается во время сборки из packages/app-lib/.env (gitignored, как и
+// MODLEX_SESSION_SECRET) — не хардкодим личный путь к файлу на конкретной
+// машине, ключ никогда не попадает в исходники/коммиты.
+const CURSEFORGE_API_KEY: &str = env!("CURSEFORGE_API_KEY");
+
 fn get_api_key() -> &'static str {
-    static KEY: OnceLock<String> = OnceLock::new();
-    KEY.get_or_init(|| {
-        let env_path = std::path::Path::new("D:\\ModLEX\\env\\.env");
-        if !env_path.exists() {
-            tracing::error!("❌ .env file NOT found at: {:?}", env_path);
-            return String::new();
-        }
-        match std::fs::read_to_string(env_path) {
-            Ok(content) => {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.starts_with("CURSEFORGE_API_KEY=") {
-                        let key = line.trim_start_matches("CURSEFORGE_API_KEY=").trim();
-                        if !key.is_empty() {
-                            return key.to_string();
-                        }
-                    }
-                }
-                tracing::error!("❌ CURSEFORGE_API_KEY not found in .env file!");
-                String::new()
-            }
-            Err(e) => {
-                tracing::error!("❌ Failed to read .env file: {}", e);
-                String::new()
-            }
-        }
-    })
+    CURSEFORGE_API_KEY
 }
 
 fn cf_headers() -> HeaderMap {
@@ -851,10 +833,12 @@ pub async fn install_modpack(
 
 #[instrument]
 pub async fn get_categories(class_id: Option<u32>) -> crate::Result<Vec<CfCategory>> {
+    let cache_key = class_id.unwrap_or(0);
+
     // Проверяем кеш
     {
         let cache = CACHE.categories.lock().unwrap();
-        if let Some(entry) = cache.as_ref() {
+        if let Some(entry) = cache.get(&cache_key) {
             if CfCache::is_valid(entry) {
                 tracing::debug!("CF categories cache hit");
                 return Ok(entry.data.clone());
@@ -892,10 +876,13 @@ pub async fn get_categories(class_id: Option<u32>) -> crate::Result<Vec<CfCatego
     // Сохраняем в кеш
     {
         let mut cache = CACHE.categories.lock().unwrap();
-        *cache = Some(CacheEntry {
-            data: categories.clone(),
-            timestamp: Instant::now(),
-        });
+        cache.insert(
+            cache_key,
+            CacheEntry {
+                data: categories.clone(),
+                timestamp: Instant::now(),
+            },
+        );
     }
 
     Ok(categories)

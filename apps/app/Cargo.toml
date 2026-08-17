@@ -33,6 +33,7 @@ tauri-plugin-updater = { workspace = true }
 tauri-plugin-window-state = { workspace = true }
 theseus = { workspace = true, features = ["tauri"] }
 thiserror = { workspace = true }
+time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
 tracing-error = { workspace = true }

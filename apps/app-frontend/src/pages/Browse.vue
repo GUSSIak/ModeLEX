@@ -6,11 +6,12 @@ import {
 	CompassIcon,
 	ExternalIcon,
 	GlobeIcon,
+	LeftArrowIcon,
 	PlusIcon,
 	ServerStackIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
-import type { BrowseInstallContentType, CardAction, ProjectType, Tags } from '@modrinth/ui'
+import type { BrowseInstallContentType, CardAction, ContentItem, ProjectType, Tags } from '@modrinth/ui'
 import {
 	BrowsePageLayout,
 	BrowseSidebar,
@@ -39,6 +40,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { LocationQuery } from 'vue-router'
 import { useRoute, useRouter } from 'vue-router'
 
+import BrowseSidebarCF from '@/components/ui/BrowseSidebarCF.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import { useAppServerBrowse } from '@/composables/browse/use-app-server-browse'
 import {
@@ -47,13 +49,30 @@ import {
 	get_search_results_v3,
 	get_version_many,
 } from '@/helpers/cache.js'
+import {
+	CF_CLASS_IDS,
+	cf_get_description,
+	cf_get_files,
+	cf_install_mod,
+	cf_install_modpack,
+	cf_remove_mod,
+	cf_search,
+	type CfFile,
+	type CfMod,
+	extractFileTarget,
+	findInstalledCounterpart,
+	isSameCfFileVersion,
+	resolveLatestFile,
+} from '@/helpers/curseforge'
 import { instance_listener } from '@/helpers/events.js'
 import {
 	get as getInstance,
+	get_content_items as getContentItems,
 	get_installed_project_ids as getInstalledProjectIds,
 	list as listInstances,
 } from '@/helpers/instance'
 import { get_loader_versions as getLoaderManifest } from '@/helpers/metadata'
+import { availablePlatforms } from '@/helpers/modlex-settings'
 import { get as getSettings, set as setSettings } from '@/helpers/settings.ts'
 import { get_categories, get_game_versions, get_loaders } from '@/helpers/tags'
 import { get_instance_worlds } from '@/helpers/worlds'
@@ -173,6 +192,33 @@ const instance: Ref<Instance | null> = ref(
 	queryClient.getQueryData<Instance>(['instances', 'summary', initialInstanceId]) ?? null,
 )
 const installedProjectIds: Ref<string[] | null> = ref(null)
+
+// ===== MODLEX: установленный контент текущего инстанса (обе платформы) =====
+// Объявлено рано, так как используется в initInstanceContext() ниже
+const instanceContentItems = ref<ContentItem[]>([])
+
+async function refreshInstanceContentItems() {
+	if (!instance.value) {
+		instanceContentItems.value = []
+		return
+	}
+	instanceContentItems.value = await getContentItems(instance.value.path).catch(() => [])
+}
+
+// Найденный "двойник" мода среди установленного контента: нативный CF-матч по cf_mod_id,
+// либо кросс-платформенный матч по названию (тот же мод, но с Modrinth)
+function findCfCounterpart(mod: CfMod): { native: boolean; item: ContentItem } | null {
+	const nativeItem = instanceContentItems.value.find((item) => item.cf_mod_id === mod.id)
+	if (nativeItem) return { native: true, item: nativeItem }
+	const crossItem = findInstalledCounterpart(mod.name, instanceContentItems.value)
+	return crossItem ? { native: false, item: crossItem } : null
+}
+
+function isModInstalled(mod: CfMod): boolean {
+	return !!findCfCounterpart(mod)
+}
+// ===== END MODLEX =====
+
 const instanceHideInstalled = ref(route.query.ai === 'true')
 const newlyInstalled = ref<string[]>([])
 const hiddenInstanceProjectIds = ref<Set<string>>(new Set())
@@ -252,6 +298,212 @@ const tags: Ref<Tags> = computed(() => ({
 	loaders: loaders.value ?? [],
 	categories: categories.value ?? [],
 }))
+
+// ===== MODLEX: переключатель платформы поиска (Modrinth / CurseForge) =====
+// Отдельная, самостоятельная ветка поиска для CF — не проходит через
+// useBrowseSearch/BrowsePageLayout (модритховская facet-система туда не
+// переносится один в один), рисует свою сетку карточек и свою деталку.
+type SearchPlatform = 'modrinth' | 'curseforge'
+type CfSortField = 'popularity' | 'totalDownloads' | 'newest' | 'name' | 'rating'
+
+const showPlatformTabs = computed(
+	() => availablePlatforms.value.length > 1 && !isServerContext.value && !isFromWorlds.value,
+)
+
+const currentPlatform = ref<SearchPlatform>(availablePlatforms.value[0] ?? 'modrinth')
+const cfClassId = ref<number>(CF_CLASS_IDS.mod)
+const isCurrentClassModpack = computed(() => cfClassId.value === CF_CLASS_IDS.modpack)
+const cfSortField = ref<CfSortField>('popularity')
+const cfSortOrder = ref<'asc' | 'desc'>('desc')
+const cfSelectedCategoryId = ref<number | null>(null)
+
+const cfResults = ref<CfMod[]>([])
+const cfTotalHits = ref(0)
+const cfPage = ref(0)
+const cfLoading = ref(false)
+const cfError = ref<string | null>(null)
+const cfInstallingIds = ref<Set<number>>(new Set())
+const cfSelectedMod = ref<CfMod | null>(null)
+const cfSelectedFiles = ref<CfFile[]>([])
+const cfFilesLoading = ref(false)
+const cfSelectedDesc = ref<string>('')
+const cfModpackInstalling = ref<Set<number>>(new Set())
+
+let cfSearchTimer: ReturnType<typeof setTimeout> | null = null
+function debouncedCfSearch() {
+	if (cfSearchTimer) clearTimeout(cfSearchTimer)
+	cfSearchTimer = setTimeout(() => searchCurseForge(0), 300)
+}
+
+async function searchCurseForge(page = 0) {
+	cfLoading.value = true
+	cfError.value = null
+	cfSelectedMod.value = null
+	try {
+		const result = await cf_search(
+			searchState.query.value ?? '',
+			instance.value?.game_version,
+			instance.value?.loader,
+			cfClassId.value,
+			cfSortField.value,
+			cfSortOrder.value,
+			page,
+			cfSelectedCategoryId.value,
+		)
+		cfResults.value = result.data
+		cfTotalHits.value = result.pagination.totalCount
+		cfPage.value = page
+	} catch (e) {
+		cfError.value = e instanceof Error ? e.message : 'Ошибка загрузки CurseForge'
+		handleError(e)
+	} finally {
+		cfLoading.value = false
+	}
+}
+
+async function openCfMod(mod: CfMod) {
+	cfSelectedMod.value = mod
+	cfSelectedFiles.value = []
+	cfSelectedDesc.value = ''
+	cfFilesLoading.value = true
+	try {
+		const gv = instance.value?.game_version
+		const loader = instance.value?.loader
+		await refreshInstanceContentItems()
+		;[cfSelectedFiles.value, cfSelectedDesc.value] = await Promise.all([
+			cf_get_files(mod.id, gv, loader).catch(() => []),
+			cf_get_description(mod.id).catch(() => ''),
+		])
+	} catch (e) {
+		handleError(e)
+	} finally {
+		cfFilesLoading.value = false
+	}
+}
+
+// Проверка, является ли конкретный файл той версией, что уже установлена
+// (нативно через CF, либо через "двойника" с Modrinth по совпадению названия)
+function isFileInstalled(file: CfFile): boolean {
+	if (!cfSelectedMod.value) return false
+	const match = findCfCounterpart(cfSelectedMod.value)
+	if (!match) return false
+	if (match.native) {
+		return match.item.version?.id != null && Number(match.item.version.id) === file.id
+	}
+	return isSameCfFileVersion(file, match.item.version?.version_number)
+}
+
+function closeCfMod() {
+	cfSelectedMod.value = null
+	cfSelectedFiles.value = []
+}
+
+async function installCfModpack(mod: CfMod, fileId: number | null = null) {
+	if (cfModpackInstalling.value.has(mod.id)) return
+	const next = new Set(cfModpackInstalling.value)
+	next.add(mod.id)
+	cfModpackInstalling.value = next
+	try {
+		const files = await cf_get_files(mod.id)
+		const preselected = fileId != null ? files.find((f) => f.id === fileId) : undefined
+		const target = preselected
+			? { file: preselected, ...extractFileTarget(preselected) }
+			: resolveLatestFile(files)
+		if (!target) {
+			handleError('No CurseForge files available for this modpack')
+			return
+		}
+		const profilePath = await cf_install_modpack(
+			mod.id,
+			target.file.id,
+			target.gameVersion,
+			target.loader,
+		)
+		if (profilePath) {
+			router.push(`/instance/${profilePath}`)
+		}
+	} catch (e) {
+		handleError(e)
+	} finally {
+		const n2 = new Set(cfModpackInstalling.value)
+		n2.delete(mod.id)
+		cfModpackInstalling.value = n2
+	}
+}
+
+async function installCfMod(mod: CfMod, fileId: number | null = null) {
+	// Модпаки всегда создают отдельный инстанс, независимо от текущего instance
+	if (cfClassId.value === CF_CLASS_IDS.modpack) {
+		await installCfModpack(mod, fileId)
+		return
+	}
+
+	// Переустановка поверх своей же CF-версии — сначала снимаем старый файл.
+	// Кросс-платформенный "двойник" (тот же мод с Modrinth) трогать нельзя — его тут нет.
+	if (instance.value && findCfCounterpart(mod)?.native) {
+		try {
+			await cf_remove_mod(instance.value.path, mod.id)
+			const ids = await getInstalledProjectIds(instance.value.path)
+			installedProjectIds.value = ids ?? []
+		} catch (e) {
+			handleError(e)
+			return
+		}
+	}
+
+	if (!instance.value) {
+		router.push(`/curseforge/${mod.id}`)
+		return
+	}
+
+	const next = new Set(cfInstallingIds.value)
+	next.add(mod.id)
+	cfInstallingIds.value = next
+	try {
+		await cf_install_mod(
+			instance.value.path,
+			mod.id,
+			fileId,
+			instance.value.game_version,
+			instance.value.loader,
+		)
+		const ids = await getInstalledProjectIds(instance.value.path)
+		installedProjectIds.value = ids ?? []
+		await refreshInstanceContentItems()
+	} catch (e) {
+		handleError(e)
+	} finally {
+		const n2 = new Set(cfInstallingIds.value)
+		n2.delete(mod.id)
+		cfInstallingIds.value = n2
+	}
+}
+
+function onCfCategorySelect(categoryId: number | null) {
+	cfSelectedCategoryId.value = categoryId
+	const query = { ...route.query }
+	if (categoryId !== null) {
+		query.cf_category = String(categoryId)
+	} else {
+		delete query.cf_category
+	}
+	router.push({ query })
+	searchCurseForge(0)
+}
+
+function handleCfInstallClick(mod: CfMod) {
+	if (cfClassId.value === CF_CLASS_IDS.modpack) {
+		installCfModpack(mod)
+		return
+	}
+
+	if (instance.value) {
+		installCfMod(mod, null)
+	} else {
+		router.push(`/curseforge/${mod.id}`)
+	}
+}
+// ===== END MODLEX =====
 
 if (isFromWorlds.value && route.params.projectType !== 'server') {
 	router.replace({
@@ -339,6 +591,7 @@ async function initInstanceContext() {
 			loader: instance.value?.loader,
 			gameVersion: instance.value?.game_version,
 		})
+		await refreshInstanceContentItems()
 
 		if (instance.value?.link?.project_id) {
 			debugLog('checking linked project for server status', instance.value.link.project_id)
@@ -575,6 +828,17 @@ const messages = defineMessages({
 })
 
 const projectType = ref<ProjectType>(route.params.projectType as ProjectType)
+
+// ===== MODLEX: синхронизация платформы/типа проекта с CF-состоянием =====
+watch(currentPlatform, (platform) => {
+	if (platform === 'curseforge') searchCurseForge(0)
+})
+
+watch(projectType, (pt) => {
+	cfClassId.value = CF_CLASS_IDS[pt] ?? CF_CLASS_IDS.mod
+	if (currentPlatform.value === 'curseforge') searchCurseForge(0)
+})
+// ===== END MODLEX =====
 
 function resetInstanceContext() {
 	if (!instance.value) return
@@ -1283,7 +1547,32 @@ provideBrowseManager({
 
 <template>
 	<div class="flex flex-col gap-3 p-6">
-		<BrowsePageLayout>
+		<!-- ===== MODLEX: переключатель платформы поиска ===== -->
+		<div v-if="showPlatformTabs" class="platform-tabs">
+			<button
+				type="button"
+				class="platform-tab"
+				:class="{ active: currentPlatform === 'modrinth' }"
+				@click="currentPlatform = 'modrinth'"
+			>
+				<img src="https://cdn.modrinth.com/modrinth-new.png" alt="Modrinth" class="platform-tab__icon" />
+				Modrinth
+			</button>
+			<button
+				type="button"
+				class="platform-tab platform-tab--cf"
+				:class="{ active: currentPlatform === 'curseforge' }"
+				@click="currentPlatform = 'curseforge'"
+			>
+				<svg class="platform-tab__icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
+				</svg>
+				CurseForge
+			</button>
+		</div>
+		<!-- ===== END MODLEX ===== -->
+
+		<BrowsePageLayout v-if="currentPlatform === 'modrinth'">
 			<template #after>
 				<ContextMenu ref="contextMenuRef" @option-clicked="handleOptionsClick">
 					<template #open_link>
@@ -1295,6 +1584,238 @@ provideBrowseManager({
 				</ContextMenu>
 			</template>
 		</BrowsePageLayout>
+
+		<!-- ===== MODLEX: секция CurseForge ===== -->
+		<div v-else-if="currentPlatform === 'curseforge'" class="cf-browse">
+			<!-- Деталка мода -->
+			<div v-if="cfSelectedMod" class="cf-detail">
+				<button type="button" class="cf-detail__back" @click="closeCfMod()">
+					<LeftArrowIcon /> Назад
+				</button>
+
+				<div class="cf-detail__header">
+					<img
+						v-if="cfSelectedMod.logo"
+						:src="cfSelectedMod.logo.thumbnailUrl || cfSelectedMod.logo.url"
+						:alt="cfSelectedMod.name"
+						class="cf-detail__icon"
+					/>
+					<div v-else class="cf-detail__icon cf-card__icon--placeholder">
+						<svg viewBox="0 0 32 32" fill="none">
+							<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
+						</svg>
+					</div>
+					<div class="cf-detail__info">
+						<div class="cf-card__title-row">
+							<h2 class="cf-detail__title">{{ cfSelectedMod.name }}</h2>
+							<span class="cf-badge">
+								<svg viewBox="0 0 12 12" fill="none">
+									<path d="M2.5 2h4l-1.2 2.8H7L3.5 10l1.2-4.4H2L2.5 2z" fill="#F16436" />
+								</svg>
+								CurseForge
+							</span>
+						</div>
+						<p class="cf-detail__summary">{{ cfSelectedMod.summary }}</p>
+						<div class="cf-card__meta">
+							<span v-if="cfSelectedMod.authors[0]">by {{ cfSelectedMod.authors[0].name }}</span>
+							<span>⬇ {{ Math.floor(cfSelectedMod.downloadCount).toLocaleString() }}</span>
+						</div>
+						<a
+							v-if="cfSelectedMod.links?.websiteUrl"
+							:href="cfSelectedMod.links.websiteUrl"
+							target="_blank"
+							rel="noopener"
+							class="cf-detail__link"
+							>Страница на CurseForge ↗</a
+						>
+
+						<button
+							v-if="instance"
+							type="button"
+							class="cf-detail__install-btn"
+							:disabled="
+								cfInstallingIds.has(cfSelectedMod.id) ||
+								isModInstalled(cfSelectedMod) ||
+								cfModpackInstalling.has(cfSelectedMod.id)
+							"
+							@click="installCfMod(cfSelectedMod, null)"
+						>
+							<SpinnerIcon
+								v-if="cfInstallingIds.has(cfSelectedMod.id) || cfModpackInstalling.has(cfSelectedMod.id)"
+								class="animate-spin"
+							/>
+							<CheckIcon v-else-if="isModInstalled(cfSelectedMod)" />
+							<PlusIcon v-else />
+							{{
+								isModInstalled(cfSelectedMod)
+									? 'Установлен'
+									: isCurrentClassModpack
+										? 'Установить сборку'
+										: 'Установить'
+							}}
+						</button>
+						<button
+							v-else
+							type="button"
+							class="cf-detail__install-btn cf-detail__install-btn--select"
+							:disabled="cfModpackInstalling.has(cfSelectedMod.id)"
+							@click="handleCfInstallClick(cfSelectedMod)"
+						>
+							<SpinnerIcon v-if="cfModpackInstalling.has(cfSelectedMod.id)" class="animate-spin" />
+							<PlusIcon v-else />
+							{{ isCurrentClassModpack ? 'Создать сборку' : 'Добавить в сборку' }}
+						</button>
+					</div>
+				</div>
+
+				<div v-if="cfSelectedDesc" class="cf-detail__desc" v-html="cfSelectedDesc" />
+
+				<div class="cf-detail__files">
+					<h3 class="cf-detail__files-title">Версии</h3>
+					<div v-if="cfFilesLoading" class="cf-browse__loading">
+						<SpinnerIcon class="animate-spin" /> Загрузка версий...
+					</div>
+					<div v-else-if="cfSelectedFiles.length === 0" class="cf-browse__loading">
+						Нет доступных файлов для вашей версии MC.
+					</div>
+					<div v-else class="cf-detail__file-list">
+						<div v-for="file in cfSelectedFiles" :key="file.id" class="cf-file-row">
+							<div class="cf-file-row__info">
+								<span class="cf-file-row__name">{{ file.displayName }}</span>
+								<span class="cf-file-row__versions">{{ file.gameVersions.join(', ') }}</span>
+							</div>
+							<div class="cf-file-row__actions">
+								<span
+									v-if="file.dependencies.some((d) => d.relationType === 3)"
+									class="cf-file-row__deps"
+								>
+									+ зависимости
+								</span>
+								<button
+									type="button"
+									class="cf-card__install-btn"
+									:disabled="
+										cfInstallingIds.has(cfSelectedMod.id) ||
+										isFileInstalled(file) ||
+										cfModpackInstalling.has(cfSelectedMod.id)
+									"
+									:title="isCurrentClassModpack ? 'Установить сборку' : 'Установить'"
+									@click.stop="instance ? installCfMod(cfSelectedMod, file.id) : handleCfInstallClick(cfSelectedMod)"
+								>
+									<SpinnerIcon
+										v-if="cfInstallingIds.has(cfSelectedMod.id) || cfModpackInstalling.has(cfSelectedMod.id)"
+										class="animate-spin"
+									/>
+									<CheckIcon v-else-if="isFileInstalled(file)" />
+									<PlusIcon v-else />
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Результаты поиска -->
+			<template v-else>
+				<div class="cf-browse__toolbar">
+					<input
+						v-model="searchState.query.value"
+						class="cf-browse__search-input"
+						type="text"
+						placeholder="Поиск на CurseForge..."
+						@input="debouncedCfSearch()"
+					/>
+
+					<select v-model="cfClassId" class="cf-browse__select" @change="searchCurseForge(0)">
+						<option :value="6">Моды</option>
+						<option :value="4471">Сборки</option>
+						<option :value="12">Текстур-паки</option>
+						<option :value="6552">Шейдеры</option>
+						<option :value="6945">Датапаки</option>
+						<option :value="17">Миры</option>
+					</select>
+
+					<select v-model="cfSortField" class="cf-browse__select" @change="searchCurseForge(0)">
+						<option value="popularity">По популярности</option>
+						<option value="totalDownloads">По скачиваниям</option>
+						<option value="newest">По новизне</option>
+						<option value="name">По имени</option>
+						<option value="rating">По рейтингу</option>
+					</select>
+				</div>
+
+				<div v-if="cfError" class="cf-browse__error">{{ cfError }}</div>
+
+				<div v-else-if="cfLoading" class="cf-browse__loading">
+					<SpinnerIcon class="animate-spin" /> Загрузка...
+				</div>
+
+				<div v-else class="cf-browse__grid">
+					<div v-for="mod in cfResults" :key="mod.id" class="cf-card" @click="openCfMod(mod)">
+						<img
+							v-if="mod.logo"
+							:src="mod.logo.thumbnailUrl || mod.logo.url"
+							:alt="mod.name"
+							class="cf-card__icon"
+						/>
+						<div v-else class="cf-card__icon cf-card__icon--placeholder">
+							<svg viewBox="0 0 32 32" fill="none">
+								<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
+							</svg>
+						</div>
+
+						<div class="cf-card__body">
+							<div class="cf-card__title-row">
+								<span class="cf-card__title">{{ mod.name }}</span>
+								<span class="cf-badge">
+									<svg viewBox="0 0 12 12" fill="none">
+										<path d="M2.5 2h4l-1.2 2.8H7L3.5 10l1.2-4.4H2L2.5 2z" fill="#F16436" />
+									</svg>
+									CurseForge
+								</span>
+							</div>
+							<p class="cf-card__desc">{{ mod.summary }}</p>
+							<div class="cf-card__meta">
+								<span v-if="mod.authors[0]">by {{ mod.authors[0].name }}</span>
+								<span>⬇ {{ Math.floor(mod.downloadCount).toLocaleString() }}</span>
+							</div>
+						</div>
+
+						<button
+							type="button"
+							class="cf-card__install-btn"
+							:disabled="
+								cfInstallingIds.has(mod.id) || isModInstalled(mod) || cfModpackInstalling.has(mod.id)
+							"
+							@click.stop="handleCfInstallClick(mod)"
+						>
+							<SpinnerIcon
+								v-if="cfInstallingIds.has(mod.id) || cfModpackInstalling.has(mod.id)"
+								class="animate-spin"
+							/>
+							<CheckIcon v-else-if="isModInstalled(mod)" />
+							<PlusIcon v-else />
+						</button>
+					</div>
+				</div>
+
+				<div v-if="!cfLoading && cfTotalHits > 20" class="cf-browse__pagination">
+					<button type="button" :disabled="cfPage === 0" @click="searchCurseForge(cfPage - 1)">
+						← Назад
+					</button>
+					<span>{{ cfPage + 1 }} / {{ Math.ceil(cfTotalHits / 20) }}</span>
+					<button
+						type="button"
+						:disabled="(cfPage + 1) * 20 >= cfTotalHits"
+						@click="searchCurseForge(cfPage + 1)"
+					>
+						Вперёд →
+					</button>
+				</div>
+			</template>
+		</div>
+		<!-- ===== END MODLEX ===== -->
+
 		<CreationFlowModal
 			v-if="isServerContext && projectType === 'modpack'"
 			ref="serverSetupModalRef"
@@ -1310,7 +1831,446 @@ provideBrowseManager({
 			@create="handleServerModpackFlowCreate"
 		/>
 		<Teleport v-if="browseRouteActive" to="#sidebar-teleport-target">
-			<BrowseSidebar />
+			<BrowseSidebar v-if="currentPlatform === 'modrinth'" />
+			<BrowseSidebarCF
+				v-else
+				:class-id="cfClassId"
+				:instance="instance"
+				@category-select="onCfCategorySelect"
+			/>
 		</Teleport>
 	</div>
 </template>
+
+<style scoped>
+.platform-tabs {
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.25rem;
+	background: var(--color-raised-bg);
+	border-radius: 0.75rem;
+	width: fit-content;
+}
+
+.platform-tab {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.45rem 1rem;
+	border-radius: 0.5rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+	border: none;
+	background: transparent;
+	color: var(--color-secondary);
+	cursor: pointer;
+	transition:
+		background 0.15s,
+		color 0.15s;
+}
+
+.platform-tab:hover {
+	background: var(--color-button-bg);
+	color: var(--color-contrast);
+}
+
+.platform-tab.active {
+	background: var(--color-button-bg);
+	color: var(--color-contrast);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.platform-tab--cf.active {
+	color: #f16436;
+}
+
+.platform-tab__icon {
+	width: 1.1rem;
+	height: 1.1rem;
+	object-fit: contain;
+}
+
+.cf-browse {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.cf-browse__toolbar {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.cf-browse__search-input {
+	flex: 1;
+	min-width: 160px;
+	padding: 0.6rem 1rem;
+	border-radius: 0.5rem;
+	border: 1px solid var(--color-divider);
+	background: var(--color-raised-bg);
+	color: var(--color-contrast);
+	font-size: 0.875rem;
+	outline: none;
+}
+
+.cf-browse__search-input:focus {
+	border-color: #f16436;
+}
+
+.cf-browse__select {
+	padding: 0.55rem 0.75rem;
+	border-radius: 0.5rem;
+	border: 1px solid var(--color-divider);
+	background: var(--color-raised-bg);
+	color: var(--color-contrast);
+	font-size: 0.8rem;
+	cursor: pointer;
+	outline: none;
+}
+
+.cf-browse__select:focus {
+	border-color: #f16436;
+}
+
+.cf-browse__loading {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--color-secondary);
+	padding: 2rem 0;
+}
+
+.cf-browse__error {
+	padding: 1rem;
+	border-radius: 0.5rem;
+	background: #ff444422;
+	border: 1px solid #ff4444;
+	color: #ff6666;
+	font-size: 0.875rem;
+}
+
+.cf-browse__grid {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.cf-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.875rem;
+	padding: 0.875rem 1rem;
+	border-radius: 0.75rem;
+	background: var(--color-raised-bg);
+	border: 1px solid var(--color-divider);
+	transition: border-color 0.15s;
+	cursor: pointer;
+}
+
+.cf-card:hover {
+	border-color: #f16436;
+}
+
+.cf-card__icon {
+	width: 3.5rem;
+	height: 3.5rem;
+	border-radius: 0.5rem;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.cf-card__icon--placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #f164361a;
+}
+
+.cf-card__icon--placeholder svg {
+	width: 60%;
+	height: 60%;
+}
+
+.cf-card__body {
+	flex: 1;
+	min-width: 0;
+}
+
+.cf-card__title-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.cf-card__title {
+	font-weight: 700;
+	font-size: 0.95rem;
+	color: var(--color-contrast);
+}
+
+.cf-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2rem;
+	font-size: 0.65rem;
+	font-weight: 600;
+	color: #f16436;
+	background: #f164361a;
+	border: 1px solid #f1643640;
+	border-radius: 0.3rem;
+	padding: 0.1rem 0.4rem;
+}
+
+.cf-badge svg {
+	width: 0.65rem;
+	height: 0.65rem;
+}
+
+.cf-card__desc {
+	margin: 0.25rem 0 0.4rem;
+	font-size: 0.8rem;
+	color: var(--color-secondary);
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.cf-card__meta {
+	display: flex;
+	gap: 0.75rem;
+	font-size: 0.75rem;
+	color: var(--color-secondary);
+}
+
+.cf-card__install-btn {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 0.5rem;
+	border: 1px solid #f16436;
+	background: transparent;
+	color: #f16436;
+	cursor: pointer;
+	transition: background 0.15s;
+	align-self: center;
+}
+
+.cf-card__install-btn:hover:not(:disabled) {
+	background: #f164361a;
+}
+
+.cf-card__install-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.cf-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.cf-detail__back {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	background: none;
+	border: none;
+	color: var(--color-secondary);
+	font-size: 0.875rem;
+	cursor: pointer;
+	padding: 0;
+}
+
+.cf-detail__back:hover {
+	color: var(--color-contrast);
+}
+
+.cf-detail__header {
+	display: flex;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.cf-detail__icon {
+	width: 5rem;
+	height: 5rem;
+	border-radius: 0.75rem;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.cf-detail__info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.cf-detail__title {
+	margin: 0;
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--color-contrast);
+}
+
+.cf-detail__summary {
+	margin: 0;
+	font-size: 0.875rem;
+	color: var(--color-secondary);
+}
+
+.cf-detail__link {
+	font-size: 0.8rem;
+	color: #f16436;
+	text-decoration: none;
+}
+
+.cf-detail__link:hover {
+	text-decoration: underline;
+}
+
+.cf-detail__install-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1rem;
+	border-radius: 0.5rem;
+	border: none;
+	background: #f16436;
+	color: #fff;
+	font-weight: 600;
+	font-size: 0.875rem;
+	cursor: pointer;
+	transition: background 0.15s;
+	margin-top: 0.25rem;
+	width: fit-content;
+}
+
+.cf-detail__install-btn:hover:not(:disabled) {
+	background: #d4532a;
+}
+
+.cf-detail__install-btn:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.cf-detail__install-btn--select {
+	background: var(--color-button-bg);
+	color: var(--color-contrast);
+	border: 1px solid var(--color-divider);
+}
+
+.cf-detail__install-btn--select:hover:not(:disabled) {
+	background: var(--color-divider);
+}
+
+.cf-detail__desc {
+	font-size: 0.875rem;
+	color: var(--color-secondary);
+	line-height: 1.6;
+	padding: 0.75rem;
+	border-radius: 0.5rem;
+	background: var(--color-raised-bg);
+	border: 1px solid var(--color-divider);
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.cf-detail__desc a {
+	color: var(--color-blue);
+}
+
+.cf-detail__desc img {
+	max-width: 100%;
+	border-radius: 0.25rem;
+}
+
+.cf-detail__desc h1,
+.cf-detail__desc h2,
+.cf-detail__desc h3 {
+	font-size: 1rem;
+	margin: 0.5rem 0 0.25rem;
+	color: var(--color-contrast);
+}
+
+.cf-detail__files-title {
+	font-size: 1rem;
+	font-weight: 600;
+	margin: 0 0 0.75rem;
+	color: var(--color-contrast);
+}
+
+.cf-detail__file-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	max-height: 340px;
+	overflow-y: auto;
+}
+
+.cf-file-row {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 0.6rem 0.875rem;
+	border-radius: 0.5rem;
+	background: var(--color-raised-bg);
+	border: 1px solid var(--color-divider);
+}
+
+.cf-file-row__info {
+	flex: 1;
+	min-width: 0;
+}
+
+.cf-file-row__name {
+	display: block;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--color-contrast);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cf-file-row__versions {
+	font-size: 0.75rem;
+	color: var(--color-secondary);
+}
+
+.cf-file-row__deps {
+	font-size: 0.7rem;
+	color: #f16436;
+}
+
+.cf-browse__pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	padding: 0.5rem 0;
+}
+
+.cf-browse__pagination button {
+	padding: 0.4rem 1rem;
+	border-radius: 0.4rem;
+	border: 1px solid var(--color-divider);
+	background: var(--color-raised-bg);
+	color: var(--color-contrast);
+	cursor: pointer;
+}
+
+.cf-browse__pagination button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+</style>

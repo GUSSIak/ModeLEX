@@ -21,6 +21,7 @@ pub mod users;
 pub mod worlds;
 //modlex
 pub mod curseforge;
+pub mod modlex_music;
 //modlex
 
 pub mod data {

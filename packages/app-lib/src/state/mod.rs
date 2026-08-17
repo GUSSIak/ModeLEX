@@ -37,6 +37,8 @@ pub mod elyby_auth;
 
 pub mod minecraft_skins;
 
+pub mod modlex_session;
+
 mod cache;
 pub use self::cache::*;
 
@@ -99,6 +101,11 @@ pub struct State {
     pub(crate) pool: SqlitePool,
 
     pub(crate) file_watcher: FileWatcher,
+
+    /// The user-facing launcher version (from `tauri.conf.json`, e.g. "1.4.0"), as opposed
+    /// to this crate's own internal `CARGO_PKG_VERSION`. Used in the ModLEX Core session
+    /// handshake's `launcherVersion` field.
+    pub launcher_version: String,
 }
 
 impl State {
@@ -133,9 +140,14 @@ impl State {
         let _ = self.shared_instance_locks.remove(instance_id);
     }
 
-    pub async fn init(app_identifier: String) -> crate::Result<()> {
+    pub async fn init(
+        app_identifier: String,
+        launcher_version: String,
+    ) -> crate::Result<()> {
         let state = LAUNCHER_STATE
-            .get_or_try_init(move || Self::initialize_state(app_identifier))
+            .get_or_try_init(move || {
+                Self::initialize_state(app_identifier, launcher_version)
+            })
             .await?;
 
         if let Err(e) =
@@ -208,6 +220,7 @@ impl State {
     #[tracing::instrument]
     async fn initialize_state(
         app_identifier: String,
+        launcher_version: String,
     ) -> crate::Result<Arc<Self>> {
         tracing::info!("Connecting to app database");
         let pool = db::connect(&app_identifier).await?;
@@ -260,6 +273,7 @@ impl State {
             restart_after_pending_update: AtomicBool::new(false),
             pool,
             file_watcher,
+            launcher_version,
             // app_identifier,
         }))
     }

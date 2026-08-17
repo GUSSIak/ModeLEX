@@ -105,6 +105,7 @@ impl ProcessManager {
         instance_id: &str,
         instance_path: &str,
         instance_name: &str,
+        account_id: Uuid,
         mut mc_command: Command,
         post_exit_command: Option<String>,
         logs_folder: PathBuf,
@@ -132,6 +133,7 @@ impl ProcessManager {
                 instance_id: instance_id.to_string(),
                 instance_path: instance_path.to_string(),
                 instance_name: instance_name.to_string(),
+                account_id,
             },
             child: mc_proc,
             rpc_server,
@@ -286,6 +288,7 @@ pub struct ProcessMetadata {
     pub instance_path: String,
     pub instance_name: String,
     pub start_time: DateTime<Utc>,
+    pub account_id: Uuid,
 }
 
 #[derive(Debug)]

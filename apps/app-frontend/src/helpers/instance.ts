@@ -327,6 +327,23 @@ export async function kill(instanceId: string): Promise<void> {
 	return await invoke('plugin:instance|instance_kill', { instanceId })
 }
 
+// Run Minecraft using an instance, as a specific account rather than the default account
+export async function runAsAccount(
+	instanceId: string,
+	accountId: string,
+	serverAddress: string | null = null,
+	memoryMb?: number,
+	extraLaunchArgs?: string[],
+): Promise<unknown> {
+	return await invoke('plugin:instance|instance_run_as_account', {
+		instanceId,
+		accountId,
+		serverAddress,
+		memoryMb,
+		extraLaunchArgs,
+	})
+}
+
 // Edits an instance
 export async function edit(instanceId: string, editInstance: Partial<GameInstance>): Promise<void> {
 	return await invoke('plugin:instance|instance_edit', { instanceId, editInstance })

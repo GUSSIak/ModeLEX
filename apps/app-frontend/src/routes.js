@@ -66,6 +66,11 @@ export default new createRouter({
 			component: Pages.Skins,
 		},
 		{
+			path: '/music',
+			name: 'Music',
+			component: Pages.Music,
+		},
+		{
 			path: '/user/:user/:projectType?',
 			name: 'User',
 			component: Pages.User,

@@ -25,7 +25,7 @@ import {
 } from '@modrinth/ui'
 import { getVersion } from '@tauri-apps/api/app'
 import { platform as getOsPlatform, version as getOsVersion } from '@tauri-apps/plugin-os'
-import { computed, provide, ref, watch } from 'vue'
+import { computed, nextTick, provide, ref, watch } from 'vue'
 
 import PrivacySettings from '@/components/ui/settings/account/PrivacySettings.vue'
 import ProfileSettings from '@/components/ui/settings/account/ProfileSettings.vue'
@@ -50,8 +50,6 @@ import { useTheming } from '@/store/state'
 const themeStore = useTheming()
 
 const { formatMessage } = useVIntl()
-
-const devModeCounter = ref(0)
 
 const developerModeEnabled = defineMessage({
 	id: 'app.settings.developer-mode-enabled',
@@ -167,7 +165,9 @@ const tabs = [
 	},
 ]
 
-const availableTabs = computed(() => tabs.filter((tab) => !tab.developerOnly || themeStore.devMode))
+const availableTabs = computed(() =>
+	tabs.filter((tab) => !tab.developerOnly || themeStore.devMode),
+)
 
 const modal = ref<InstanceType<typeof TabbedModal> | null>(null)
 const unsavedChangesPopup = ref<{ nudge: () => void } | null>(null)
@@ -209,11 +209,18 @@ function saveUnsavedChanges(): void {
 	void unsavedChangesController.value?.save()
 }
 
+// ===== MODLEX: открыты ли настройки — секретная фраза devMode (App.vue)
+// работает только пока это true =====
+const isSettingsOpen = ref(false)
+// ===== END MODLEX =====
+
 function show() {
+	isSettingsOpen.value = true
 	modal.value?.show()
 }
 
 function showProfile(): void {
+	isSettingsOpen.value = true
 	const profileTabIndex = availableTabs.value.findIndex((tab) => tab.content === ProfileSettings)
 	if (profileTabIndex >= 0) {
 		modal.value?.setTab(profileTabIndex)
@@ -221,7 +228,7 @@ function showProfile(): void {
 	modal.value?.show()
 }
 
-defineExpose({ show, showProfile })
+defineExpose({ show, showProfile, isSettingsOpen })
 
 const { progress, version: downloadingVersion } = injectAppUpdateDownloadProgress()
 
@@ -241,21 +248,23 @@ watch(
 	{ deep: true },
 )
 
-function devModeCount() {
-	devModeCounter.value++
-	if (devModeCounter.value > 5) {
-		const selectedTab = modal.value ? availableTabs.value[modal.value.selectedTab] : undefined
+// devMode может переключиться откуда угодно (см. секретную кодовую фразу в App.vue),
+// не только из этого модального окна — держим список вкладок и выбранную вкладку в
+// синхронизации, когда devMode-only вкладки появляются/исчезают.
+watch(
+	() => themeStore.devMode,
+	async (devMode) => {
+		// Держим локальную копию настроек в курсе — иначе следующее сохранение
+		// (deep watch на settings выше) откатит developer_mode обратно.
+		settings.value.developer_mode = !!devMode
 
-		themeStore.devMode = !themeStore.devMode
-		settings.value.developer_mode = !!themeStore.devMode
-		devModeCounter.value = 0
-
-		if (modal.value) {
-			const selectedTabIndex = selectedTab ? availableTabs.value.indexOf(selectedTab) : -1
-			modal.value.setTab(selectedTabIndex >= 0 ? selectedTabIndex : 0)
-		}
-	}
-}
+		await nextTick()
+		if (!modal.value) return
+		const currentTab = availableTabs.value[modal.value.selectedTab]
+		const newIndex = currentTab ? availableTabs.value.indexOf(currentTab) : -1
+		modal.value.setTab(newIndex >= 0 ? newIndex : 0)
+	},
+)
 
 const messages = defineMessages({
 	downloading: {
@@ -270,10 +279,6 @@ const messages = defineMessages({
 		id: 'app.settings.operating-system.macos',
 		defaultMessage: 'macOS',
 	},
-	developerModeButtonLabel: {
-		id: 'app.settings.developer-mode-button.label',
-		defaultMessage: 'Toggle developer mode',
-	},
 })
 </script>
 <template>
@@ -284,6 +289,7 @@ const messages = defineMessages({
 		:before-hide="canLeaveCurrentTab"
 		:before-tab-change="canLeaveCurrentTab"
 		:floating-action-bar-shown="hasUnsavedChanges"
+		:on-hide="() => (isSettingsOpen = false)"
 	>
 		<template #title>
 			<span class="text-2xl font-semibold text-contrast">
@@ -315,17 +321,14 @@ const messages = defineMessages({
 					{{ formatMessage(developerModeEnabled) }}
 				</p>
 				<div class="flex items-center gap-3">
-					<button
-						:aria-label="formatMessage(messages.developerModeButtonLabel)"
-						class="p-0 m-0 bg-transparent border-none cursor-pointer button-animation"
+					<div
 						:class="{
 							'text-brand': themeStore.devMode,
 							'text-secondary': !themeStore.devMode,
 						}"
-						@click="devModeCount"
 					>
 						<ModrinthIcon aria-hidden="true" class="w-6 h-6" />
-					</button>
+					</div>
 					<div class="max-w-[200px]">
 						<p class="m-0">ModLEX App {{ version }}</p>
 						<p class="m-0 text-secondary text-sm">База Modrinth: {{ MODRINTH_BASE_VERSION }}</p>

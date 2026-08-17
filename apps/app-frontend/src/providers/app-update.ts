@@ -24,6 +24,14 @@ interface AppUpdateActions {
 	download?: () => Promise<void> | void
 	install?: () => Promise<void> | void
 	changelog?: () => Promise<void> | void
+	/**
+	 * Immediately re-checks for updates on whatever channel is currently
+	 * configured (bypassing the normal 5-minute polling interval), then — if
+	 * one is found — downloads and installs it automatically without waiting
+	 * for the user to click through the usual "Restart and update" prompt.
+	 * Used by the beta-channel switch in settings.
+	 */
+	recheckAndAutoInstall?: () => Promise<void> | void
 }
 
 const progress = ref(0)
@@ -168,4 +176,8 @@ export async function installAvailableAppUpdate(): Promise<void> {
 export async function openAppUpdateChangelog(): Promise<void> {
 	recordAppUpdateUserAction()
 	await actions.changelog?.()
+}
+
+export async function requestImmediateUpdateCheck(): Promise<void> {
+	await actions.recheckAndAutoInstall?.()
 }

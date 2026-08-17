@@ -24,3 +24,8 @@ fn updates_are_disabled() -> Result<()> {
 
 #[tauri::command]
 pub fn remove_enqueued_update() {}
+
+#[tauri::command]
+pub fn check_update_channel(_channel: String) -> Result<()> {
+    updates_are_disabled()
+}

@@ -14,6 +14,13 @@
 				@unlinked="fetchInstance"
 			/>
 			<UpdateToPlayModal ref="updateToPlayModal" :instance="instance" />
+			<MultiLaunchModal
+				ref="multiLaunchModal"
+				:accounts="allAccounts"
+				:running-account-ids="runningAccountIds"
+				:total-memory-mb="totalMemoryMb"
+				@launch="launchSelectedAccounts"
+			/>
 			<SharedInstanceUpdateModal
 				ref="sharedInstanceUpdateModal"
 				@accepted="hideAcceptedSharedInstanceUpdate"
@@ -40,8 +47,12 @@
 				:recent-plays="recentPlays"
 				:ping="ping"
 				:minecraft-server="minecraftServer"
+				:running-accounts="runningAccounts"
+				:accounts="allAccounts"
 				:linked-project-v3="linkedProjectV3"
 				:shared-instance-manager="sharedInstanceManager"
+				@stop-process="stopProcess"
+				@open-multi-launch="() => { loadTotalMemory(); multiLaunchModal?.show() }"
 				@repair="() => repairInstance()"
 				@stop="() => stopInstance('InstancePage')"
 				@play="() => startInstance('InstancePage')"
@@ -159,6 +170,10 @@ import InstanceAdmonitions from '@/components/ui/instance/instance-admonitions/i
 import InstancePageHeader from '@/components/ui/instance-page-header/index.vue'
 import ConfirmDeleteInstanceModal from '@/components/ui/modal/ConfirmDeleteInstanceModal.vue'
 import InstanceSettingsModal from '@/components/ui/modal/InstanceSettingsModal.vue'
+import MultiLaunchModal, {
+	type MultiLaunchAccount,
+	type MultiLaunchSelection,
+} from '@/components/ui/modal/MultiLaunchModal.vue'
 import UpdateToPlayModal from '@/components/ui/modal/UpdateToPlayModal.vue'
 import SharedInstanceInstallModal from '@/components/ui/shared-instances/shared-instance-install-modal/index.vue'
 import SharedInstanceUpdateModal from '@/components/ui/shared-instances/SharedInstanceUpdateModal.vue'
@@ -168,7 +183,9 @@ import {
 } from '@/composables/instances/use-server-status-query'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { trackEvent } from '@/helpers/analytics'
+import { users as getMinecraftUsers } from '@/helpers/auth'
 import { get_project_v3 } from '@/helpers/cache.js'
+import { currentAccountId, refreshCurrentAccountId } from '@/helpers/current-account'
 import { instance_listener, process_listener } from '@/helpers/events'
 import {
 	getSharedInstanceUnavailableReason,
@@ -185,9 +202,11 @@ import {
 	kill,
 	remove,
 	run,
+	runAsAccount,
 } from '@/helpers/instance'
 import { type InstanceContentData, loadInstanceContentData } from '@/helpers/instance-content'
-import { get_by_instance_id } from '@/helpers/process'
+import { get_max_memory } from '@/helpers/jre.js'
+import { get_by_instance_id, kill as killProcessByUuid } from '@/helpers/process'
 import { useSharedInstanceErrors } from '@/helpers/shared-instance-errors'
 import type { GameInstance } from '@/helpers/types'
 import { createInstanceShortcut, showInstanceInFolder } from '@/helpers/utils.js'
@@ -245,8 +264,22 @@ const loading = ref(false)
 const checkingSharedInstanceLaunch = ref(false)
 const subpagePending = ref(false)
 const stopping = ref(false)
+const instanceProcesses = ref<Array<{ uuid: string; account_id: string; start_time: string }>>([])
+const accountNamesById = ref<Map<string, string>>(new Map())
+const allAccounts = ref<MultiLaunchAccount[]>([])
+const runningAccounts = computed(() =>
+	instanceProcesses.value.map((process) => ({
+		uuid: process.uuid,
+		accountName: accountNamesById.value.get(process.account_id) ?? process.account_id,
+		elapsedLabel: dayjs(process.start_time).fromNow(),
+	})),
+)
+const runningAccountIds = computed(
+	() => new Set(instanceProcesses.value.map((process) => process.account_id)),
+)
 const exportModal = ref<InstanceType<typeof ExportModal>>()
 const updateToPlayModal = ref<InstanceType<typeof UpdateToPlayModal>>()
+const multiLaunchModal = ref<InstanceType<typeof MultiLaunchModal>>()
 const sharedInstanceUpdateModal = ref<InstanceType<typeof SharedInstanceUpdateModal>>()
 const sharedInstanceReportModal = ref<InstanceType<typeof SharedInstanceInstallModal>>()
 const deleteConfirmModal = ref<InstanceType<typeof ConfirmDeleteInstanceModal>>()
@@ -423,10 +456,67 @@ function fetchDeferredData(instanceId?: string) {
 
 async function updatePlayState() {
 	if (!route.params.id) return
-	const runningProcesses = await get_by_instance_id(route.params.id as string).catch(handleError)
+	const [runningProcesses, , minecraftUsers] = await Promise.all([
+		get_by_instance_id(route.params.id as string).catch(handleError),
+		refreshCurrentAccountId().catch(handleError),
+		getMinecraftUsers().catch(handleError),
+	])
 
-	playing.value = Array.isArray(runningProcesses) && runningProcesses.length > 0
+	instanceProcesses.value = Array.isArray(runningProcesses) ? runningProcesses : []
+	const users = Array.isArray(minecraftUsers) ? minecraftUsers : []
+	accountNamesById.value = new Map(users.map((user) => [user.profile.id, user.profile.name]))
+	allAccounts.value = users.map((user) => ({
+		id: user.profile.id,
+		name: user.profile.name,
+		kind: user.kind,
+	}))
+
+	playing.value = instanceProcesses.value.some(
+		(process) => process.account_id === currentAccountId.value,
+	)
 }
+
+async function stopProcess(uuid: string) {
+	await killProcessByUuid(uuid).catch(handleError)
+	await updatePlayState()
+}
+
+const LAUNCH_STAGGER_MS = 800
+const LAUNCH_STAGGER_LOW_RAM_MS = 4000
+const LOW_RAM_THRESHOLD_MB = 8192
+
+const totalMemoryMb = ref<number | null>(null)
+async function loadTotalMemory() {
+	if (totalMemoryMb.value !== null) return
+	const kib = await get_max_memory().catch(() => null)
+	totalMemoryMb.value = kib ? Math.floor(kib / 1024) : null
+}
+
+async function launchSelectedAccounts(selections: MultiLaunchSelection[]) {
+	if (!instance.value) return
+	const instanceId = instance.value.id
+	const staggerMs =
+		totalMemoryMb.value !== null && totalMemoryMb.value < LOW_RAM_THRESHOLD_MB
+			? LAUNCH_STAGGER_LOW_RAM_MS
+			: LAUNCH_STAGGER_MS
+	for (const [index, selection] of selections.entries()) {
+		if (index > 0) {
+			await new Promise((resolve) => setTimeout(resolve, staggerMs))
+		}
+		await runAsAccount(
+			instanceId,
+			selection.accountId,
+			null,
+			selection.memoryMb,
+			selection.extraLaunchArgs,
+		).catch(handleError)
+	}
+	await updatePlayState()
+}
+
+watch(currentAccountId, () => {
+	void updatePlayState()
+})
 
 await fetchInstance()
 watch(
@@ -642,9 +732,16 @@ const startInstance = async (context: string) => {
 
 const stopInstance = async (context: string) => {
 	stopping.value = true
-	await kill(route.params.id as string).catch(handleError)
+	const currentProcess = instanceProcesses.value.find(
+		(process) => process.account_id === currentAccountId.value,
+	)
+	if (currentProcess) {
+		await killProcessByUuid(currentProcess.uuid).catch(handleError)
+	} else {
+		await kill(route.params.id as string).catch(handleError)
+	}
+	await updatePlayState()
 	stopping.value = false
-	playing.value = false
 
 	if (!instance.value) return
 	trackEvent('InstanceStop', {
@@ -833,8 +930,8 @@ const unlistenInstances = await instance_listener(
 )
 
 const unlistenProcesses = await process_listener((e: { event: string; instance_id: string }) => {
-	if (e.event === 'finished' && e.instance_id === route.params.id) {
-		playing.value = false
+	if (e.instance_id === route.params.id) {
+		void updatePlayState()
 	}
 })
 

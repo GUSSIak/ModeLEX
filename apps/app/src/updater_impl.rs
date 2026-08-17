@@ -1,4 +1,5 @@
 use crate::api::Result;
+use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::http::HeaderValue;
 use tauri::http::header::ACCEPT;
@@ -7,6 +8,7 @@ use tauri_plugin_http::reqwest;
 use tauri_plugin_http::reqwest::ClientBuilder;
 use tauri_plugin_updater::Error;
 use tauri_plugin_updater::Update;
+use tauri_plugin_updater::UpdaterExt;
 use theseus::{
     LoadingBarType, emit_loading, init_loading, launcher_user_agent,
 };
@@ -14,6 +16,72 @@ use tokio::time::Instant;
 
 #[derive(Default)]
 pub struct PendingUpdateData(pub Mutex<Option<(Arc<Update>, Vec<u8>)>>);
+
+// ===== MODLEX: канал обновлений (stable/beta) =====
+// Мэппинг канала на эндпоинт манифеста. Стабильный совпадает со значением из
+// tauri-release.conf.json (используется как явный дефолт здесь, а не через
+// плагин, чтобы оба канала были равноправны — ни один не "зашит" по
+// умолчанию сильнее другого).
+fn endpoint_for_channel(channel: &str) -> &'static str {
+    match channel {
+        "beta" => "https://gussiak.github.io/updates-beta.json",
+        _ => "https://gussiak.github.io/updates.json",
+    }
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMetadata {
+    rid: ResourceId,
+    current_version: String,
+    version: String,
+    date: Option<String>,
+    body: Option<String>,
+    raw_json: serde_json::Value,
+}
+
+/// Как встроенная команда `plugin:updater|check`, но с эндпоинтом манифеста,
+/// который выбирается на лету по каналу (stable/beta) — а не зашит статично
+/// в конфиг сборки. Это то, что даёт переключение канала в настройках без
+/// пересборки приложения.
+#[tauri::command]
+pub async fn check_update_channel<R: Runtime>(
+    webview: Webview<R>,
+    channel: String,
+) -> Result<Option<UpdateMetadata>> {
+    // Хардкоженные, заведомо валидные URL — паника тут означала бы опечатку в
+    // коде, а не проблему во время выполнения.
+    let endpoint = endpoint_for_channel(&channel)
+        .parse()
+        .expect("hardcoded updater endpoint must be a valid URL");
+
+    let updater = webview.updater_builder().endpoints(vec![endpoint])?.build()?;
+    let update = updater.check().await?;
+
+    let Some(update) = update else {
+        return Ok(None);
+    };
+
+    let formatted_date = match update.date {
+        Some(date) => {
+            let formatted = date
+                .format(&time::format_description::well_known::Rfc3339)
+                .map_err(|e| theseus::ErrorKind::OtherError(e.to_string()).as_error())?;
+            Some(formatted)
+        }
+        None => None,
+    };
+
+    Ok(Some(UpdateMetadata {
+        current_version: update.current_version.clone(),
+        version: update.version.clone(),
+        date: formatted_date,
+        body: update.body.clone(),
+        raw_json: update.raw_json.clone(),
+        rid: webview.resources_table().add(update),
+    }))
+}
+// ===== END MODLEX =====
 
 // Reimplementation of Update::download mostly, minus the actual download part
 #[tauri::command]

@@ -242,7 +242,7 @@ impl AccountKind {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Credentials {
     /// The offline profile of the user these credentials are for.
     ///

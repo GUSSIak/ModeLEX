@@ -23,6 +23,11 @@ export async function removeEnqueuedUpdate() {
 	return await invoke('remove_enqueued_update')
 }
 
+// channel: 'stable' | 'beta' — see helpers/settings.ts AppSettings.modlex_update_channel
+export async function checkUpdateChannel(channel) {
+	return await invoke('check_update_channel', { channel })
+}
+
 export async function setRestartAfterPendingUpdate(should_restart) {
 	return await invoke('set_restart_after_pending_update', { shouldRestart: should_restart })
 }

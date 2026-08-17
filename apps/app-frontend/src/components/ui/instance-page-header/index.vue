@@ -85,6 +85,28 @@
 
 		<template #actions>
 			<PageHeaderActions>
+				<ButtonStyled
+					v-if="
+						!modlexHideMultiLaunch &&
+						multiLaunchFeatureEnabled &&
+						accounts.length > 1 &&
+						!isInstalling &&
+						!instance.quarantined &&
+						instance.install_stage === 'installed'
+					"
+					circular
+					size="large"
+					type="transparent"
+				>
+					<button
+						v-tooltip="formatMessage(messages.launchMultiple)"
+						type="button"
+						:aria-label="formatMessage(messages.launchMultiple)"
+						@click="emit('openMultiLaunch')"
+					>
+						<UsersIcon />
+					</button>
+				</ButtonStyled>
 				<ButtonStyled v-if="isInstalling" color="brand" size="large">
 					<button type="button" disabled>
 						{{ formatMessage(commonMessages.installingLabel) }}
@@ -126,6 +148,46 @@
 					<button type="button" disabled>{{ formatMessage(messages.starting) }}</button>
 				</ButtonStyled>
 
+				<Dropdown
+					v-if="runningAccounts.length > 0"
+					placement="bottom-end"
+					:triggers="['click']"
+					:hide-triggers="['click']"
+				>
+					<ButtonStyled circular size="large" type="transparent">
+						<button
+							v-tooltip="formatMessage(messages.runningAccounts, { count: runningAccounts.length })"
+							type="button"
+							:aria-label="formatMessage(messages.runningAccounts, { count: runningAccounts.length })"
+						>
+							{{ runningAccounts.length }}
+						</button>
+					</ButtonStyled>
+					<template #popper>
+						<div class="flex w-[18rem] flex-col gap-2 p-1">
+							<div
+								v-for="account in runningAccounts"
+								:key="account.uuid"
+								class="flex items-center gap-2 rounded-xl bg-surface-4 p-2 text-sm"
+							>
+								<OnlineIndicatorIcon class="shrink-0" />
+								<div class="mr-auto min-w-0">
+									<div class="text-contrast truncate">{{ account.accountName }}</div>
+									<div class="text-secondary text-xs">{{ account.elapsedLabel }}</div>
+								</div>
+								<button
+									v-tooltip="formatMessage(commonMessages.stopButton)"
+									class="active:scale-95 flex shrink-0"
+									type="button"
+									:aria-label="formatMessage(commonMessages.stopButton)"
+									@click="emit('stopProcess', account.uuid)"
+								>
+									<StopCircleIcon class="text-red size-5" />
+								</button>
+							</div>
+						</div>
+					</template>
+				</Dropdown>
 				<ButtonStyled circular size="large">
 					<button
 						v-tooltip="formatMessage(messages.instanceSettings)"
@@ -158,6 +220,7 @@ import {
 	FolderOpenIcon,
 	LockIcon,
 	MoreVerticalIcon,
+	OnlineIndicatorIcon,
 	PackageIcon,
 	PlayIcon,
 	ReportIcon,
@@ -166,6 +229,7 @@ import {
 	TagCategoryGamepad2Icon as Gamepad2Icon,
 	TimerIcon,
 	UnknownIcon,
+	UsersIcon,
 } from '@modrinth/assets'
 import {
 	Avatar,
@@ -186,9 +250,12 @@ import {
 	type TeleportOverflowMenuItem,
 	useVIntl,
 } from '@modrinth/ui'
+import { Dropdown } from 'floating-vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { useFeatureFlag } from '@/helpers/feature-flags'
+import { modlexHideMultiLaunch } from '@/helpers/modlex-settings'
 import type { GameInstance } from '@/helpers/types'
 
 import InstanceHeaderServerMetadata from './instance-page-header-server-metadata.vue'
@@ -225,6 +292,14 @@ const messages = defineMessages({
 	repair: {
 		id: 'instance.action.repair',
 		defaultMessage: 'Repair',
+	},
+	runningAccounts: {
+		id: 'instance.action.running-accounts',
+		defaultMessage: '{count, plural, one {# account running} other {# accounts running}}',
+	},
+	launchMultiple: {
+		id: 'instance.action.launch-multiple',
+		defaultMessage: 'Launch as multiple accounts',
 	},
 	lockedPlayTooltip: {
 		id: 'instance.locked.play-tooltip',
@@ -272,6 +347,8 @@ const props = withDefaults(
 			avatarUrl?: string
 			tintBy: string
 		} | null
+		runningAccounts?: Array<{ uuid: string; accountName: string; elapsedLabel: string }>
+		accounts?: Array<{ id: string; name: string }>
 	}>(),
 	{
 		iconSrc: null,
@@ -289,6 +366,8 @@ const props = withDefaults(
 		minecraftServer: undefined,
 		linkedProjectV3: undefined,
 		sharedInstanceManager: null,
+		runningAccounts: () => [],
+		accounts: () => [],
 	},
 )
 
@@ -302,6 +381,8 @@ const emit = defineEmits<{
 	export: []
 	createShortcut: []
 	report: [event?: MouseEvent]
+	stopProcess: [uuid: string]
+	openMultiLaunch: []
 }>()
 
 const installingStages = [
@@ -315,6 +396,7 @@ const installingStages = [
 const { formatMessage } = useVIntl()
 
 const isInstalling = computed(() => installingStages.includes(props.instance.install_stage))
+const { enabled: multiLaunchFeatureEnabled } = useFeatureFlag('multi_account_launch')
 const loaderDisplayName = computed(() => formatLoaderLabel(props.instance.loader) as ServerLoader)
 const loaderLabel = computed(() =>
 	[loaderDisplayName.value, props.instance.loader_version].filter(Boolean).join(' '),

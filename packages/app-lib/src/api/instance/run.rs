@@ -1,7 +1,8 @@
 use super::content::get_projects;
 use crate::server_address::ServerAddress;
 use crate::state::{
-    Credentials, InstanceLink, ProcessMetadata, Settings, State,
+    Credentials, InstanceLink, MemorySettings, ProcessMetadata, Settings,
+    State,
 };
 use crate::util::fetch;
 use crate::util::io::IOError;
@@ -16,6 +17,16 @@ pub enum QuickPlayType {
     None,
     Singleplayer(String),
     Server(ServerAddress),
+}
+
+/// Per-call launch overrides that apply only to a single launch and are never
+/// persisted to the instance's saved settings. Used by [`run_as_account`] to
+/// let a multi-account launch use different memory/args per account without
+/// touching the instance's `launch_overrides` in the database.
+#[derive(Debug, Clone, Default)]
+pub struct EphemeralLaunchOverrides {
+    pub memory: Option<MemorySettings>,
+    pub extra_launch_args: Option<Vec<String>>,
 }
 
 #[tracing::instrument]
@@ -45,7 +56,44 @@ pub async fn run(
         .await?
         .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
 
-    run_credentials(instance_id, &default_account, quick_play_type).await
+    run_credentials(instance_id, &default_account, quick_play_type, None).await
+}
+
+/// Like [`run`], but launches the instance as a specific account rather than
+/// the default account. Used for launching several accounts concurrently.
+#[tracing::instrument]
+pub async fn run_as_account(
+    instance_id: &str,
+    account_id: uuid::Uuid,
+    quick_play_type: QuickPlayType,
+    overrides: Option<EphemeralLaunchOverrides>,
+) -> crate::Result<ProcessMetadata> {
+    let state = State::get().await?;
+    if crate::state::instances::adapters::sqlite::instance_rows::is_instance_quarantined(
+        instance_id,
+        &state.pool,
+    )
+    .await?
+    {
+        return Err(crate::ErrorKind::InputError(
+            "This instance has been quarantined".to_string(),
+        )
+        .into());
+    }
+    super::shared::check_shared_instance_availability_before_launch(
+        instance_id,
+        &state,
+    )
+    .await?;
+
+    let credentials = Credentials::get_all(&state.pool)
+        .await?
+        .get(&account_id)
+        .map(|entry| entry.value().clone())
+        .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
+
+    run_credentials(instance_id, &credentials, quick_play_type, overrides)
+        .await
 }
 
 #[tracing::instrument(skip(credentials))]
@@ -53,6 +101,7 @@ async fn run_credentials(
     instance_id: &str,
     credentials: &Credentials,
     quick_play_type: QuickPlayType,
+    overrides: Option<EphemeralLaunchOverrides>,
 ) -> crate::Result<ProcessMetadata> {
     let state = State::get().await?;
     let settings = Settings::get(&state.pool).await?;
@@ -121,11 +170,27 @@ async fn run_credentials(
         }
     }
 
-    let java_args = context
-        .launch_overrides
-        .extra_launch_args
-        .clone()
-        .unwrap_or(settings.extra_launch_args);
+    let mut java_args = overrides
+        .as_ref()
+        .and_then(|o| o.extra_launch_args.clone())
+        .or_else(|| context.launch_overrides.extra_launch_args.clone())
+        .unwrap_or(settings.extra_launch_args.clone());
+
+    match crate::state::modlex_session::write_session_file(
+        &settings,
+        &state.launcher_version,
+    ) {
+        Ok(session_path) => {
+            java_args.push(format!(
+                "-Dmodlex.session={}",
+                session_path.display()
+            ));
+            crate::state::modlex_session::schedule_cleanup(session_path);
+        }
+        Err(e) => {
+            warn!("Failed to write ModLEX session file: {e}");
+        }
+    }
     let wrapper = context
         .launch_overrides
         .hooks
@@ -133,7 +198,11 @@ async fn run_credentials(
         .clone()
         .or(settings.hooks.wrapper)
         .filter(|hook_command| !hook_command.is_empty());
-    let memory = context.launch_overrides.memory.unwrap_or(settings.memory);
+    let memory = overrides
+        .as_ref()
+        .and_then(|o| o.memory)
+        .or(context.launch_overrides.memory)
+        .unwrap_or(settings.memory);
     let resolution = context
         .launch_overrides
         .game_resolution
