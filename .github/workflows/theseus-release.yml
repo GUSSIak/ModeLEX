@@ -1,33 +1,31 @@
-name: Modrinth App release
+name: ModLEX App release
 on:
   workflow_run:
-    workflows: ['Modrinth App build']
+    workflows: ['ModLEX App build']
     types: [completed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/prod' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   release:
-    name: Release Modrinth App
+    name: Release ModLEX App
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       startsWith(github.event.workflow_run.head_branch, 'v')
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: windows-latest
     env:
       VERSION_TAG: ${{ github.event.workflow_run.head_branch }}
-      LINUX_X64_BUNDLE_ARTIFACT_NAME: App bundle (x86_64-unknown-linux-gnu)
       WINDOWS_X64_BUNDLE_ARTIFACT_NAME: App bundle (x86_64-pc-windows-msvc)
-      MACOS_UNIVERSAL_BUNDLE_ARTIFACT_NAME: App bundle (universal-apple-darwin)
-      LAUNCHER_FILES_BUCKET_BASE_URL: https://launcher-files.modrinth.com
 
     steps:
       - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Verify ref is a tag
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -46,7 +44,19 @@ jobs:
           fi
           echo "Verified ${VERSION_TAG} is a tag pointing at ${HEAD_SHA}"
 
-      - name: Download Modrinth App artifacts
+      # Beta channel: any tag with a "-beta" prerelease suffix, e.g. v1.4.0-beta.1
+      - name: Determine update channel
+        shell: bash
+        run: |
+          if [[ "$VERSION_TAG" == *-beta* ]]; then
+            echo "CHANNEL=beta" >> "$GITHUB_ENV"
+            echo "MANIFEST_FILE=updates-beta.json" >> "$GITHUB_ENV"
+          else
+            echo "CHANNEL=stable" >> "$GITHUB_ENV"
+            echo "MANIFEST_FILE=updates.json" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download ModLEX App artifacts
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
         with:
           workflow: theseus-build.yml
@@ -56,6 +66,7 @@ jobs:
           use_unzip: true
 
       - name: Extract app changelog
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ env.VERSION_TAG }}
@@ -63,97 +74,82 @@ jobs:
           LAST_GITHUB_RELEASE_PUBLISHED_AT=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.published_at // ""' 2>/dev/null || true)
           LAST_GITHUB_RELEASE_PUBLISHED_AT="$LAST_GITHUB_RELEASE_PUBLISHED_AT" npx --yes tsx scripts/build-theseus-release-notes.ts
 
+      # actions/upload-artifact strips whatever common ancestor directory the
+      # uploaded glob paths shared, so the exact nesting inside the downloaded
+      # artifact folder isn't guaranteed — find the files by name instead of
+      # assuming a fixed path.
+      - name: Locate build artifacts
+        shell: bash
+        run: |
+          VERSION="${VERSION_TAG#v}"
+          SETUP_EXE=$(find "$WINDOWS_X64_BUNDLE_ARTIFACT_NAME" -iname '*-setup.exe' | head -n1)
+          SETUP_ZIP=$(find "$WINDOWS_X64_BUNDLE_ARTIFACT_NAME" -iname '*-setup.nsis.zip' | head -n1)
+          SETUP_SIG=$(find "$WINDOWS_X64_BUNDLE_ARTIFACT_NAME" -iname '*-setup.nsis.zip.sig' | head -n1)
+          if [ -z "$SETUP_EXE" ] || [ -z "$SETUP_ZIP" ] || [ -z "$SETUP_SIG" ]; then
+            echo "::error::Could not find one or more Windows build artifacts"
+            find "$WINDOWS_X64_BUNDLE_ARTIFACT_NAME"
+            exit 1
+          fi
+          echo "SETUP_EXE=$SETUP_EXE" >> "$GITHUB_ENV"
+          echo "SETUP_ZIP=$SETUP_ZIP" >> "$GITHUB_ENV"
+          echo "SETUP_SIG=$SETUP_SIG" >> "$GITHUB_ENV"
+
       - name: Generate version manifest
+        shell: bash
         run: |
           # Reference: https://tauri.app/plugin/updater/#server-support
+          VERSION="${VERSION_TAG#v}"
+          SIG=$(cat "$SETUP_SIG")
           jq -nc \
-            --arg versionTag "${VERSION_TAG#v}" \
+            --arg version "$VERSION" \
+            --arg signature "$SIG" \
+            --arg url "https://github.com/${{ github.repository }}/releases/download/${VERSION_TAG}/ModLEX.App_${VERSION}_x64-setup.nsis.zip" \
             --rawfile releaseNotes release-notes.md \
-            --rawfile macOsAarch64UpdateArtifactSignature "${MACOS_UNIVERSAL_BUNDLE_ARTIFACT_NAME}/universal-apple-darwin/release/bundle/macos/Modrinth App.app.tar.gz.sig" \
-            --rawfile macOsX64UpdateArtifactSignature "${MACOS_UNIVERSAL_BUNDLE_ARTIFACT_NAME}/universal-apple-darwin/release/bundle/macos/Modrinth App.app.tar.gz.sig" \
-            --rawfile linuxX64UpdateArtifactSignature "${LINUX_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/appimage/Modrinth App_${VERSION_TAG#v}_amd64.AppImage.tar.gz.sig" \
-            --rawfile windowsX64UpdateArtifactSignature "${WINDOWS_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/nsis/Modrinth App_${VERSION_TAG#v}_x64-setup.nsis.zip.sig" \
           '{
-            "version": $versionTag,
+            "version": $version,
             "notes": $releaseNotes,
             "pub_date": now | todateiso8601,
             "platforms": {
-              "darwin-aarch64": {
-                "signature": $macOsAarch64UpdateArtifactSignature,
-                "url": @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/macos/\("Modrinth App.app.tar.gz")",
-                "install_urls": [@uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/macos/\("Modrinth App_" + $versionTag + "_universal.dmg")"]
-              },
-              "darwin-x86_64": {
-                "signature": $macOsX64UpdateArtifactSignature,
-                "url": @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/macos/\("Modrinth App.app.tar.gz")",
-                "install_urls": [@uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/macos/\("Modrinth App_" + $versionTag + "_universal.dmg")"]
-              },
-              "linux-x86_64": {
-                "signature": $linuxX64UpdateArtifactSignature,
-                "url": @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/linux/\("Modrinth App_" + $versionTag + "_amd64.AppImage.tar.gz")",
-                "install_urls": [
-                  @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/linux/\("Modrinth App_" + $versionTag + "_amd64.deb")",
-                  @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/linux/\("Modrinth App_" + $versionTag + "_amd64.AppImage")",
-                  @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/linux/\("Modrinth App-" + $versionTag + "-1.x86_64.rpm")"
-                ]
-              },
               "windows-x86_64": {
-                "signature": $windowsX64UpdateArtifactSignature,
-                "url": @uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/windows/\("Modrinth App_" + $versionTag + "_x64-setup.nsis.zip")",
-                "install_urls": [@uri "${{ env.LAUNCHER_FILES_BUCKET_BASE_URL }}/versions/\($versionTag)/windows/\("Modrinth App_" + $versionTag + "_x64-setup.exe")"]
+                "signature": $signature,
+                "url": $url
               }
             }
-          }' > updates.json
+          }' > "$MANIFEST_FILE"
 
-          echo "Generated manifest for version ${VERSION_TAG}:"
-          cat updates.json
-
-      - name: Upload release artifacts
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.LAUNCHER_FILES_BUCKET_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.LAUNCHER_FILES_BUCKET_SECRET_ACCESS_KEY }}
-          AWS_BUCKET: ${{ secrets.LAUNCHER_FILES_BUCKET_NAME }}
-          AWS_REGION: ${{ secrets.LAUNCHER_FILES_BUCKET_REGION }}
-          AWS_ENDPOINT_URL: ${{ secrets.LAUNCHER_FILES_BUCKET_ENDPOINT_URL }}
-          AWS_PAGER: ''
-          # Work around incompatible checksum behavior with some S3-like object storage providers,
-          # such as Cloudflare R2. See:
-          # - https://developers.cloudflare.com/r2/examples/aws/aws-cli/
-          # - https://developers.cloudflare.com/r2/examples/aws/aws-sdk-java/
-          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-        run: |
-          for macosBundleType in 'macos' 'dmg'; do
-            aws s3 cp --recursive \
-              "${MACOS_UNIVERSAL_BUNDLE_ARTIFACT_NAME}/universal-apple-darwin/release/bundle/${macosBundleType}" \
-              "s3://${AWS_BUCKET}/versions/${VERSION_TAG#v}/macos"
-          done
-
-          for linuxBundleType in 'appimage' 'deb' 'rpm'; do
-            aws s3 cp --recursive \
-              "${LINUX_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/${linuxBundleType}" \
-              "s3://${AWS_BUCKET}/versions/${VERSION_TAG#v}/linux"
-          done
-
-          for windowsBundleType in 'nsis'; do
-            aws s3 cp --recursive \
-              "${WINDOWS_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/${windowsBundleType}" \
-              "s3://${AWS_BUCKET}/versions/${VERSION_TAG#v}/windows"
-          done
-
-          aws s3 cp updates.json "s3://${AWS_BUCKET}"
+          echo "Generated $MANIFEST_FILE for version ${VERSION_TAG} (channel: ${CHANNEL}):"
+          cat "$MANIFEST_FILE"
 
       - name: Create GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${VERSION_TAG#v}"
 
           gh release create "$VERSION_TAG" \
-            --title "Modrinth App ${VERSION}" \
+            --title "ModLEX App ${VERSION}" \
             --notes-file release-notes.md \
-            "${WINDOWS_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/nsis/Modrinth App_${VERSION}_x64-setup.exe" \
-            "${MACOS_UNIVERSAL_BUNDLE_ARTIFACT_NAME}/universal-apple-darwin/release/bundle/dmg/Modrinth App_${VERSION}_universal.dmg" \
-            "${LINUX_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/appimage/Modrinth App_${VERSION}_amd64.AppImage" \
-            "${LINUX_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/deb/Modrinth App_${VERSION}_amd64.deb" \
-            "${LINUX_X64_BUNDLE_ARTIFACT_NAME}/release/bundle/rpm/Modrinth App-${VERSION}-1.x86_64.rpm"
+            --prerelease="$([ "$CHANNEL" = "beta" ] && echo true || echo false)" \
+            "${SETUP_EXE}#ModLEX.App_${VERSION}_x64-setup.exe" \
+            "${SETUP_ZIP}#ModLEX.App_${VERSION}_x64-setup.nsis.zip"
+
+      # updates.json / updates-beta.json are hosted on the separate site repo
+      # (same one flags.json / news.json already live on), not in this repo.
+      - name: Publish update manifest to site repo
+        shell: bash
+        env:
+          SITE_REPO_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${SITE_REPO_TOKEN}@github.com/GUSSIak/GUSSIak.github.io.git" site-repo
+          cp "$MANIFEST_FILE" "site-repo/$MANIFEST_FILE"
+          cd site-repo
+          git config user.name "modlex-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$MANIFEST_FILE"
+          if git diff --cached --quiet; then
+            echo "No manifest changes to publish"
+          else
+            git commit -m "Publish $MANIFEST_FILE for $VERSION_TAG"
+            git push
+          fi
