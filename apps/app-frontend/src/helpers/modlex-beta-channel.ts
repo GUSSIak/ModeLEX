@@ -46,7 +46,12 @@ async function fetchTesters(): Promise<TestersMap> {
 	return (await response.json()) as TestersMap
 }
 
-/** Возвращает существующий tester-id из настроек, либо создаёт и сохраняет новый. */
+/**
+ * Возвращает существующий anonymous-id из настроек, либо создаёт и сохраняет
+ * новый. Изначально только для бета-кода, теперь также переиспользуется как
+ * обезличенный идентификатор для modlex-ping.ts (одна и та же случайная
+ * строка без привязки к личности — специально не заводили второй генератор).
+ */
 export async function ensureTesterId(): Promise<string> {
 	const settings = await getSettings()
 	if (settings.modlex_tester_id) {

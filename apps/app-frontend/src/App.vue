@@ -102,6 +102,7 @@ import {
 	stopFeatureFlagPolling,
 } from '@/helpers/modlex-feature-flags'
 import { fetchModlexNews } from '@/helpers/modlex-github-news'
+import { startPing, stopPing } from '@/helpers/modlex-ping'
 // ===== ModLEX IMPORTS =====
 import { modlexHideMusicTab, modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
 import { get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
@@ -487,16 +488,6 @@ onMounted(async () => {
 		console.log('[devMode secret] слушатель подключён, ожидаемые коды:', devModeSecretCodes.join(','))
 
 		isBetaBuild.value = appVersion.includes('-beta')
-		if (isBetaBuild.value) {
-			const currentSettings = await getSettings()
-			if (!currentSettings.modlex_beta_verified) {
-				betaGateBlocking.value = true
-				// Модалка живёт под v-if="stateInitialized" — до этого момента
-				// её ref ещё не существует, .show() тут был бы молчаливым no-op.
-				// Реальный показ — в watch(stateInitialized, ...) ниже.
-				betaGateNeeded.value = true
-			}
-		}
 	} catch (err) {
 		console.error('[devMode secret] не удалось подключить слушатель:', err)
 	}
@@ -506,6 +497,25 @@ onMounted(async () => {
 	// были заблокированы уже к моменту, когда пользователь может куда-то кликнуть
 	await refreshFeatureFlags()
 	startFeatureFlagPolling()
+
+	// ===== MODLEX: решение по гейту бета-сборки — после refreshFeatureFlags(),
+	// чтобы учитывать актуальный remote-флаг beta_tester_gate (можно удалённо
+	// отключить требование кода без новой сборки — см. flags.json). =====
+	if (isBetaBuild.value && useFeatureFlag('beta_tester_gate').enabled.value) {
+		try {
+			const currentSettings = await getSettings()
+			if (!currentSettings.modlex_beta_verified) {
+				betaGateBlocking.value = true
+				// Модалка живёт под v-if="stateInitialized" — до этого момента
+				// её ref ещё не существует, .show() тут был бы молчаливым no-op.
+				// Реальный показ — в watch(stateInitialized, ...) ниже.
+				betaGateNeeded.value = true
+			}
+		} catch (err) {
+			console.error('[beta gate] не удалось проверить состояние:', err)
+		}
+	}
+	// ===== END MODLEX =====
 
 	await useCheckDisableMouseover()
 
@@ -518,6 +528,7 @@ onMounted(async () => {
 	hideServersTab.value = modlexHideServers.value
 	hideMusicTab.value = modlexHideMusicTab.value
 	await loadNews()
+	startPing()
 
 	// Слушаем изменения настроек
 	window.addEventListener('modlex-settings-changed', () => {
@@ -535,6 +546,7 @@ onUnmounted(async () => {
 	unsubscribeSidebarToggle()
 	clearDelayedUpdatePopup()
 	stopFeatureFlagPolling()
+	stopPing()
 
 	await unlistenUpdateDownload?.()
 })
