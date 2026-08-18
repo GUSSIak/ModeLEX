@@ -25,8 +25,17 @@ pub async fn url_to_data_stream(
 
         Ok(Either::Left(stream::once(async { Ok(data) })))
     } else {
+        // Mojang's session API still returns texture URLs as `http://`, but the
+        // CDN behind them also serves `https://` — some firewalls/AVs are far
+        // more willing to let plain HTTPS through than unencrypted HTTP, so we
+        // upgrade the scheme rather than fetch the URL exactly as given.
+        let mut fetch_url = url.clone();
+        if fetch_url.scheme() == "http" {
+            let _ = fetch_url.set_scheme("https");
+        }
+
         let response = INSECURE_REQWEST_CLIENT
-            .get(url.as_str())
+            .get(fetch_url.as_str())
             .header("Accept", "image/png")
             .timeout(std::time::Duration::from_secs(10))
             .send()
