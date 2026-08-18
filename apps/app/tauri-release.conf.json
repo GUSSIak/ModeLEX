@@ -12,7 +12,7 @@
 	},
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1Q0I5QTMxMDYyNkMwRTcKUldUbndDWUdNWnJMZGNZc0lJZENROHdUZUhuYUNCUzFCWERTU21TelUza1FnQ1ZvMk5EaWZhODkK",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENkVFODkyOUM0ODZBRgpSV1N2aHNRcGllN1dELzhnU21Lb215bEtRc0FCSkxucjBzM3M1Nmhja2doVHlHVnZhRFlnZFdVVQo=",
 			"endpoints": ["https://gussiak.github.io/updates.json"],
 			"windows": {
 				"installMode": "quiet"
