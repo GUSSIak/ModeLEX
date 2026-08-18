@@ -96,6 +96,7 @@ jobs:
           dasel put -f apps/app/Cargo.toml -t string -v "${APP_VERSION#v}" 'package.version'
           dasel put -f packages/app-lib/Cargo.toml -t string -v "${APP_VERSION#v}" 'package.version'
           dasel put -f apps/app-frontend/package.json -t string -v "${APP_VERSION#v}" 'version'
+          dasel put -f apps/app/tauri.conf.json -t string -v "${APP_VERSION#v}" 'version'
 
       # packages/app-lib/.env is gitignored (holds CURSEFORGE_API_KEY, MODLEX_SESSION_SECRET,
       # MODRINTH_API_URL and friends — everything build.rs embeds at compile time via env!()) —
