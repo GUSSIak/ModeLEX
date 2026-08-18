@@ -4,6 +4,9 @@ on:
     workflows: ['ModLEX App build']
     types: [completed]
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
