@@ -186,6 +186,7 @@ async function onBetaApproved() {
 	try {
 		const settings = await getSettings()
 		settings.modlex_update_channel = 'beta'
+		settings.modlex_beta_verified = true
 		await setSettings(settings)
 		updateChannel.value = 'beta'
 		// Небольшая задержка — чтобы пользователь успел увидеть подтверждение

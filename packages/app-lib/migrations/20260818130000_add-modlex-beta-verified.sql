@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN modlex_beta_verified BOOLEAN NOT NULL DEFAULT FALSE;

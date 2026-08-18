@@ -61,7 +61,7 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { type } from '@tauri-apps/plugin-os'
 import { saveWindowState, StateFlags } from '@tauri-apps/plugin-window-state'
-import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import ModLEXAppLogo from '@/assets/modlex_app.svg?component'
@@ -75,6 +75,7 @@ import UnknownPackWarningModal from '@/components/ui/install_flow/UnknownPackWar
 import MinecraftAuthErrorModal from '@/components/ui/minecraft-auth-error-modal/MinecraftAuthErrorModal.vue'
 import MinecraftRequiredModal from '@/components/ui/minecraft-required-modal/MinecraftRequiredModal.vue'
 import AppSettingsModal from '@/components/ui/modal/AppSettingsModal.vue'
+import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import InstallToPlayModal from '@/components/ui/modal/InstallToPlayModal.vue'
 import ModpackAlreadyInstalledModal from '@/components/ui/modal/ModpackAlreadyInstalledModal.vue'
 import ModrinthAccountRequiredModal from '@/components/ui/modal/ModrinthAccountRequiredModal.vue'
@@ -452,6 +453,29 @@ function handleDevModeSecretKeydown(event) {
 }
 // ===== END MODLEX =====
 
+// ===== MODLEX: стартовый гейт бета-сборки =====
+// Если appVersion содержит "-beta" (сборка собрана из бета-тега) и локально
+// ещё нет подтверждённого modlex_beta_verified — блокируем доступ к
+// приложению до ввода кода тестировщика. Отдельно от modlex_update_channel:
+// тот управляет тем, какие обновления апп проверяет, а этот гейт — можно ли
+// вообще пользоваться уже запущенной бета-сборкой (защита от утечки exe).
+const isBetaBuild = ref(false)
+const betaGateModal = ref()
+const betaGateBlocking = ref(true)
+const betaGateNeeded = ref(false)
+
+async function onBetaGateApproved() {
+	const currentSettings = await getSettings()
+	currentSettings.modlex_beta_verified = true
+	currentSettings.modlex_update_channel = 'beta'
+	await setSettings(currentSettings)
+	setTimeout(() => {
+		betaGateBlocking.value = false
+		betaGateModal.value?.hide()
+	}, 1200)
+}
+// ===== END MODLEX =====
+
 onMounted(async () => {
 	// ===== MODLEX: подключаем слушатель секретной фразы независимо и раньше
 	// всего остального — чтобы сбой в другой части onMounted (сеть и т.п.) не
@@ -461,6 +485,18 @@ onMounted(async () => {
 		devModeSecretCodes = secretToKeyCodes(`modlex${appVersion.replace(/\D/g, '')}bgfc`)
 		window.addEventListener('keydown', handleDevModeSecretKeydown)
 		console.log('[devMode secret] слушатель подключён, ожидаемые коды:', devModeSecretCodes.join(','))
+
+		isBetaBuild.value = appVersion.includes('-beta')
+		if (isBetaBuild.value) {
+			const currentSettings = await getSettings()
+			if (!currentSettings.modlex_beta_verified) {
+				betaGateBlocking.value = true
+				// Модалка живёт под v-if="stateInitialized" — до этого момента
+				// её ref ещё не существует, .show() тут был бы молчаливым no-op.
+				// Реальный показ — в watch(stateInitialized, ...) ниже.
+				betaGateNeeded.value = true
+			}
+		}
 	} catch (err) {
 		console.error('[devMode secret] не удалось подключить слушатель:', err)
 	}
@@ -780,6 +816,22 @@ function onSuspenseResolve() {
 }
 
 const queryClient = useQueryClient()
+
+// ===== MODLEX: показ гейта бета-сборки =====
+// Отдельный watch, а не проверка внутри watch(stateInitialized) ниже — тот
+// срабатывает только один раз на переход false→true, а betaGateNeeded может
+// стать true как до, так и после этого перехода (порядок не гарантирован,
+// зависит от скорости асинхронных проверок версии/настроек). computed
+// пересчитывается при изменении любого из двух флагов, так что сработает
+// независимо от того, что случилось раньше.
+const shouldShowBetaGate = computed(() => stateInitialized.value && betaGateNeeded.value)
+watch(shouldShowBetaGate, (show) => {
+	if (show) {
+		betaGateNeeded.value = false
+		nextTick(() => betaGateModal.value?.show())
+	}
+})
+// ===== END MODLEX =====
 
 watch(stateInitialized, (ready) => {
 	if (ready) {
@@ -1608,6 +1660,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<Suspense>
 			<AppSettingsModal ref="appSettingsModal" />
 		</Suspense>
+		<BetaChannelModal
+			ref="betaGateModal"
+			:blocking="betaGateBlocking"
+			@approved="onBetaGateApproved"
+		/>
 		<Suspense>
 			<ModrinthAccountRequiredModal ref="modrinthLoginModal" :request-auth="requestModrinthAuth" />
 		</Suspense>
@@ -1736,6 +1793,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 items-center overflow-hidden p-2">
 				<ModLEXAppLogo class="h-7 w-auto shrink-0 text-contrast pointer-events-none" />
+				<span
+					v-if="isBetaBuild"
+					data-tauri-drag-region
+					class="ml-1.5 shrink-0 rounded-full bg-orange-highlight px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-orange pointer-events-none select-none"
+					>BETA</span
+				>
 				<div data-tauri-drag-region class="ml-2 flex shrink-0 items-center gap-2">
 					<ButtonStyled type="outlined" circular>
 						<button

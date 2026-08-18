@@ -61,6 +61,11 @@ pub struct Settings {
     /// идентификатор — переиспользуется при каждой последующей проверке,
     /// чтобы не требовать повторного одобрения на каждый запуск.
     pub modlex_tester_id: Option<String>,
+    /// Пройден ли стартовый гейт с кодом тестировщика для бета-сборки этого
+    /// конкретного билда (собранного из тега с `-beta`). Не путать с
+    /// `modlex_update_channel` — тот управляет тем, какие обновления апп
+    /// проверяет, а это — можно ли вообще пользоваться уже запущенной бета-сборкой.
+    pub modlex_beta_verified: bool,
 
     pub version: usize,
 }
@@ -130,7 +135,7 @@ impl Settings {
                 skipped_update, pending_update_toast_for_version, auto_download_updates,
                 modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,
                 modlex_music_default_source, json(modlex_playlists) modlex_playlists,
-                modlex_update_channel, modlex_tester_id,
+                modlex_update_channel, modlex_tester_id, modlex_beta_verified,
                 version
             FROM settings
             "
@@ -202,6 +207,7 @@ impl Settings {
                 .unwrap_or_default(),
             modlex_update_channel: res.modlex_update_channel,
             modlex_tester_id: res.modlex_tester_id,
+            modlex_beta_verified: res.modlex_beta_verified,
             version: res.version as usize,
         })
     }
@@ -274,8 +280,9 @@ impl Settings {
 
                 modlex_update_channel = $39,
                 modlex_tester_id = $40,
+                modlex_beta_verified = $41,
 
-                version = $41
+                version = $42
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -317,6 +324,7 @@ impl Settings {
             modlex_playlists,
             self.modlex_update_channel,
             self.modlex_tester_id,
+            self.modlex_beta_verified,
             version,
         )
         .execute(exec)

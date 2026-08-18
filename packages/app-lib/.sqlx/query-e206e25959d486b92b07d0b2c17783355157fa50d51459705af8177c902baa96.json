@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                onboarded,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id,\n                version\n            FROM settings\n            ",
+  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                onboarded,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id, modlex_beta_verified,\n                version\n            FROM settings\n            ",
   "describe": {
     "columns": [
       {
@@ -204,8 +204,13 @@
         "type_info": "Text"
       },
       {
-        "name": "version",
+        "name": "modlex_beta_verified",
         "ordinal": 40,
+        "type_info": "Bool"
+      },
+      {
+        "name": "version",
+        "ordinal": 41,
         "type_info": "Integer"
       }
     ],
@@ -253,8 +258,9 @@
       null,
       false,
       true,
+      false,
       false
     ]
   },
-  "hash": "fe649a580d27ab5944548a9f035eb07311509339ccc63cdda7b141eda7439015"
+  "hash": "e206e25959d486b92b07d0b2c17783355157fa50d51459705af8177c902baa96"
 }

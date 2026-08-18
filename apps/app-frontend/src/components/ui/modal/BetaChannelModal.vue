@@ -1,7 +1,13 @@
 <template>
-	<NewModal ref="modal" :header="formatMessage(messages.header)" max-width="420px">
+	<NewModal
+		ref="modal"
+		:header="blockingHeader"
+		:closable="!blocking"
+		:disable-close="blocking"
+		max-width="420px"
+	>
 		<div class="flex flex-col gap-3">
-			<p class="m-0 text-sm text-secondary">{{ formatMessage(messages.description) }}</p>
+			<p class="m-0 text-sm text-secondary">{{ blockingDescription }}</p>
 
 			<div class="flex gap-2">
 				<input
@@ -34,7 +40,7 @@
 					<ButtonStyled size="small">
 						<button type="button" @click="copyTesterId">
 							<CopyIcon />
-							{{ formatMessage(commonMessages.copyButton) }}
+							{{ formatMessage(commonMessages.copyIdButton) }}
 						</button>
 					</ButtonStyled>
 				</div>
@@ -68,7 +74,7 @@
 
 		<template #actions>
 			<div class="flex justify-end gap-2">
-				<ButtonStyled type="outlined">
+				<ButtonStyled v-if="!blocking" type="outlined">
 					<button type="button" @click="modal?.hide()">
 						{{ formatMessage(commonMessages.cancelButton) }}
 					</button>
@@ -95,12 +101,20 @@ import {
 	NewModal,
 	useVIntl,
 } from '@modrinth/ui'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { checkTesterCode, type CodeCheckResult } from '@/helpers/modlex-beta-channel'
 
 const TELEGRAM_URL = 'https://t.me/modlexapp'
 const DISCORD_URL = 'https://discord.gg/Eqn2JXcmv7'
+
+const props = withDefaults(
+	defineProps<{
+		/** Не даёт закрыть модалку без ввода кода — используется на стартовом гейте бета-сборки. */
+		blocking?: boolean
+	}>(),
+	{ blocking: false },
+)
 
 const { formatMessage } = useVIntl()
 const { handleError, addNotification } = injectNotificationManager()
@@ -114,9 +128,18 @@ const messages = defineMessages({
 		id: 'app.settings.beta-channel.header',
 		defaultMessage: 'Enable beta channel',
 	},
+	blockingHeader: {
+		id: 'app.settings.beta-channel.blocking-header',
+		defaultMessage: 'Beta build — tester code required',
+	},
 	description: {
 		id: 'app.settings.beta-channel.description',
 		defaultMessage: 'Enter a tester code to switch this launcher to the beta update channel.',
+	},
+	blockingDescription: {
+		id: 'app.settings.beta-channel.blocking-description',
+		defaultMessage:
+			'This is a beta build. Enter your tester code to continue — this is only required once.',
 	},
 	codePlaceholder: {
 		id: 'app.settings.beta-channel.code-placeholder',
@@ -161,6 +184,13 @@ const code = ref('')
 const checking = ref(false)
 const result = ref<CodeCheckResult | null>(null)
 
+const blockingHeader = computed(() =>
+	formatMessage(props.blocking ? messages.blockingHeader : messages.header),
+)
+const blockingDescription = computed(() =>
+	formatMessage(props.blocking ? messages.blockingDescription : messages.description),
+)
+
 async function submit() {
 	if (!code.value.trim() || checking.value) return
 	checking.value = true
@@ -180,7 +210,7 @@ async function copyTesterId() {
 	if (result.value?.status !== 'pending') return
 	await navigator.clipboard.writeText(result.value.testerId)
 	addNotification({
-		title: formatMessage(commonMessages.copyButton),
+		title: formatMessage(commonMessages.copyIdButton),
 		text: result.value.testerId,
 		type: 'success',
 	})
