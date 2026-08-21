@@ -12,7 +12,6 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	CompassIcon,
-	LibraryIcon,
 	LogInIcon,
 	LogOutIcon,
 	NewspaperIcon,
@@ -570,10 +569,6 @@ onMounted(async () => {
 		const appVersion = await getVersion()
 		devModeSecretCodes = secretToKeyCodes(`modlex${appVersion.replace(/\D/g, '')}bgfc`)
 		window.addEventListener('keydown', handleDevModeSecretKeydown)
-		console.log(
-			'[devMode secret] слушатель подключён, ожидаемые коды:',
-			devModeSecretCodes.join(','),
-		)
 
 		isBetaBuild.value = appVersion.includes('-beta')
 	} catch (err) {
@@ -1908,7 +1903,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				:is-primary="(route) => route.path === '/'"
 				:is-subpage="
 					() =>
-						(route.path.startsWith('/browse') || route.path.startsWith('/project')) && route.query.i
+						route.path.startsWith('/instance') ||
+						((route.path.startsWith('/browse') || route.path.startsWith('/project')) &&
+							route.query.i)
 				"
 			>
 				<PlayIcon />
@@ -1928,19 +1925,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			</NavButton>
 			<NavButton v-if="!hideMusicTab && musicFeatureEnabled" v-tooltip.right="'Музыка'" to="/music">
 				<AudioIcon />
-			</NavButton>
-			<NavButton
-				v-tooltip.right="formatMessage(messages.library)"
-				to="/library"
-				:is-primary="(r) => r.path === '/library' || r.path === '/library'"
-				:is-subpage="
-					() =>
-						route.path.startsWith('/instance') ||
-						((route.path.startsWith('/browse') || route.path.startsWith('/project')) &&
-							route.query.i)
-				"
-			>
-				<LibraryIcon />
 			</NavButton>
 			<NavButton
 				v-if="!hideServersTab"
