@@ -158,10 +158,10 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import ContextMenu from '@/components/ui/ContextMenu.vue'
+import ContextMenu from '@/components/ui/context-menu/index.vue'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
 import {
 	cf_get_files,
@@ -174,7 +174,7 @@ import {
 	findInstalledCounterpart,
 	resolveLatestFile,
 } from '@/helpers/curseforge'
-import { process_listener } from '@/helpers/events'
+import { useAppEvent } from '@/composables/use-app-event'
 import { get as getInstance, get_content_items as getContentItems } from '@/helpers/instance'
 import { get_game_versions, get_loaders } from '@/helpers/tags'
 import { provideBreadcrumbParent, useBreadcrumb } from '@/providers/breadcrumbs'
@@ -477,21 +477,14 @@ async function fetchProjectData() {
 
 await fetchProjectData()
 
-let unlistenProcesses
-process_listener((e) => {
+useAppEvent('process', (e) => {
 	if (
 		e.event === 'finished' &&
 		serverInstancePath.value &&
-		e.profile_path_id === serverInstancePath.value
+		e.instance_id === serverInstancePath.value
 	) {
 		serverPlaying.value = false
 	}
-}).then((unlisten) => {
-	unlistenProcesses = unlisten
-})
-
-onUnmounted(() => {
-	unlistenProcesses?.()
 })
 
 watch(
