@@ -245,7 +245,7 @@ const { progress, version: downloadingVersion } = injectAppUpdateDownloadProgres
 const version = await getVersion()
 // Версия релиза modrinth/code, от которой сейчас отталкивается форк ModLEX —
 // обновляется вручную после синхронизации с апстримом.
-const MODRINTH_BASE_VERSION = '0.17.3'
+const MODRINTH_BASE_VERSION = '0.18.2'
 const osPlatform = getOsPlatform()
 const osVersion = getOsVersion()
 const settings = ref(await get())

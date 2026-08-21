@@ -107,11 +107,13 @@ jobs:
             --arg version "$VERSION" \
             --arg signature "$SIG" \
             --arg url "https://github.com/${{ github.repository }}/releases/download/${VERSION_TAG}/ModLEX.App_${VERSION}_x64-setup.nsis.zip" \
+            --arg modrinthBase "0.18.2" \
             --rawfile releaseNotes release-notes.md \
           '{
             "version": $version,
             "notes": $releaseNotes,
             "pub_date": now | todateiso8601,
+            "modrinth_base": $modrinthBase,
             "platforms": {
               "windows-x86_64": {
                 "signature": $signature,
