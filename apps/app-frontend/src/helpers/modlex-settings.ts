@@ -109,12 +109,14 @@ const ALPHA_OVERRIDES: Record<string, number> = {
 	'--brand-gradient-border': 0.2,
 }
 
-// Двухстоповые градиенты-подложки (карточки в новостях и т.п.) — пересобираем
-// с тем же углом/раскладкой стопов, что и в оригинале, но обоими стопами от
-// выбранного акцента. Не трогаем --brand-gradient-fade-out-color — это фейд
-// именно в фон темы, а не акцентный градиент, перекраска его в акцент даст
-// цветную дымку вместо плавного слияния с фоном.
-const GRADIENT_VARS = ['--brand-gradient-bg', '--brand-gradient-strong-bg'] as const
+// Двухстоповые градиенты-подложки (карточки в новостях, "туман" снизу
+// правой панели и т.п.) — пересобираем с тем же углом, но обоими стопами от
+// выбранного акцента, чтобы не было рассинхрона с остальным акцентным UI.
+const GRADIENT_VARS = [
+	'--brand-gradient-bg',
+	'--brand-gradient-strong-bg',
+	'--brand-gradient-fade-out-color',
+] as const
 
 /**
  * Оверрайдит --color-brand и производные инлайн-стилем на <html> — это бьёт
@@ -134,10 +136,15 @@ export function applyAccentColor(hex: string): void {
 	for (const [varName, alpha] of Object.entries(ALPHA_OVERRIDES)) {
 		root.style.setProperty(varName, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`)
 	}
-	const gradient = `linear-gradient(0deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.22) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08) 100%)`
-	for (const varName of GRADIENT_VARS) {
-		root.style.setProperty(varName, gradient)
-	}
+	const bgGradient = `linear-gradient(0deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.22) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08) 100%)`
+	root.style.setProperty('--brand-gradient-bg', bgGradient)
+	root.style.setProperty('--brand-gradient-strong-bg', bgGradient)
+	// "Туман" снизу карточек — фейд в ту же сторону, что в оригинале (сверху
+	// вниз, от прозрачного к более плотному), просто тонирован акцентом.
+	root.style.setProperty(
+		'--brand-gradient-fade-out-color',
+		`linear-gradient(to bottom, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35) 80%)`,
+	)
 }
 
 applyAccentColor(modlexAccentColor.value)
