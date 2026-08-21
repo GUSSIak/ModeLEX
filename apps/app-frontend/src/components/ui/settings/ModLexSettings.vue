@@ -57,6 +57,220 @@
 					>
 				</div>
 			</div>
+
+			<Button
+				type="outlined"
+				size="sm"
+				native-type="button"
+				class="!mt-3"
+				@click="showAdvancedTheme = !showAdvancedTheme"
+			>
+				{{ showAdvancedTheme ? 'Скрыть расширенные настройки' : 'Расширенные настройки' }}
+			</Button>
+
+			<div v-if="showAdvancedTheme" class="advanced-theme">
+				<p class="settings-section__desc">
+					Тонкая настройка цветов интерфейса. Пустой цвет = стандартный цвет темы.
+				</p>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Фон</h3>
+						<p class="setting-row__desc">
+							Основной фон контента —
+							{{ modlexBgColor ? modlexBgColor : 'стандартный цвет темы' }}
+						</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="color"
+							class="color-picker"
+							:value="modlexBgColor || DEFAULT_BG"
+							@input="modlexBgColor = ($event.target as HTMLInputElement).value"
+						/>
+						<Button
+							v-if="modlexBgColor"
+							type="outlined"
+							size="sm"
+							native-type="button"
+							@click="modlexBgColor = ''"
+							>Сбросить</Button
+						>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Панели и карточки</h3>
+						<p class="setting-row__desc">
+							Карточки инстансов, кнопки, боковые панели, настройки —
+							{{ modlexPanelColor ? modlexPanelColor : 'стандартный цвет темы' }}
+						</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="color"
+							class="color-picker"
+							:value="modlexPanelColor || DEFAULT_PANEL"
+							@input="modlexPanelColor = ($event.target as HTMLInputElement).value"
+						/>
+						<Button
+							v-if="modlexPanelColor"
+							type="outlined"
+							size="sm"
+							native-type="button"
+							@click="modlexPanelColor = ''"
+							>Сбросить</Button
+						>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Текст</h3>
+						<p class="setting-row__desc">
+							{{ modlexTextColor ? modlexTextColor : 'Стандартный цвет темы' }}
+						</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="color"
+							class="color-picker"
+							:value="modlexTextColor || DEFAULT_TEXT"
+							@input="modlexTextColor = ($event.target as HTMLInputElement).value"
+						/>
+						<Button
+							v-if="modlexTextColor"
+							type="outlined"
+							size="sm"
+							native-type="button"
+							@click="modlexTextColor = ''"
+							>Сбросить</Button
+						>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Обводка текста</h3>
+						<p class="setting-row__desc">Контурная линия вокруг текста по всему приложению.</p>
+					</div>
+					<Toggle v-model="modlexTextOutlineEnabled" />
+				</div>
+
+				<div v-if="modlexTextOutlineEnabled" class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Цвет обводки текста</h3>
+					</div>
+					<input v-model="modlexTextOutlineColor" type="color" class="color-picker" />
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Иконки бокового меню</h3>
+						<p class="setting-row__desc">
+							{{ modlexIconColor ? modlexIconColor : 'Стандартный цвет темы' }}
+						</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="color"
+							class="color-picker"
+							:value="modlexIconColor || DEFAULT_ICON"
+							@input="modlexIconColor = ($event.target as HTMLInputElement).value"
+						/>
+						<Button
+							v-if="modlexIconColor"
+							type="outlined"
+							size="sm"
+							native-type="button"
+							@click="modlexIconColor = ''"
+							>Сбросить</Button
+						>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Разделители и края</h3>
+						<p class="setting-row__desc">
+							{{ modlexDividerColor ? modlexDividerColor : 'Стандартный цвет темы' }}
+						</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="color"
+							class="color-picker"
+							:value="modlexDividerColor || DEFAULT_DIVIDER"
+							@input="modlexDividerColor = ($event.target as HTMLInputElement).value"
+						/>
+						<Button
+							v-if="modlexDividerColor"
+							type="outlined"
+							size="sm"
+							native-type="button"
+							@click="modlexDividerColor = ''"
+							>Сбросить</Button
+						>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Двойная обводка</h3>
+						<p class="setting-row__desc">
+							Доп. кольцо поверх краёв и разделителей — например, белая внутренняя и чёрная внешняя
+							линия.
+						</p>
+					</div>
+					<Toggle v-model="modlexDoubleBorderEnabled" />
+				</div>
+
+				<div v-if="modlexDoubleBorderEnabled" class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Цвета обводки</h3>
+						<p class="setting-row__desc">Внутренняя и внешняя линия.</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							v-model="modlexDoubleBorderInner"
+							v-tooltip="'Внутренняя линия'"
+							type="color"
+							class="color-picker"
+						/>
+						<input
+							v-model="modlexDoubleBorderOuter"
+							v-tooltip="'Внешняя линия'"
+							type="color"
+							class="color-picker"
+						/>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Код темы</h3>
+						<p class="setting-row__desc">Сохрани или перешли всю раскраску одной строкой.</p>
+					</div>
+					<Button type="outlined" size="sm" native-type="button" @click="copyThemeCode"
+						>Скопировать код</Button
+					>
+				</div>
+
+				<div class="setting-row">
+					<input
+						v-model="importThemeCodeInput"
+						type="text"
+						class="console-text-input flex-1"
+						placeholder="Вставь код темы сюда"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+					<Button type="outlined" size="sm" native-type="button" @click="applyThemeCodeInput"
+						>Применить</Button
+					>
+				</div>
+			</div>
 		</div>
 
 		<!-- Консоль запуска -->
@@ -136,6 +350,31 @@
 			</div>
 		</div>
 
+		<!-- Discord -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Discord Rich Presence</h2>
+			<p class="settings-section__desc">
+				Свой текст статуса вместо "Играет {{ '{instance}' }}" — работает, если Discord Rich Presence
+				включён в Настройки → Аккаунт → Приватность.
+			</p>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Текст статуса</h3>
+					<p class="setting-row__desc">{{ '{instance}' }} — подставится имя запущенного инстанса</p>
+				</div>
+				<input
+					:value="discordMessage"
+					type="text"
+					maxlength="128"
+					placeholder="Играет {instance}"
+					class="console-text-input"
+					autocomplete="off"
+					spellcheck="false"
+					@input="onDiscordMessageInput(($event.target as HTMLInputElement).value)"
+				/>
+			</div>
+		</div>
+
 		<!-- Запуск -->
 		<div v-if="multiLaunchFeatureEnabled" class="settings-section">
 			<h2 class="settings-section__title">Запуск</h2>
@@ -164,23 +403,29 @@
 						}}
 					</p>
 				</div>
-				<Button
+				<div
 					v-if="updateChannel === 'stable'"
-					type="colored"
-					color="brand"
-					native-type="button"
-					@click="betaModal?.show()"
-					>Включить бета-канал</Button
+					class="toggle-lock-wrapper"
+					:class="{ 'toggle-lock-wrapper--locked': switchToBetaLocked }"
 				>
-				<Button
+					<Button type="colored" color="brand" native-type="button" @click="onSwitchToBetaClick"
+						>Включить бета-канал</Button
+					>
+				</div>
+				<div
 					v-else
-					type="outlined"
-					native-type="button"
-					:disabled="switchingChannel"
-					@click="returnToStableChannel"
+					class="toggle-lock-wrapper"
+					:class="{ 'toggle-lock-wrapper--locked': switchToStableLocked }"
 				>
-					Вернуться на публичный канал
-				</Button>
+					<Button
+						type="outlined"
+						native-type="button"
+						:disabled="switchingChannel"
+						@click="onSwitchToStableClick"
+					>
+						Вернуться на публичный канал
+					</Button>
+				</div>
 			</div>
 		</div>
 
@@ -254,16 +499,28 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
+	exportThemeCode,
+	importThemeCode,
 	modlexAccentColor,
+	modlexBgColor,
 	modlexConsoleFillChar,
 	modlexConsoleRainChars,
 	modlexConsoleText,
+	modlexDividerColor,
+	modlexDoubleBorderEnabled,
+	modlexDoubleBorderInner,
+	modlexDoubleBorderOuter,
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
 	modlexHideMultiLaunch,
 	modlexHideMusicTab,
 	modlexHideServers,
+	modlexIconColor,
 	modlexNewsSource,
+	modlexPanelColor,
+	modlexTextColor,
+	modlexTextOutlineColor,
+	modlexTextOutlineEnabled,
 	type NewsSource,
 } from '@/helpers/modlex-settings'
 import { get as getSettings, set as setSettings } from '@/helpers/settings'
@@ -276,6 +533,11 @@ function getNewsLabel(value: NewsSource): string {
 }
 
 const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform')
+const { locked: switchToStableLocked, message: switchToStableLockedMessage } = useFeatureFlag(
+	'switch_to_stable_channel',
+)
+const { locked: switchToBetaLocked, message: switchToBetaLockedMessage } =
+	useFeatureFlag('switch_to_beta_channel')
 const { enabled: musicFeatureEnabled } = useFeatureFlag('modlex_music')
 const { enabled: multiLaunchFeatureEnabled } = useFeatureFlag('multi_account_launch')
 
@@ -288,6 +550,15 @@ const cfDisplayValue = computed(() => (cfLocked.value ? false : modlexEnableCurs
 // ===== MODLEX: акцентный цвет =====
 const DEFAULT_ACCENT = '#8e32f3'
 const accentColorForPicker = computed(() => modlexAccentColor.value || DEFAULT_ACCENT)
+// ===== END MODLEX =====
+
+// ===== MODLEX: расширенная кастомизация цвета =====
+const showAdvancedTheme = ref(false)
+const DEFAULT_BG = '#16181c'
+const DEFAULT_PANEL = '#27292e'
+const DEFAULT_TEXT = '#ffffff'
+const DEFAULT_ICON = '#b0bac5'
+const DEFAULT_DIVIDER = '#34363c'
 // ===== END MODLEX =====
 
 // ===== MODLEX: превью консоли запуска — временно отключено, см. шаблон выше =====
@@ -304,6 +575,28 @@ function showInlineNotice(text: string) {
 		inlineNotice.value = null
 	}, 6000)
 }
+
+// ===== MODLEX: экспорт/импорт кода темы =====
+const importThemeCodeInput = ref('')
+
+async function copyThemeCode() {
+	const code = exportThemeCode()
+	try {
+		await navigator.clipboard.writeText(code)
+		showInlineNotice('Код темы скопирован в буфер обмена')
+	} catch {
+		console.log('[ModLEX] код темы:', code)
+		showInlineNotice('Не удалось скопировать — код выведен в консоль')
+	}
+}
+
+function applyThemeCodeInput() {
+	if (!importThemeCodeInput.value.trim()) return
+	const ok = importThemeCode(importThemeCodeInput.value)
+	showInlineNotice(ok ? 'Тема применена' : 'Не удалось прочитать код темы')
+	if (ok) importThemeCodeInput.value = ''
+}
+// ===== END MODLEX =====
 
 // ===== MODLEX: канал обновлений =====
 const updateChannel = ref<'stable' | 'beta'>('stable')
@@ -345,10 +638,46 @@ async function returnToStableChannel() {
 		switchingChannel.value = false
 	}
 }
+
+function onSwitchToBetaClick() {
+	if (switchToBetaLocked.value) {
+		showInlineNotice(switchToBetaLockedMessage.value)
+		return
+	}
+	betaModal?.value?.show()
+}
+
+function onSwitchToStableClick() {
+	if (switchToStableLocked.value) {
+		showInlineNotice(switchToStableLockedMessage.value)
+		return
+	}
+	returnToStableChannel()
+}
+// ===== END MODLEX =====
+
+// ===== MODLEX: текст Discord Rich Presence =====
+const discordMessage = ref('')
+let discordMessageSaveTimeout: ReturnType<typeof setTimeout> | null = null
+
+onMounted(async () => {
+	discordMessage.value = (await getSettings()).modlex_discord_message ?? ''
+})
+
+function onDiscordMessageInput(value: string) {
+	discordMessage.value = value
+	if (discordMessageSaveTimeout) clearTimeout(discordMessageSaveTimeout)
+	discordMessageSaveTimeout = setTimeout(async () => {
+		const settings = await getSettings()
+		settings.modlex_discord_message = value.trim() || null
+		await setSettings(settings)
+	}, 500)
+}
 // ===== END MODLEX =====
 
 onBeforeUnmount(() => {
 	if (inlineNoticeTimeout) clearTimeout(inlineNoticeTimeout)
+	if (discordMessageSaveTimeout) clearTimeout(discordMessageSaveTimeout)
 })
 
 function onToggleModrinth(value: boolean) {
@@ -503,6 +832,12 @@ function onToggleCurseForge(value: boolean) {
 .settings-notice-fade-leave-to {
 	opacity: 0;
 	transform: translateY(-0.5rem);
+}
+
+.advanced-theme {
+	margin-top: 0.75rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid var(--color-divider);
 }
 
 .color-picker {

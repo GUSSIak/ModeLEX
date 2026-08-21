@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN modlex_channel_sync_done BOOLEAN NOT NULL DEFAULT FALSE;

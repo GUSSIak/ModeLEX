@@ -17,6 +17,16 @@ const STORAGE_KEYS = {
 	consoleFillChar: 'modlex_console_fill_char',
 	consoleRainChars: 'modlex_console_rain_chars',
 	accentColor: 'modlex_accent_color',
+	bgColor: 'modlex_bg_color',
+	panelColor: 'modlex_panel_color',
+	textColor: 'modlex_text_color',
+	iconColor: 'modlex_icon_color',
+	dividerColor: 'modlex_divider_color',
+	doubleBorderEnabled: 'modlex_double_border_enabled',
+	doubleBorderInner: 'modlex_double_border_inner_color',
+	doubleBorderOuter: 'modlex_double_border_outer_color',
+	textOutlineEnabled: 'modlex_text_outline_enabled',
+	textOutlineColor: 'modlex_text_outline_color',
 } as const
 
 export type NewsSource = 'github' | 'modrinth' | 'off'
@@ -149,6 +159,224 @@ export function applyAccentColor(hex: string): void {
 
 applyAccentColor(modlexAccentColor.value)
 
+// ── Расширенная кастомизация (фон, текст, иконки, разделители) ───────────────
+// Пустая строка = стандартный цвет темы (оверрайд не применяется).
+export const modlexBgColor = ref(readString(STORAGE_KEYS.bgColor, ''))
+export const modlexPanelColor = ref(readString(STORAGE_KEYS.panelColor, ''))
+export const modlexTextColor = ref(readString(STORAGE_KEYS.textColor, ''))
+export const modlexIconColor = ref(readString(STORAGE_KEYS.iconColor, ''))
+export const modlexDividerColor = ref(readString(STORAGE_KEYS.dividerColor, ''))
+export const modlexDoubleBorderEnabled = ref(readBool(STORAGE_KEYS.doubleBorderEnabled, false))
+export const modlexDoubleBorderInner = ref(readString(STORAGE_KEYS.doubleBorderInner, '#ffffff'))
+export const modlexDoubleBorderOuter = ref(readString(STORAGE_KEYS.doubleBorderOuter, '#000000'))
+export const modlexTextOutlineEnabled = ref(readBool(STORAGE_KEYS.textOutlineEnabled, false))
+export const modlexTextOutlineColor = ref(readString(STORAGE_KEYS.textOutlineColor, '#000000'))
+
+// Затемняет rgb на factor (0..1) в сторону чёрного — используется, чтобы из
+// одного выбранного цвета текста получить иерархию "яркий/обычный/приглушённый",
+// как в стандартной теме (--color-text-primary > -default > -tertiary).
+function shade(rgb: { r: number; g: number; b: number }, factor: number): string {
+	return `rgb(${Math.round(rgb.r * factor)}, ${Math.round(rgb.g * factor)}, ${Math.round(rgb.b * factor)})`
+}
+
+// Насколько каждый уровень surface-* светлее "базового" уровня своего яруса
+// в стандартной тёмной теме (посчитано из variables.scss) — сохраняем эти же
+// смещения поверх выбранного пользователем цвета, чтобы соседние уровни
+// (например surface-4 относительно surface-3) остались читаемо светлее.
+// Ярус "фон": сам контент (surface-1/1-5/2/2-5) — задаётся полем "Фон".
+const BG_LEVEL_DELTAS: Record<string, { r: number; g: number; b: number }> = {
+	'--surface-1': { r: 0, g: 0, b: 0 },
+	'--surface-1-5': { r: 4, g: 4, b: 4 },
+	'--surface-2': { r: 7, g: 7, b: 7 },
+	'--surface-2-5': { r: 12, g: 12, b: 13 },
+}
+// Ярус "панели/карточки": приподнятые поверхности (surface-3/4/5) — кнопки,
+// карточки инстансов, боковые панели. Задаётся отдельным полем "Панели и
+// карточки", независимо от основного фона.
+const PANEL_LEVEL_DELTAS: Record<string, { r: number; g: number; b: number }> = {
+	'--surface-3': { r: 0, g: 0, b: 0 },
+	'--surface-4': { r: 13, g: 13, b: 14 },
+	'--surface-5': { r: 27, g: 27, b: 28 },
+}
+
+function clampChannel(v: number): number {
+	return Math.max(0, Math.min(255, Math.round(v)))
+}
+
+function applySurfaceTier(
+	hex: string,
+	deltas: Record<string, { r: number; g: number; b: number }>,
+): void {
+	const root = document.documentElement
+	const rgb = hex ? hexToRgb(hex) : null
+	if (!rgb) {
+		for (const varName of Object.keys(deltas)) root.style.removeProperty(varName)
+		return
+	}
+	for (const [varName, delta] of Object.entries(deltas)) {
+		const r = clampChannel(rgb.r + delta.r)
+		const g = clampChannel(rgb.g + delta.g)
+		const b = clampChannel(rgb.b + delta.b)
+		root.style.setProperty(varName, `rgb(${r}, ${g}, ${b})`)
+	}
+}
+
+/** Оверрайдит основной фон контента (surface-1/1-5/2/2-5). Панели и карточки
+ * (surface-3/4/5) — отдельная настройка, см. applyPanelColor. */
+export function applyBgColor(hex: string): void {
+	applySurfaceTier(hex, BG_LEVEL_DELTAS)
+}
+
+/** Оверрайдит фон приподнятых поверхностей — карточки инстансов, кнопки,
+ * боковые панели (surface-3/4/5). Не трогает основной фон, см. applyBgColor. */
+export function applyPanelColor(hex: string): void {
+	applySurfaceTier(hex, PANEL_LEVEL_DELTAS)
+}
+
+/** Оверрайдит цвет текста (contrast/default/tertiary) одним выбранным
+ * цветом с производными более тёмными оттенками для сохранения иерархии. */
+export function applyTextColor(hex: string): void {
+	const root = document.documentElement
+	const rgb = hex ? hexToRgb(hex) : null
+	if (!rgb) {
+		root.style.removeProperty('--color-text-primary')
+		root.style.removeProperty('--color-text-default')
+		root.style.removeProperty('--color-text-tertiary')
+		return
+	}
+	root.style.setProperty('--color-text-primary', `#${hex.replace('#', '')}`)
+	root.style.setProperty('--color-text-default', shade(rgb, 0.75))
+	root.style.setProperty('--color-text-tertiary', shade(rgb, 0.6))
+}
+
+/** Оверрайдит цвет неактивных иконок бокового меню (--modlex-icon-color,
+ * читается в NavButton.vue с фоллбэком на стандартный --color-text-default). */
+export function applyIconColor(hex: string): void {
+	const root = document.documentElement
+	if (!hex) {
+		root.style.removeProperty('--modlex-icon-color')
+		return
+	}
+	root.style.setProperty('--modlex-icon-color', `#${hex.replace('#', '')}`)
+}
+
+/** Оверрайдит цвет разделителей (--color-divider). Цвет краёв карточек
+ * (border-surface-4/5) теперь часть общего фона — см. applyBgColor. */
+export function applyDividerColor(hex: string): void {
+	const root = document.documentElement
+	if (!hex) {
+		root.style.removeProperty('--color-divider')
+		return
+	}
+	root.style.setProperty('--color-divider', `#${hex.replace('#', '')}`)
+}
+
+/** Двойная обводка (внутренняя + внешняя) поверх стандартных краёв/границ —
+ * см. глобальное CSS-правило [data-modlex-double-border] в App.vue. */
+export function applyDoubleBorder(enabled: boolean, innerHex: string, outerHex: string): void {
+	const root = document.documentElement
+	if (enabled) {
+		root.setAttribute('data-modlex-double-border', '')
+		root.style.setProperty('--modlex-border-inner-color', innerHex || '#ffffff')
+		root.style.setProperty('--modlex-border-outer-color', outerHex || '#000000')
+	} else {
+		root.removeAttribute('data-modlex-double-border')
+		root.style.removeProperty('--modlex-border-inner-color')
+		root.style.removeProperty('--modlex-border-outer-color')
+	}
+}
+
+/** Обводка текста (--modlex-text-outline-color + [data-modlex-text-outline])
+ * — независимо от двойной обводки карточек, см. глобальное CSS-правило
+ * [data-modlex-text-outline] в App.vue. */
+export function applyTextOutline(enabled: boolean, color: string): void {
+	const root = document.documentElement
+	if (enabled) {
+		root.setAttribute('data-modlex-text-outline', '')
+		root.style.setProperty('--modlex-text-outline-color', color || '#000000')
+	} else {
+		root.removeAttribute('data-modlex-text-outline')
+		root.style.removeProperty('--modlex-text-outline-color')
+	}
+}
+
+applyBgColor(modlexBgColor.value)
+applyPanelColor(modlexPanelColor.value)
+applyTextColor(modlexTextColor.value)
+applyIconColor(modlexIconColor.value)
+applyDividerColor(modlexDividerColor.value)
+applyDoubleBorder(
+	modlexDoubleBorderEnabled.value,
+	modlexDoubleBorderInner.value,
+	modlexDoubleBorderOuter.value,
+)
+applyTextOutline(modlexTextOutlineEnabled.value, modlexTextOutlineColor.value)
+
+// ── Экспорт/импорт темы ───────────────────────────────────────────────────
+interface ModlexThemeCode {
+	v: 1
+	accentColor: string
+	bgColor: string
+	panelColor: string
+	textColor: string
+	iconColor: string
+	dividerColor: string
+	doubleBorderEnabled: boolean
+	doubleBorderInner: string
+	doubleBorderOuter: string
+	textOutlineEnabled: boolean
+	textOutlineColor: string
+}
+
+/** Собирает все настройки кастомизации цвета в один code-строку (base64 от
+ * JSON) — чтобы можно было сохранить/переслать тему одной строкой. */
+export function exportThemeCode(): string {
+	const data: ModlexThemeCode = {
+		v: 1,
+		accentColor: modlexAccentColor.value,
+		bgColor: modlexBgColor.value,
+		panelColor: modlexPanelColor.value,
+		textColor: modlexTextColor.value,
+		iconColor: modlexIconColor.value,
+		dividerColor: modlexDividerColor.value,
+		doubleBorderEnabled: modlexDoubleBorderEnabled.value,
+		doubleBorderInner: modlexDoubleBorderInner.value,
+		doubleBorderOuter: modlexDoubleBorderOuter.value,
+		textOutlineEnabled: modlexTextOutlineEnabled.value,
+		textOutlineColor: modlexTextOutlineColor.value,
+	}
+	return btoa(JSON.stringify(data))
+}
+
+/** Обратная операция — применяет код темы к текущим настройкам. Возвращает
+ * false, если код нечитаем (неверный формат/повреждён). */
+export function importThemeCode(code: string): boolean {
+	let data: Partial<ModlexThemeCode>
+	try {
+		data = JSON.parse(atob(code.trim()))
+	} catch {
+		return false
+	}
+	if (typeof data !== 'object' || data === null) return false
+	if (typeof data.accentColor === 'string') modlexAccentColor.value = data.accentColor
+	if (typeof data.bgColor === 'string') modlexBgColor.value = data.bgColor
+	if (typeof data.panelColor === 'string') modlexPanelColor.value = data.panelColor
+	if (typeof data.textColor === 'string') modlexTextColor.value = data.textColor
+	if (typeof data.iconColor === 'string') modlexIconColor.value = data.iconColor
+	if (typeof data.dividerColor === 'string') modlexDividerColor.value = data.dividerColor
+	if (typeof data.doubleBorderEnabled === 'boolean')
+		modlexDoubleBorderEnabled.value = data.doubleBorderEnabled
+	if (typeof data.doubleBorderInner === 'string')
+		modlexDoubleBorderInner.value = data.doubleBorderInner
+	if (typeof data.doubleBorderOuter === 'string')
+		modlexDoubleBorderOuter.value = data.doubleBorderOuter
+	if (typeof data.textOutlineEnabled === 'boolean')
+		modlexTextOutlineEnabled.value = data.textOutlineEnabled
+	if (typeof data.textOutlineColor === 'string')
+		modlexTextOutlineColor.value = data.textOutlineColor
+	return true
+}
+
 // ── Watchers ───────────────────────────────────────────────────────────────
 function broadcast() {
 	window.dispatchEvent(
@@ -212,5 +440,46 @@ watch(modlexConsoleRainChars, (v) => {
 watch(modlexAccentColor, (v) => {
 	localStorage.setItem(STORAGE_KEYS.accentColor, v)
 	applyAccentColor(v)
+	broadcast()
+})
+watch(modlexBgColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.bgColor, v)
+	applyBgColor(v)
+	broadcast()
+})
+watch(modlexPanelColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.panelColor, v)
+	applyPanelColor(v)
+	broadcast()
+})
+watch(modlexTextColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.textColor, v)
+	applyTextColor(v)
+	broadcast()
+})
+watch(modlexIconColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.iconColor, v)
+	applyIconColor(v)
+	broadcast()
+})
+watch(modlexDividerColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.dividerColor, v)
+	applyDividerColor(v)
+	broadcast()
+})
+watch(
+	[modlexDoubleBorderEnabled, modlexDoubleBorderInner, modlexDoubleBorderOuter],
+	([enabled, inner, outer]) => {
+		localStorage.setItem(STORAGE_KEYS.doubleBorderEnabled, String(enabled))
+		localStorage.setItem(STORAGE_KEYS.doubleBorderInner, inner)
+		localStorage.setItem(STORAGE_KEYS.doubleBorderOuter, outer)
+		applyDoubleBorder(enabled, inner, outer)
+		broadcast()
+	},
+)
+watch([modlexTextOutlineEnabled, modlexTextOutlineColor], ([enabled, color]) => {
+	localStorage.setItem(STORAGE_KEYS.textOutlineEnabled, String(enabled))
+	localStorage.setItem(STORAGE_KEYS.textOutlineColor, color)
+	applyTextOutline(enabled, color)
 	broadcast()
 })

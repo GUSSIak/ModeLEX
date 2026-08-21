@@ -600,7 +600,8 @@ onMounted(async () => {
 	}
 	// ===== END MODLEX =====
 
-	// ===== MODLEX: бета-сборка всегда сидит на бета-канале обновлений =====
+	// ===== MODLEX: бета-сборка всегда сидит на бета-канале обновлений
+	// (ОДНОРАЗОВАЯ коррекция, см. modlex_channel_sync_done) =====
 	// modlex_update_channel обычно выставляется в onBetaGateApproved() при
 	// первом прохождении гейта — но если он был пройден до того, как это
 	// появилось (или значение как-то иначе осталось "stable"), бета-сборка
@@ -608,11 +609,19 @@ onMounted(async () => {
 	// находит новее себя. Раз бинарник и так -beta, канал обязан быть beta —
 	// без этого тумблер "включить бета-канал" в настройках вводит в
 	// заблуждение (он уже как бы включён самим фактом сборки).
+	//
+	// ВАЖНО: это должно сработать только ОДИН раз (флаг modlex_channel_sync_done)
+	// — иначе при КАЖДОМ перезапуске бета-сборка молча перетирала бы ручной
+	// выбор пользователя, например кнопку "Вернуться на публичный канал" в
+	// настройках, которая иначе выглядела бы так, будто ничего не происходит.
 	if (isBetaBuild.value) {
 		try {
 			const currentSettings = await getSettings()
-			if (currentSettings.modlex_update_channel !== 'beta') {
-				currentSettings.modlex_update_channel = 'beta'
+			if (!currentSettings.modlex_channel_sync_done) {
+				if (currentSettings.modlex_update_channel !== 'beta') {
+					currentSettings.modlex_update_channel = 'beta'
+				}
+				currentSettings.modlex_channel_sync_done = true
 				await setSettings(currentSettings)
 			}
 		} catch (err) {
@@ -2522,4 +2531,42 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		right: 8rem;
 	}
 }
+
+/* ===== MODLEX: двойная обводка (расширенная кастомизация цвета) =====
+   Добавляет доп. кольцо поверх стандартных border/divider-цветов, не влияя
+   на layout (box-shadow вместо border). Ограничено элементами с ЛИТЕРАЛЬНЫМ
+   классом border/border-2/4/8 (обводка со всех 4 сторон) — иначе кольцо
+   рисуется и на элементах вроде TabbedModal.vue, у которых border-divider
+   стоит рядом с border-0 + border-r-[1px] (только ОДНА сторона), и получается
+   лишний прямоугольник-"хитбокс" вокруг всей панели. Круглые/пилюльные
+   элементы (кнопки бокового меню, аватарки) тоже исключены — двойное кольцо
+   на rounded-full даёт не обводку, а сплошной ободок-кляксу. Включается
+   тумблером в настройках — см. modlex-settings.ts::applyDoubleBorder. */
+:root[data-modlex-double-border]
+	:is([class~='border'], [class~='border-2'], [class~='border-4'], [class~='border-8']):is(
+		[class*='border-surface-4'],
+		[class*='border-surface-5'],
+		[class*='border-divider']
+	):not([class*='rounded-full']):not([class*='border-0']) {
+	box-shadow:
+		inset 0 0 0 1px var(--modlex-border-inner-color, #fff),
+		0 0 0 1px var(--modlex-border-outer-color, #000);
+}
+
+/* Та же обводка — для иконок (по одному правилу на весь документ вместо
+   тысяч селекторов, за счёт каскада на svg). */
+:root[data-modlex-double-border] svg {
+	filter: drop-shadow(0 0 1px var(--modlex-border-outer-color, #000));
+}
+
+/* Обводка текста — отдельная настройка (свой тумблер и цвет), не привязана
+   к двойной обводке карточек. См. modlex-settings.ts::applyTextOutline. */
+:root[data-modlex-text-outline] body {
+	text-shadow:
+		-1px -1px 0 var(--modlex-text-outline-color, #000),
+		1px -1px 0 var(--modlex-text-outline-color, #000),
+		-1px 1px 0 var(--modlex-text-outline-color, #000),
+		1px 1px 0 var(--modlex-text-outline-color, #000);
+}
+/* ===== END MODLEX ===== */
 </style>

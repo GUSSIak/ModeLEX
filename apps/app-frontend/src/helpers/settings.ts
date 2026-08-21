@@ -79,6 +79,9 @@ export type AppSettings = {
 
 	modlex_update_channel: 'stable' | 'beta'
 	modlex_tester_id?: string | null
+	modlex_channel_sync_done?: boolean
+
+	modlex_discord_message?: string | null
 
 	version: number
 }

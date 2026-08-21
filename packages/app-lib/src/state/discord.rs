@@ -8,6 +8,21 @@ use tokio::sync::RwLock;
 
 use crate::State;
 
+/// Подставляет `{instance}` в пользовательский шаблон текста presence
+/// (Настройки → ModLEX → Discord). Пустой/отсутствующий шаблон — стандартный
+/// текст "Играет {instance}".
+pub fn format_playing_message(
+    template: Option<&str>,
+    instance_name: &str,
+) -> String {
+    match template {
+        Some(t) if !t.trim().is_empty() => {
+            t.replace("{instance}", instance_name)
+        }
+        _ => format!("Играет {instance_name}"),
+    }
+}
+
 pub struct DiscordGuard {
     client: Arc<RwLock<DiscordIpcClient>>,
     connected: Arc<AtomicBool>,
@@ -135,13 +150,14 @@ impl DiscordGuard {
 
         let running_instances = state.process_manager.get_all();
         if let Some(existing_child) = running_instances.first() {
-            self.set_activity(
-                &format!("Играет {}", existing_child.instance_name),
-                reconnect_if_fail,
-            )
-            .await?;
+            let msg = format_playing_message(
+                settings.modlex_discord_message.as_deref(),
+                &existing_child.instance_name,
+            );
+            self.set_activity(&msg, reconnect_if_fail).await?;
         } else {
-            self.set_activity("Бездействует...", reconnect_if_fail).await?;
+            self.set_activity("Бездействует...", reconnect_if_fail)
+                .await?;
         }
         Ok(())
     }

@@ -40,6 +40,17 @@ export const LOCAL_FEATURE_FLAGS: FeatureFlags = {
 	modlex_music: {
 		enabled: false,
 	},
+	// Отдельные замки на переключение канала обновлений (Настройки → ModLEX →
+	// Обновления) — например, чтобы удержать текущих тестировщиков на beta
+	// (locked: true на switch_to_stable_channel) или наоборот прекратить
+	// набор новых (locked: true на switch_to_beta_channel), не трогая уже
+	// одобренных. По умолчанию оба разрешены — как было раньше.
+	switch_to_stable_channel: {
+		enabled: true,
+	},
+	switch_to_beta_channel: {
+		enabled: true,
+	},
 }
 
 export const featureFlags = ref<FeatureFlags>({ ...LOCAL_FEATURE_FLAGS })

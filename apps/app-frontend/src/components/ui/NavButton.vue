@@ -9,14 +9,14 @@
 			'subpage-active': isSubpage && isSubpage(route),
 			disabled: disabled,
 		}"
-		class="w-12 h-12 text-primary rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-button-bg hover:text-contrast"
+		class="w-12 h-12 nav-icon-color rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-button-bg hover:text-contrast"
 	>
 		<slot />
 	</RouterLink>
 	<button
 		v-else
 		v-bind="$attrs"
-		class="button-animation border-none text-primary cursor-pointer w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-button-bg hover:text-contrast"
+		class="button-animation border-none nav-icon-color cursor-pointer w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-button-bg hover:text-contrast"
 		:disabled="disabled"
 		@click="to"
 	>
@@ -51,6 +51,10 @@ defineOptions({
 </script>
 
 <style lang="scss" scoped>
+.nav-icon-color {
+	color: var(--modlex-icon-color, var(--color-text-default));
+}
+
 .router-link-active,
 .subpage-active {
 	svg {

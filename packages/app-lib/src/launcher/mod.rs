@@ -1125,10 +1125,17 @@ pub async fn launch_minecraft(
         }
     }
 
-    let _ = state
-        .discord_rpc
-        .set_activity(&format!("Playing {}", instance.name), true)
-        .await;
+    let discord_message = {
+        let template = crate::state::Settings::get(&state.pool)
+            .await
+            .ok()
+            .and_then(|s| s.modlex_discord_message);
+        crate::state::format_playing_message(
+            template.as_deref(),
+            &instance.name,
+        )
+    };
+    let _ = state.discord_rpc.set_activity(&discord_message, true).await;
 
     let _ = state
         .friends_socket
