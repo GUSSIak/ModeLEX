@@ -14,6 +14,8 @@ const STORAGE_KEYS = {
 	consoleText: 'modlex_console_text',
 	consoleScale: 'modlex_console_scale',
 	consoleLetterGap: 'modlex_console_letter_gap',
+	consoleFillChar: 'modlex_console_fill_char',
+	consoleRainChars: 'modlex_console_rain_chars',
 	accentColor: 'modlex_accent_color',
 } as const
 
@@ -82,6 +84,8 @@ export const availablePlatforms = computed<Array<'modrinth' | 'curseforge'>>(() 
 export const modlexConsoleText = ref(readString(STORAGE_KEYS.consoleText, ''))
 export const modlexConsoleScale = ref(readNumber(STORAGE_KEYS.consoleScale, 0))
 export const modlexConsoleLetterGap = ref(readNumber(STORAGE_KEYS.consoleLetterGap, 2))
+export const modlexConsoleFillChar = ref(readString(STORAGE_KEYS.consoleFillChar, ''))
+export const modlexConsoleRainChars = ref(readString(STORAGE_KEYS.consoleRainChars, ''))
 
 // ── Акцентный цвет ─────────────────────────────────────────────────────────
 // Пустая строка = стандартный цвет темы (оверрайд не применяется).
@@ -188,6 +192,14 @@ watch(modlexConsoleScale, (v) => {
 })
 watch(modlexConsoleLetterGap, (v) => {
 	localStorage.setItem(STORAGE_KEYS.consoleLetterGap, String(v))
+	broadcast()
+})
+watch(modlexConsoleFillChar, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleFillChar, v)
+	broadcast()
+})
+watch(modlexConsoleRainChars, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleRainChars, v)
 	broadcast()
 })
 watch(modlexAccentColor, (v) => {

@@ -32,6 +32,8 @@ export interface ConsoleManagerContext {
 	emptyStateText?: string
 	emptyStateScale?: number
 	emptyStateLetterGap?: number
+	emptyStateFillChar?: string
+	emptyStateRainChars?: string
 
 	crashAnalysis?: Ref<Mclogs.Insights.v1.InsightsResponse | null>
 	onDismissCrash?: () => void

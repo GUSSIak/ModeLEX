@@ -18,7 +18,9 @@ import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { log_listener, process_listener } from '@/helpers/events.js'
 import { delete_logs_by_filename, get_output_by_filename } from '@/helpers/logs.js'
 import {
+	modlexConsoleFillChar,
 	modlexConsoleLetterGap,
+	modlexConsoleRainChars,
 	modlexConsoleScale,
 	modlexConsoleText,
 } from '@/helpers/modlex-settings'
@@ -176,6 +178,8 @@ provideConsoleManager({
 	emptyStateText: modlexConsoleText.value || undefined,
 	emptyStateScale: modlexConsoleScale.value || undefined,
 	emptyStateLetterGap: modlexConsoleLetterGap.value,
+	emptyStateFillChar: modlexConsoleFillChar.value || undefined,
+	emptyStateRainChars: modlexConsoleRainChars.value || undefined,
 	crashAnalysis,
 	onDismissCrash: () => {
 		crashAnalysis.value = null

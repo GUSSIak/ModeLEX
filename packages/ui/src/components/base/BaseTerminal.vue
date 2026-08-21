@@ -63,6 +63,10 @@ const props = withDefaults(
 		emptyStateScale?: number
 		/** Доп. зазор между буквами в колонках терминала. */
 		emptyStateLetterGap?: number
+		/** Символ, которым закрашены сами буквы (один символ). По умолчанию "#". */
+		emptyStateFillChar?: string
+		/** Алфавит символов падающего "дождя". По умолчанию — катакана + цифры. */
+		emptyStateRainChars?: string
 	}>(),
 	{
 		scrollback: Infinity,
@@ -76,6 +80,8 @@ const props = withDefaults(
 		emptyStateText: 'NO SIGNAL',
 		emptyStateScale: undefined,
 		emptyStateLetterGap: 2,
+		emptyStateFillChar: '#',
+		emptyStateRainChars: undefined,
 	},
 )
 
@@ -134,18 +140,29 @@ function getEmptyStateText(): string {
 function getLetterGap(): number {
 	return props.emptyStateLetterGap ?? 2
 }
-// Символ и цвет, которым рисуются сами буквы (плотный тёмный силуэт, а не дыра)
-const LETTER_FILL_CHAR = '#'
+// Цвет, которым рисуются сами буквы (плотный тёмный силуэт, а не дыра) —
+// сам символ теперь настраиваемый, см. getFillChar().
 const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый
 
-const RAIN_CHARS = 'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
+const RAIN_CHARS_DEFAULT = 'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
 
 const TICK_MS = 80
 const INTRO_MS = 1800 // плавное появление дождя при старте, как в оригинале
 const BOTTOM_FADE_ROWS = 10 // зона плавного угасания дождя у самого низа
 
+function getFillChar(): string {
+	return (props.emptyStateFillChar || '#').slice(0, 1) || '#'
+}
+
+function getRainChars(): string {
+	return props.emptyStateRainChars && props.emptyStateRainChars.length > 0
+		? props.emptyStateRainChars
+		: RAIN_CHARS_DEFAULT
+}
+
 function randomRainChar(): string {
-	return RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)]
+	const chars = getRainChars()
+	return chars[Math.floor(Math.random() * chars.length)]
 }
 
 /** Подбирает масштаб букв так, чтобы слово занимало большую часть экрана, но помещалось. */
@@ -273,7 +290,7 @@ function renderRainFrame() {
 
 		for (let c = 0; c < rainCols; c++) {
 			if (rainMask[r]?.[c]) {
-				line += `${LETTER_FILL_COLOR}${LETTER_FILL_CHAR}\x1B[0m`
+				line += `${LETTER_FILL_COLOR}${getFillChar()}\x1B[0m`
 				continue
 			}
 
@@ -410,10 +427,19 @@ function clearEmptyState() {
 
 // Живой предпросмотр в настройках меняет текст/размер/зазор на лету — если
 // пустой экран сейчас показан, перерисовываем его с новыми параметрами.
+// Дебаунс — без него перетаскивание слайдера полностью перезапускает дождь
+// (новое интро-появление, новые случайные колонки) на каждый тик, что
+// выглядит как хаотичное мерцание, а не плавная подстройка размера.
+let emptyStateRedrawTimer: ReturnType<typeof setTimeout> | null = null
 watch(
 	() => [props.emptyStateText, props.emptyStateScale, props.emptyStateLetterGap],
 	() => {
-		if (showingEmptyState.value) nextTick(() => writeEmptyState())
+		if (!showingEmptyState.value) return
+		if (emptyStateRedrawTimer) clearTimeout(emptyStateRedrawTimer)
+		emptyStateRedrawTimer = setTimeout(() => {
+			emptyStateRedrawTimer = null
+			writeEmptyState()
+		}, 200)
 	},
 )
 
@@ -483,6 +509,7 @@ onBeforeUnmount(() => {
 	document.removeEventListener('pointerdown', handleDocumentPointerDown)
 	document.removeEventListener('keydown', handleDocumentKeyDown, true)
 	if (resizeDebounce) clearTimeout(resizeDebounce)
+	if (emptyStateRedrawTimer) clearTimeout(emptyStateRedrawTimer)
 	stopMatrixRain()
 })
 

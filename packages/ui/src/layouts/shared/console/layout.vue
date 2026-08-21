@@ -68,6 +68,8 @@
 			:empty-state-text="ctx.emptyStateText"
 			:empty-state-scale="ctx.emptyStateScale"
 			:empty-state-letter-gap="ctx.emptyStateLetterGap"
+			:empty-state-fill-char="ctx.emptyStateFillChar"
+			:empty-state-rain-chars="ctx.emptyStateRainChars"
 			:loading="resolvedLoading"
 			@command="handleCommand"
 			@ready="handleTerminalReady"

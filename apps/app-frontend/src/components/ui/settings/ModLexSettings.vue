@@ -39,7 +39,12 @@
 					</p>
 				</div>
 				<div class="flex items-center gap-2">
-					<input v-model="colorPickerValue" type="color" class="color-picker" />
+					<input
+						type="color"
+						class="color-picker"
+						:value="accentColorForPicker"
+						@input="modlexAccentColor = ($event.target as HTMLInputElement).value"
+					/>
 					<ButtonStyled v-if="modlexAccentColor" type="outlined" size="small">
 						<button type="button" @click="modlexAccentColor = ''">Сбросить</button>
 					</ButtonStyled>
@@ -60,6 +65,8 @@
 					:empty-state-text="modlexConsoleText || undefined"
 					:empty-state-scale="modlexConsoleScale || undefined"
 					:empty-state-letter-gap="modlexConsoleLetterGap"
+					:empty-state-fill-char="modlexConsoleFillChar || undefined"
+					:empty-state-rain-chars="modlexConsoleRainChars || undefined"
 					@ready="previewTerminal?.writeEmptyState()"
 				/>
 			</div>
@@ -88,6 +95,29 @@
 				<label class="console-field">
 					<span class="console-field__label">Зазор между буквами ({{ modlexConsoleLetterGap }})</span>
 					<input v-model.number="modlexConsoleLetterGap" type="range" min="0" max="6" step="1" />
+				</label>
+				<label class="console-field">
+					<span class="console-field__label">Символ, которым закрашены буквы</span>
+					<input
+						v-model="modlexConsoleFillChar"
+						type="text"
+						maxlength="1"
+						placeholder="#"
+						class="console-text-input console-text-input--narrow"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+				</label>
+				<label class="console-field">
+					<span class="console-field__label">Алфавит символов дождя</span>
+					<input
+						v-model="modlexConsoleRainChars"
+						type="text"
+						placeholder="ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789"
+						class="console-text-input"
+						autocomplete="off"
+						spellcheck="false"
+					/>
 				</label>
 			</div>
 		</div>
@@ -196,13 +226,15 @@
 
 <script setup lang="ts">
 import { BaseTerminal, ButtonStyled, DropdownSelect, Toggle } from '@modrinth/ui'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
 	modlexAccentColor,
+	modlexConsoleFillChar,
 	modlexConsoleLetterGap,
+	modlexConsoleRainChars,
 	modlexConsoleScale,
 	modlexConsoleText,
 	modlexEnableCurseForge,
@@ -233,27 +265,8 @@ const { enabled: multiLaunchFeatureEnabled } = useFeatureFlag('multi_account_lau
 const cfDisplayValue = computed(() => (cfLocked.value ? false : modlexEnableCurseForge.value))
 
 // ===== MODLEX: акцентный цвет =====
-// Отдельный локальный ref для нативного <input type="color"> вместо прямого
-// :value/@input на modlexAccentColor — так, если несколько мест одновременно
-// пишут в modlexAccentColor (например, кнопка "Сбросить" в тот же момент,
-// что пикер ещё дорисовывает предыдущее значение), нет цикла обратной связи,
-// который мог бы затирать один сброс другим значением.
 const DEFAULT_ACCENT = '#8e32f3'
-const colorPickerValue = ref(modlexAccentColor.value || DEFAULT_ACCENT)
-let syncingColorFromStore = false
-
-watch(modlexAccentColor, (v) => {
-	syncingColorFromStore = true
-	colorPickerValue.value = v || DEFAULT_ACCENT
-	nextTick(() => {
-		syncingColorFromStore = false
-	})
-})
-
-watch(colorPickerValue, (v) => {
-	if (syncingColorFromStore) return
-	modlexAccentColor.value = v
-})
+const accentColorForPicker = computed(() => modlexAccentColor.value || DEFAULT_ACCENT)
 // ===== END MODLEX =====
 
 // ===== MODLEX: превью консоли запуска =====
@@ -519,6 +532,11 @@ function onToggleCurseForge(value: boolean) {
 	background: var(--color-button-bg);
 	color: var(--color-contrast);
 	font-size: 0.875rem;
+}
+
+.console-text-input--narrow {
+	width: 3rem;
+	text-align: center;
 }
 
 .console-preview {
