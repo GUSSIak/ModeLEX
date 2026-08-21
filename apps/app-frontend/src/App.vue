@@ -605,6 +605,27 @@ onMounted(async () => {
 	}
 	// ===== END MODLEX =====
 
+	// ===== MODLEX: бета-сборка всегда сидит на бета-канале обновлений =====
+	// modlex_update_channel обычно выставляется в onBetaGateApproved() при
+	// первом прохождении гейта — но если он был пройден до того, как это
+	// появилось (или значение как-то иначе осталось "stable"), бета-сборка
+	// молча проверяет обновления по публичному манифесту и никогда не
+	// находит новее себя. Раз бинарник и так -beta, канал обязан быть beta —
+	// без этого тумблер "включить бета-канал" в настройках вводит в
+	// заблуждение (он уже как бы включён самим фактом сборки).
+	if (isBetaBuild.value) {
+		try {
+			const currentSettings = await getSettings()
+			if (currentSettings.modlex_update_channel !== 'beta') {
+				currentSettings.modlex_update_channel = 'beta'
+				await setSettings(currentSettings)
+			}
+		} catch (err) {
+			console.error('[beta channel sync] не удалось синхронизировать канал:', err)
+		}
+	}
+	// ===== END MODLEX =====
+
 	await useCheckDisableMouseover()
 
 	document.querySelector('body').addEventListener('click', handleClick)
