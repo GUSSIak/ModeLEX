@@ -9,19 +9,20 @@
 			<SpinnerIcon v-else class="animate-spin" />
 			{{ formatMessage(messages.signInToMinecraft) }}
 		</Button>
-		<ButtonStyled color="secondary">
-			<button @click="openOfflineModal()">
-				<UserIcon />
-				{{ formatMessage(messages.addOfflineAccount) }}
-			</button>
-		</ButtonStyled>
-		<ButtonStyled color="secondary">
-			<button :disabled="elyByLoginDisabled" @click="elyByLogin()">
-				<GlobeIcon v-if="!elyByLoginDisabled" />
-				<SpinnerIcon v-else class="animate-spin" />
-				{{ formatMessage(messages.signInWithElyBy) }}
-			</button>
-		</ButtonStyled>
+		<Button type="outlined" native-type="button" @click="openOfflineModal()">
+			<UserIcon />
+			{{ formatMessage(messages.addOfflineAccount) }}
+		</Button>
+		<Button
+			type="outlined"
+			native-type="button"
+			:disabled="elyByLoginDisabled"
+			@click="elyByLogin()"
+		>
+			<GlobeIcon v-if="!elyByLoginDisabled" />
+			<SpinnerIcon v-else class="animate-spin" />
+			{{ formatMessage(messages.signInWithElyBy) }}
+		</Button>
 	</div>
 	<Accordion
 		v-else
@@ -134,19 +135,21 @@
 					<PlusIcon />
 					{{ formatMessage(messages.addAccount) }}
 				</Button>
-				<ButtonStyled class="w-full" color="secondary">
-					<button @click="openOfflineModal()">
-						<UserIcon />
-						{{ formatMessage(messages.addOfflineAccount) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled class="w-full" color="secondary">
-					<button :disabled="elyByLoginDisabled" @click="elyByLogin()">
-						<GlobeIcon v-if="!elyByLoginDisabled" />
-						<SpinnerIcon v-else class="animate-spin" />
-						{{ formatMessage(messages.signInWithElyBy) }}
-					</button>
-				</ButtonStyled>
+				<Button type="outlined" class="w-full" native-type="button" @click="openOfflineModal()">
+					<UserIcon />
+					{{ formatMessage(messages.addOfflineAccount) }}
+				</Button>
+				<Button
+					type="outlined"
+					class="w-full"
+					native-type="button"
+					:disabled="elyByLoginDisabled"
+					@click="elyByLogin()"
+				>
+					<GlobeIcon v-if="!elyByLoginDisabled" />
+					<SpinnerIcon v-else class="animate-spin" />
+					{{ formatMessage(messages.signInWithElyBy) }}
+				</Button>
 			</div>
 		</div>
 	</Accordion>
@@ -176,17 +179,19 @@
 			/>
 			<p v-if="offlineError" class="m-0 text-xs text-red">{{ offlineError }}</p>
 			<div class="flex gap-2 justify-end">
-				<ButtonStyled color="secondary">
-					<button @click="closeOfflineModal()">
-						{{ formatMessage(messages.cancel) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled color="brand">
-					<button :disabled="offlineLoading" @click="confirmOfflineLogin()">
-						<SpinnerIcon v-if="offlineLoading" class="animate-spin" />
-						{{ formatMessage(messages.confirm) }}
-					</button>
-				</ButtonStyled>
+				<Button type="outlined" native-type="button" @click="closeOfflineModal()">
+					{{ formatMessage(messages.cancel) }}
+				</Button>
+				<Button
+					type="colored"
+					color="brand"
+					native-type="button"
+					:disabled="offlineLoading"
+					@click="confirmOfflineLogin()"
+				>
+					<SpinnerIcon v-if="offlineLoading" class="animate-spin" />
+					{{ formatMessage(messages.confirm) }}
+				</Button>
 			</div>
 		</div>
 	</div>
@@ -208,7 +213,6 @@ import {
 	Accordion,
 	Avatar,
 	Button,
-	ButtonStyled,
 	defineMessages,
 	IconButton,
 	injectNotificationManager,

@@ -13,7 +13,7 @@ import {
 import {
 	Admonition,
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	commonMessages,
 	ConfirmModal,
 	defineMessages,
@@ -1368,12 +1368,10 @@ await loadSkins()
 				<p class="m-0 max-w-sm text-base font-medium text-white">
 					{{ formatMessage(messages.elybySkinListBlurredNotice) }}
 				</p>
-				<ButtonStyled color="brand">
-					<a href="https://ely.by/skins" target="_blank" rel="noopener noreferrer">
-						<ExternalIcon />
-						{{ formatMessage(messages.openInBrowserButton) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink type="colored" color="brand" href="https://ely.by/skins" target="_blank">
+					<ExternalIcon />
+					{{ formatMessage(messages.openInBrowserButton) }}
+				</ButtonLink>
 			</div>
 			<VirtualSkinSectionList
 				ref="skinSectionList"

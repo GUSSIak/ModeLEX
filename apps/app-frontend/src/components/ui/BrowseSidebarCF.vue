@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { XIcon } from '@modrinth/assets'
 import {
-	ButtonStyled,
 	commonMessages,
+	IconButton,
 	injectNotificationManager,
 	SearchSidebarFilter,
 	useVIntl,
@@ -200,11 +200,9 @@ const filterOptions = computed(() => filterTypes.value.filter((f) => f.options.l
 				class="sticky top-0 z-10 mx-1 flex items-center justify-between gap-3 border-0 border-b-[1px] border-solid border-divider bg-bg-raised px-6 py-4"
 			>
 				<h3 class="m-0 text-lg text-contrast">{{ formatMessage(commonMessages.filtersLabel) }}</h3>
-				<ButtonStyled circular>
-					<button @click="closeFiltersMenu">
-						<XIcon />
-					</button>
-				</ButtonStyled>
+				<IconButton :label="formatMessage(commonMessages.closeButton)" @click="closeFiltersMenu">
+					<XIcon />
+				</IconButton>
 			</div>
 
 			<template v-for="filterType in filterOptions" :key="`cf-filter-${filterType.id}`">

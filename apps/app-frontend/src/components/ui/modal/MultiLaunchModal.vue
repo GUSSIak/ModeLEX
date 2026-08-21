@@ -98,12 +98,16 @@
 
 		<template #actions>
 			<div class="flex justify-end">
-				<ButtonStyled color="brand">
-					<button type="button" :disabled="selectedIds.size === 0" @click="confirmLaunch">
-						<PlayIcon />
-						{{ formatMessage(commonMessages.playButton) }}
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="brand"
+					native-type="button"
+					:disabled="selectedIds.size === 0"
+					@click="confirmLaunch"
+				>
+					<PlayIcon />
+					{{ formatMessage(commonMessages.playButton) }}
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -121,7 +125,7 @@ import {
 import {
 	Admonition,
 	Avatar,
-	ButtonStyled,
+	Button,
 	Checkbox,
 	commonMessages,
 	defineMessages,

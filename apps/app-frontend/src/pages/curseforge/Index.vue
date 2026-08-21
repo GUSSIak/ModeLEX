@@ -47,47 +47,53 @@
 					@contextmenu.prevent.stop="handleRightClick"
 				>
 					<template #actions>
-						<ButtonStyled size="large" color="brand">
-							<button
-								v-tooltip="installButtonTooltip"
-								:disabled="installButtonDisabled"
-								@click="install(null)"
-							>
-								<SpinnerIcon
-									v-if="installButtonLoading && !installButtonInstalled"
-									class="animate-spin"
-								/>
-								<DownloadIcon v-else-if="!installButtonInstalled && !serverProjectSelected" />
-								<CheckIcon v-else />
-								{{ installButtonLabel }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu
-								:tooltip="`More options`"
-								:options="[
-									{
-										id: 'open-in-browser',
-										link: `https://www.curseforge.com/minecraft/mc-mods/${data.slug}`,
-										external: true,
-									},
-									{
-										divider: true,
-									},
-									{
-										id: 'report',
-										color: 'red',
-										hoverFilled: true,
-										link: `https://support.curseforge.com/`,
-									},
-								]"
-								aria-label="More options"
-							>
-								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser> <ExternalIcon /> Open in browser </template>
-								<template #report> <ReportIcon /> Report </template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<Button
+							v-tooltip="installButtonTooltip"
+							type="colored"
+							color="brand"
+							size="xl"
+							native-type="button"
+							:disabled="installButtonDisabled"
+							@click="install(null)"
+						>
+							<SpinnerIcon
+								v-if="installButtonLoading && !installButtonInstalled"
+								class="animate-spin"
+							/>
+							<DownloadIcon v-else-if="!installButtonInstalled && !serverProjectSelected" />
+							<CheckIcon v-else />
+							{{ installButtonLabel }}
+						</Button>
+						<TeleportOverflowMenu
+							size="xl"
+							label="More options"
+							tooltip="More options"
+							:options="[
+								{
+									id: 'open-in-browser',
+									type: 'link',
+									label: 'Open in browser',
+									href: `https://www.curseforge.com/minecraft/mc-mods/${data.slug}`,
+									target: '_blank',
+								},
+								{
+									type: 'divider',
+								},
+								{
+									id: 'report',
+									type: 'link',
+									label: 'Report',
+									tone: 'red',
+									hoverFilled: true,
+									href: `https://support.curseforge.com/`,
+									target: '_blank',
+								},
+							]"
+						>
+							<MoreVerticalIcon aria-hidden="true" />
+							<template #open-in-browser> <ExternalIcon /> Open in browser </template>
+							<template #report> <ReportIcon /> Report </template>
+						</TeleportOverflowMenu>
 					</template>
 				</ProjectPageHeader>
 				<NavTabs :links="navLinks" />
@@ -137,13 +143,12 @@ import {
 } from '@modrinth/assets'
 import {
 	BrowseInstallHeader,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	getTargetInstallPreferences,
 	injectNotificationManager,
 	NavTabs,
-	OverflowMenu,
 	ProjectPageHeader,
 	ProjectSidebarCompatibility,
 	ProjectSidebarCreators,
@@ -152,6 +157,7 @@ import {
 	ProjectSidebarTags,
 	requestInstall,
 	SelectedProjectsFloatingBar,
+	TeleportOverflowMenu,
 	useVIntl,
 } from '@modrinth/ui'
 import { convertFileSrc } from '@tauri-apps/api/core'
@@ -163,6 +169,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import ContextMenu from '@/components/ui/context-menu/index.vue'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
+import { useAppEvent } from '@/composables/use-app-event'
 import {
 	cf_get_files,
 	cf_get_mod_details,
@@ -174,7 +181,6 @@ import {
 	findInstalledCounterpart,
 	resolveLatestFile,
 } from '@/helpers/curseforge'
-import { useAppEvent } from '@/composables/use-app-event'
 import { get as getInstance, get_content_items as getContentItems } from '@/helpers/instance'
 import { get_game_versions, get_loaders } from '@/helpers/tags'
 import { provideBreadcrumbParent, useBreadcrumb } from '@/providers/breadcrumbs'

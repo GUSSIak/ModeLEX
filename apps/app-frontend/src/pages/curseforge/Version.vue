@@ -14,29 +14,29 @@
 				<h2>{{ version.displayName }}</h2>
 			</div>
 			<div class="button-group">
-				<ButtonStyled color="brand">
-					<button :disabled="installing || isInstalledVersion" @click="() => install(version.id)">
-						<DownloadIcon v-if="!installed" />
-						<RefreshCwIcon v-else-if="!isInstalledVersion" />
-						<CheckIcon v-else />
-						{{ installing ? 'Installing...' : isInstalledVersion ? 'Installed' : 'Install' }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled>
-					<button>
-						<ReportIcon />
-						Report
-					</button>
-				</ButtonStyled>
-				<ButtonStyled>
-					<a
-						:href="`https://www.curseforge.com/minecraft/mc-mods/${project.slug}/files/${version.id}`"
-						rel="external"
-					>
-						CurseForge website
-						<ExternalIcon />
-					</a>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="brand"
+					native-type="button"
+					:disabled="installing || isInstalledVersion"
+					@click="() => install(version.id)"
+				>
+					<DownloadIcon v-if="!installed" />
+					<RefreshCwIcon v-else-if="!isInstalledVersion" />
+					<CheckIcon v-else />
+					{{ installing ? 'Installing...' : isInstalledVersion ? 'Installed' : 'Install' }}
+				</Button>
+				<Button type="outlined" native-type="button">
+					<ReportIcon />
+					Report
+				</Button>
+				<ButtonLink
+					type="outlined"
+					:href="`https://www.curseforge.com/minecraft/mc-mods/${project.slug}/files/${version.id}`"
+				>
+					CurseForge website
+					<ExternalIcon />
+				</ButtonLink>
 			</div>
 		</Card>
 		<div class="version-container">
@@ -57,17 +57,18 @@
 								({{ formatBytes(version.fileLength) }})
 							</span>
 						</span>
-						<ButtonStyled color="brand">
-							<button
-								class="download"
-								:disabled="isInstalledVersion"
-								@click="() => install(version.id)"
-							>
-								<DownloadIcon v-if="!isInstalledVersion" />
-								<CheckIcon v-else />
-								{{ isInstalledVersion ? 'Installed' : 'Install' }}
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="brand"
+							class="download"
+							native-type="button"
+							:disabled="isInstalledVersion"
+							@click="() => install(version.id)"
+						>
+							<DownloadIcon v-if="!isInstalledVersion" />
+							<CheckIcon v-else />
+							{{ isInstalledVersion ? 'Installed' : 'Install' }}
+						</Button>
 					</Card>
 				</Card>
 				<Card v-if="displayDependencies.length > 0">
@@ -140,7 +141,8 @@ import {
 import {
 	Avatar,
 	Breadcrumbs,
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	Card,
 	useFormatBytes,
 	useFormatDateTime,

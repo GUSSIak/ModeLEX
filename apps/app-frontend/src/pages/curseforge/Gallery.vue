@@ -31,32 +31,34 @@
 				</div>
 				<div class="controls">
 					<div class="buttons">
-						<ButtonStyled circular>
-							<button class="close" @click="hideImage">
-								<XIcon aria-hidden="true" />
-							</button>
-						</ButtonStyled>
-						<ButtonStyled circular>
-							<a class="open btn icon-only" target="_blank" :href="expandedGalleryItem.url">
-								<ExternalIcon aria-hidden="true" />
-							</a>
-						</ButtonStyled>
-						<ButtonStyled circular>
-							<button @click="zoomedIn = !zoomedIn">
-								<ExpandIcon v-if="!zoomedIn" aria-hidden="true" />
-								<ContractIcon v-else aria-hidden="true" />
-							</button>
-						</ButtonStyled>
-						<ButtonStyled v-if="filteredGallery.length > 1" circular>
-							<button class="previous" @click="previousImage()">
-								<LeftArrowIcon aria-hidden="true" />
-							</button>
-						</ButtonStyled>
-						<ButtonStyled v-if="filteredGallery.length > 1" circular>
-							<button class="next" @click="nextImage()">
-								<RightArrowIcon aria-hidden="true" />
-							</button>
-						</ButtonStyled>
+						<IconButton label="Close" class="close" native-type="button" @click="hideImage">
+							<XIcon aria-hidden="true" />
+						</IconButton>
+						<ButtonLink class="open" target="_blank" :href="expandedGalleryItem.url">
+							<ExternalIcon aria-hidden="true" />
+						</ButtonLink>
+						<IconButton label="Toggle zoom" native-type="button" @click="zoomedIn = !zoomedIn">
+							<ExpandIcon v-if="!zoomedIn" aria-hidden="true" />
+							<ContractIcon v-else aria-hidden="true" />
+						</IconButton>
+						<IconButton
+							v-if="filteredGallery.length > 1"
+							label="Previous"
+							class="previous"
+							native-type="button"
+							@click="previousImage()"
+						>
+							<LeftArrowIcon aria-hidden="true" />
+						</IconButton>
+						<IconButton
+							v-if="filteredGallery.length > 1"
+							label="Next"
+							class="next"
+							native-type="button"
+							@click="nextImage()"
+						>
+							<RightArrowIcon aria-hidden="true" />
+						</IconButton>
 					</div>
 				</div>
 			</div>
@@ -73,7 +75,7 @@ import {
 	RightArrowIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { ButtonStyled, Card } from '@modrinth/ui'
+import { ButtonLink, Card, IconButton } from '@modrinth/ui'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { trackEvent } from '@/helpers/analytics'

@@ -12,11 +12,10 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	Collapsible,
 	IconButton,
 	injectNotificationManager,
-	OverflowMenu,
+	TeleportOverflowMenu,
 } from '@modrinth/ui'
 import { computed, ref } from 'vue'
 
@@ -37,9 +36,27 @@ const closable = ref(true)
 const errorCollapsed = ref(false)
 
 const supportOptions = [
-	{ id: 'discord', link: 'https://discord.gg/SYgfnjySqb', external: true },
-	{ id: 'telegram', link: 'https://t.me/modlexapp', external: true },
-	{ id: 'website', link: 'https://gussiak.github.io/', external: true },
+	{
+		id: 'discord',
+		type: 'link',
+		label: 'Discord',
+		href: 'https://discord.gg/SYgfnjySqb',
+		target: '_blank',
+	},
+	{
+		id: 'telegram',
+		type: 'link',
+		label: 'Telegram',
+		href: 'https://t.me/modlexapp',
+		target: '_blank',
+	},
+	{
+		id: 'website',
+		type: 'link',
+		label: 'Website',
+		href: 'https://gussiak.github.io/',
+		target: '_blank',
+	},
 ]
 
 const title = ref('An error occurred')
@@ -288,16 +305,16 @@ async function copyToClipboard(text) {
 				</template>
 			</div>
 			<div class="flex items-center gap-2">
-				<ButtonStyled>
-					<OverflowMenu dropdown-id="error-modal-support" :options="supportOptions">
-						<ChatIcon /> Get support
-						<DropdownIcon aria-hidden="true" class="h-4 w-4" />
-						<template #discord> <DiscordIcon aria-hidden="true" /> Discord </template>
-						<template #telegram> <TelegramIcon aria-hidden="true" /> Telegram </template>
-						<template #website> <GlobeIcon aria-hidden="true" /> Website </template>
-					</OverflowMenu>
-				</ButtonStyled>
-				<Button v-if="closable" @click="errorModal.hide()"><XIcon /> Close</Button>
+				<TeleportOverflowMenu label="Get support" :icon-only="false" :options="supportOptions">
+					<ChatIcon /> Get support
+					<DropdownIcon aria-hidden="true" class="h-4 w-4" />
+					<template #discord> <DiscordIcon aria-hidden="true" /> Discord </template>
+					<template #telegram> <TelegramIcon aria-hidden="true" /> Telegram </template>
+					<template #website> <GlobeIcon aria-hidden="true" /> Website </template>
+				</TeleportOverflowMenu>
+				<Button v-if="closable" native-type="button" @click="errorModal.hide()"
+					><XIcon /> Close</Button
+				>
 			</div>
 			<template v-if="hasDebugInfo">
 				<div class="flex flex-col gap-2">

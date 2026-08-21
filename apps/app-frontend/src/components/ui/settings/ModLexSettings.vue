@@ -47,9 +47,14 @@
 						:value="accentColorForPicker"
 						@input="modlexAccentColor = ($event.target as HTMLInputElement).value"
 					/>
-					<ButtonStyled v-if="modlexAccentColor" type="outlined" size="small">
-						<button type="button" @click="modlexAccentColor = ''">Сбросить</button>
-					</ButtonStyled>
+					<Button
+						v-if="modlexAccentColor"
+						type="outlined"
+						size="sm"
+						native-type="button"
+						@click="modlexAccentColor = ''"
+						>Сбросить</Button
+					>
 				</div>
 			</div>
 		</div>
@@ -154,14 +159,23 @@
 						}}
 					</p>
 				</div>
-				<ButtonStyled v-if="updateChannel === 'stable'" color="brand">
-					<button type="button" @click="betaModal?.show()">Включить бета-канал</button>
-				</ButtonStyled>
-				<ButtonStyled v-else type="outlined">
-					<button type="button" :disabled="switchingChannel" @click="returnToStableChannel">
-						Вернуться на публичный канал
-					</button>
-				</ButtonStyled>
+				<Button
+					v-if="updateChannel === 'stable'"
+					type="colored"
+					color="brand"
+					native-type="button"
+					@click="betaModal?.show()"
+					>Включить бета-канал</Button
+				>
+				<Button
+					v-else
+					type="outlined"
+					native-type="button"
+					:disabled="switchingChannel"
+					@click="returnToStableChannel"
+				>
+					Вернуться на публичный канал
+				</Button>
 			</div>
 		</div>
 
@@ -229,7 +243,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTerminal, ButtonStyled, DropdownSelect, Toggle } from '@modrinth/ui'
+import { BaseTerminal, Button, DropdownSelect, Toggle } from '@modrinth/ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'

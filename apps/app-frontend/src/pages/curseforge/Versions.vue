@@ -8,31 +8,30 @@
 			:version-link="(version) => `/curseforge/${project.id}/version/${version.id}`"
 		>
 			<template #actions="{ version }">
-				<ButtonStyled circular type="transparent">
-					<button
-						v-tooltip="`Install`"
-						:class="{
-							'group-hover:!bg-brand group-hover:[&>svg]:!text-brand-inverted':
-								!isInstalledVersion(version),
-						}"
-						:disabled="installing || isInstalledVersion(version)"
-						@click.stop="() => install(version.id)"
-					>
-						<DownloadIcon v-if="!installed" />
-						<RefreshCwIcon v-else-if="!isInstalledVersion(version)" />
-						<CheckIcon v-else />
-					</button>
-				</ButtonStyled>
-				<ButtonStyled circular type="transparent">
-					<a
-						v-tooltip="`Open in browser`"
-						class="group-hover:!bg-button-bg"
-						:href="`https://www.curseforge.com/minecraft/mc-mods/${project.slug}/files/${version.id}`"
-						target="_blank"
-					>
-						<ExternalIcon />
-					</a>
-				</ButtonStyled>
+				<IconButton
+					v-tooltip="`Install`"
+					type="quiet"
+					label="Install"
+					:class="{
+						'group-hover:!bg-brand group-hover:[&>svg]:!text-brand-inverted':
+							!isInstalledVersion(version),
+					}"
+					:disabled="installing || isInstalledVersion(version)"
+					@click.stop="() => install(version.id)"
+				>
+					<DownloadIcon v-if="!installed" />
+					<RefreshCwIcon v-else-if="!isInstalledVersion(version)" />
+					<CheckIcon v-else />
+				</IconButton>
+				<ButtonLink
+					v-tooltip="`Open in browser`"
+					type="quiet"
+					class="group-hover:!bg-button-bg"
+					:href="`https://www.curseforge.com/minecraft/mc-mods/${project.slug}/files/${version.id}`"
+					target="_blank"
+				>
+					<ExternalIcon />
+				</ButtonLink>
 			</template>
 		</ProjectPageVersions>
 	</div>
@@ -40,7 +39,12 @@
 
 <script setup>
 import { CheckIcon, DownloadIcon, ExternalIcon, RefreshCwIcon } from '@modrinth/assets'
-import { ButtonStyled, injectNotificationManager, ProjectPageVersions } from '@modrinth/ui'
+import {
+	ButtonLink,
+	IconButton,
+	injectNotificationManager,
+	ProjectPageVersions,
+} from '@modrinth/ui'
 import { ref } from 'vue'
 
 import { get_game_versions, get_loaders } from '@/helpers/tags.js'

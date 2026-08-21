@@ -37,12 +37,10 @@
 					<code class="flex-1 truncate rounded-lg bg-surface-1 px-2 py-1 text-xs">{{
 						result.testerId
 					}}</code>
-					<ButtonStyled size="small">
-						<button type="button" @click="copyTesterId">
-							<CopyIcon />
-							{{ formatMessage(commonMessages.copyIdButton) }}
-						</button>
-					</ButtonStyled>
+					<Button type="outlined" size="sm" native-type="button" @click="copyTesterId">
+						<CopyIcon />
+						{{ formatMessage(commonMessages.copyIdButton) }}
+					</Button>
 				</div>
 			</Admonition>
 
@@ -56,35 +54,33 @@
 			<div v-if="result?.status !== 'approved'" class="flex flex-col gap-2">
 				<span class="text-xs text-secondary">{{ formatMessage(messages.getCodeHint) }}</span>
 				<div class="flex gap-2">
-					<ButtonStyled type="outlined" size="small">
-						<a :href="TELEGRAM_URL" target="_blank" rel="noopener">
-							<ExternalIcon />
-							Telegram
-						</a>
-					</ButtonStyled>
-					<ButtonStyled type="outlined" size="small">
-						<a :href="DISCORD_URL" target="_blank" rel="noopener">
-							<ExternalIcon />
-							Discord
-						</a>
-					</ButtonStyled>
+					<ButtonLink type="outlined" size="sm" :href="TELEGRAM_URL" target="_blank">
+						<ExternalIcon />
+						Telegram
+					</ButtonLink>
+					<ButtonLink type="outlined" size="sm" :href="DISCORD_URL" target="_blank">
+						<ExternalIcon />
+						Discord
+					</ButtonLink>
 				</div>
 			</div>
 		</div>
 
 		<template #actions>
 			<div class="flex justify-end gap-2">
-				<ButtonStyled v-if="!blocking" type="outlined">
-					<button type="button" @click="modal?.hide()">
-						{{ formatMessage(commonMessages.cancelButton) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled color="brand">
-					<button type="button" :disabled="!code.trim() || checking" @click="submit">
-						<SpinnerIcon v-if="checking" class="animate-spin" />
-						{{ formatMessage(messages.submitButton) }}
-					</button>
-				</ButtonStyled>
+				<Button v-if="!blocking" type="outlined" native-type="button" @click="modal?.hide()">
+					{{ formatMessage(commonMessages.cancelButton) }}
+				</Button>
+				<Button
+					type="colored"
+					color="brand"
+					native-type="button"
+					:disabled="!code.trim() || checking"
+					@click="submit"
+				>
+					<SpinnerIcon v-if="checking" class="animate-spin" />
+					{{ formatMessage(messages.submitButton) }}
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -94,7 +90,8 @@
 import { CopyIcon, ExternalIcon, SpinnerIcon } from '@modrinth/assets'
 import {
 	Admonition,
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,

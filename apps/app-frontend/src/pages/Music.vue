@@ -28,12 +28,10 @@
 					<h3 class="setting-row__label">Локальная папка с музыкой</h3>
 					<p class="setting-row__desc">Мод будет проигрывать аудиофайлы из выбранной папки.</p>
 				</div>
-				<ButtonStyled>
-					<button @click="pickLocalMusicFolder">
-						<FolderOpenIcon />
-						{{ settings.modlex_local_music_path ? 'Изменить' : 'Выбрать папку' }}
-					</button>
-				</ButtonStyled>
+				<Button type="outlined" native-type="button" @click="pickLocalMusicFolder">
+					<FolderOpenIcon />
+					{{ settings.modlex_local_music_path ? 'Изменить' : 'Выбрать папку' }}
+				</Button>
 			</div>
 			<p v-if="settings.modlex_local_music_path" class="setting-row__path">
 				{{ settings.modlex_local_music_path }}
@@ -110,12 +108,16 @@
 							placeholder="Название плейлиста"
 							@keydown.enter="createPlaylist"
 						/>
-						<ButtonStyled color="brand">
-							<button :disabled="!newPlaylistName.trim()" @click="createPlaylist">
-								<PlusIcon />
-								Создать
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="brand"
+							native-type="button"
+							:disabled="!newPlaylistName.trim()"
+							@click="createPlaylist"
+						>
+							<PlusIcon />
+							Создать
+						</Button>
 					</div>
 				</div>
 
@@ -126,16 +128,24 @@
 							v-model="selectedPlaylist.name"
 							class="playlist-editor__name"
 						/>
-						<ButtonStyled circular>
-							<button v-tooltip="'Дублировать'" @click="duplicatePlaylist(selectedPlaylistIndex!)">
-								<CopyIcon />
-							</button>
-						</ButtonStyled>
-						<ButtonStyled circular color="red">
-							<button v-tooltip="'Удалить'" @click="deletePlaylist(selectedPlaylistIndex!)">
-								<TrashIcon />
-							</button>
-						</ButtonStyled>
+						<IconButton
+							v-tooltip="'Дублировать'"
+							label="Дублировать"
+							native-type="button"
+							@click="duplicatePlaylist(selectedPlaylistIndex!)"
+						>
+							<CopyIcon />
+						</IconButton>
+						<IconButton
+							v-tooltip="'Удалить'"
+							label="Удалить"
+							type="quiet"
+							color="red"
+							native-type="button"
+							@click="deletePlaylist(selectedPlaylistIndex!)"
+						>
+							<TrashIcon />
+						</IconButton>
 					</div>
 
 					<Draggable
@@ -195,12 +205,15 @@
 								v-model="radioUrl"
 								placeholder="https://... прямой поток mp3/aac"
 							/>
-							<ButtonStyled>
-								<button :disabled="!radioUrl.trim()" @click="addRadioTrack">
-									<PlusIcon />
-									Добавить
-								</button>
-							</ButtonStyled>
+							<Button
+								type="outlined"
+								native-type="button"
+								:disabled="!radioUrl.trim()"
+								@click="addRadioTrack"
+							>
+								<PlusIcon />
+								Добавить
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -222,7 +235,7 @@ import {
 	TrashIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { ButtonStyled, DropdownSelect, StyledInput, Toggle } from '@modrinth/ui'
+import { Button, DropdownSelect, IconButton, StyledInput, Toggle } from '@modrinth/ui'
 import { open } from '@tauri-apps/plugin-dialog'
 import { computed, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
