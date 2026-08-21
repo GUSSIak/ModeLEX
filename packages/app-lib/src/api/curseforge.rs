@@ -722,6 +722,7 @@ pub async fn install_modpack(
         loader_mod,
         None,
         None,
+        None,
         crate::state::InstanceLink::Unmanaged,
     )
     .await?;

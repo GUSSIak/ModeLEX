@@ -38,16 +38,17 @@ import DefaultInstanceSettings from '@/components/ui/settings/instances/DefaultI
 import JavaSettings from '@/components/ui/settings/instances/JavaSettings.vue'
 import ResourceManagementSettings from '@/components/ui/settings/instances/ResourceManagementSettings.vue'
 import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
+import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { get, set } from '@/helpers/settings.ts'
 import {
 	appSettingsModalContextKey,
 	type UnsavedChangesController,
 } from '@/providers/app-settings-modal'
 import { injectAppUpdateDownloadProgress } from '@/providers/download-progress.ts'
-import { useTheming } from '@/store/state'
 
 // TODO: Apply COMPONENT_STRUCTURE.md here and extract out common setting option components
-const themeStore = useTheming()
+const appSettings = useAppSettings()
+const devModeCounter = ref(0)
 
 const { formatMessage } = useVIntl()
 
@@ -166,7 +167,7 @@ const tabs = [
 ]
 
 const availableTabs = computed(() =>
-	tabs.filter((tab) => !tab.developerOnly || themeStore.devMode),
+	tabs.filter((tab) => !tab.developerOnly || appSettings.devMode),
 )
 
 const modal = ref<InstanceType<typeof TabbedModal> | null>(null)
@@ -180,10 +181,19 @@ const modifiedUnsavedChangesState = computed(
 	() => unsavedChangesController.value?.getModified() ?? emptyUnsavedChangesState,
 )
 const savingUnsavedChanges = computed(() => unsavedChangesController.value?.isSaving() ?? false)
-const hasUnsavedChanges = computed(() => unsavedChangesController.value?.hasChanges() ?? false)
+const hasUnsavedChanges = computed(
+	() =>
+		(unsavedChangesController.value?.hasChanges() ?? false) ||
+		(unsavedChangesController.value?.isSaving() ?? false),
+)
 
 function canLeaveCurrentTab(): boolean {
-	if (!unsavedChangesController.value?.hasChanges()) return true
+	if (
+		!unsavedChangesController.value?.hasChanges() &&
+		!unsavedChangesController.value?.isSaving()
+	) {
+		return true
+	}
 	unsavedChangesPopup.value?.nudge()
 	return false
 }
@@ -252,7 +262,7 @@ watch(
 // не только из этого модального окна — держим список вкладок и выбранную вкладку в
 // синхронизации, когда devMode-only вкладки появляются/исчезают.
 watch(
-	() => themeStore.devMode,
+	() => appSettings.devMode,
 	async (devMode) => {
 		// Держим локальную копию настроек в курсе — иначе следующее сохранение
 		// (deep watch на settings выше) откатит developer_mode обратно.
@@ -265,6 +275,14 @@ watch(
 		modal.value.setTab(newIndex >= 0 ? newIndex : 0)
 	},
 )
+
+function devModeCount() {
+	devModeCounter.value++
+	if (devModeCounter.value > 5) {
+		appSettings.devMode = !appSettings.devMode
+		devModeCounter.value = 0
+	}
+}
 
 const messages = defineMessages({
 	downloading: {
@@ -317,15 +335,16 @@ const messages = defineMessages({
 						<ProgressBar :progress="progress" />
 					</template>
 				</div>
-				<p v-if="themeStore.devMode" class="text-brand font-semibold m-0 mb-2">
+				<p v-if="appSettings.devMode" class="text-brand font-semibold m-0 mb-2">
 					{{ formatMessage(developerModeEnabled) }}
 				</p>
 				<div class="flex items-center gap-3">
 					<div
 						:class="{
-							'text-brand': themeStore.devMode,
-							'text-secondary': !themeStore.devMode,
+							'text-brand': appSettings.devMode,
+							'text-secondary': !appSettings.devMode,
 						}"
+						@click="devModeCount"
 					>
 						<ModrinthIcon aria-hidden="true" class="w-6 h-6" />
 					</div>

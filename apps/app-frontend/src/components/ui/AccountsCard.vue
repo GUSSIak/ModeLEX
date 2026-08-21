@@ -4,13 +4,11 @@
 		class="flex flex-col gap-3 bg-button-bg border border-solid border-surface-5 rounded-xl p-3 mt-2"
 	>
 		<span>{{ formatMessage(messages.notSignedIn) }}</span>
-		<ButtonStyled color="brand">
-			<button color="primary" :disabled="loginDisabled" @click="login()">
-				<LogInIcon v-if="!loginDisabled" />
-				<SpinnerIcon v-else class="animate-spin" />
-				{{ formatMessage(messages.signInToMinecraft) }}
-			</button>
-		</ButtonStyled>
+		<Button type="colored" color="brand" :disabled="loginDisabled" @click="login()">
+			<LogInIcon v-if="!loginDisabled" />
+			<SpinnerIcon v-else class="animate-spin" />
+			{{ formatMessage(messages.signInToMinecraft) }}
+		</Button>
 		<ButtonStyled color="secondary">
 			<button @click="openOfflineModal()">
 				<UserIcon />
@@ -35,6 +33,7 @@
 			<div class="flex gap-2 w-full min-w-0">
 				<Avatar
 					size="36px"
+					disable-conditional-icon-padding
 					:src="
 						selectedAccount
 							? avatarUrl
@@ -83,7 +82,11 @@
 							class="w-5 h-5 text-brand shrink-0"
 						/>
 						<RadioButtonIcon v-else class="w-5 h-5 text-secondary shrink-0" />
-						<Avatar :src="getAccountAvatarUrl(account)" size="24px" />
+						<Avatar
+							:src="getAccountAvatarUrl(account)"
+							size="24px"
+							disable-conditional-icon-padding
+						/>
 						<p
 							class="m-0 truncate min-w-0"
 							:class="
@@ -109,25 +112,28 @@
 							<WifiOffIcon class="w-3 h-3" />
 						</span>
 					</button>
-					<ButtonStyled circular color="red" color-fill="none" hover-color-fill="background">
-						<button
-							v-tooltip="formatMessage(messages.removeAccount)"
-							class="mr-2"
-							:disabled="!!switchingAccountId"
-							@click="logout(account.profile.id)"
-						>
-							<TrashIcon />
-						</button>
-					</ButtonStyled>
+					<IconButton
+						v-tooltip="formatMessage(messages.removeAccount)"
+						type="quiet"
+						color="red"
+						:label="formatMessage(messages.removeAccount)"
+						class="mr-2 !bg-button-bg !text-primary ![box-shadow:var(--shadow-button)] hover:!bg-red focus-visible:!bg-red hover:!text-[var(--color-accent-contrast)] focus-visible:!text-[var(--color-accent-contrast)]"
+						@click="logout(account.profile.id)"
+					>
+						<TrashIcon />
+					</IconButton>
 				</div>
 			</template>
 			<div class="flex flex-col gap-2 px-2 pt-2">
-				<ButtonStyled v-if="accounts.length > 0" class="w-full">
-					<button :disabled="loginDisabled" @click="login()">
-						<PlusIcon />
-						{{ formatMessage(messages.addAccount) }}
-					</button>
-				</ButtonStyled>
+				<Button
+					v-if="accounts.length > 0"
+					class="w-full !bg-button-bg !text-primary ![box-shadow:var(--shadow-button)]"
+					:disabled="loginDisabled"
+					@click="login()"
+				>
+					<PlusIcon />
+					{{ formatMessage(messages.addAccount) }}
+				</Button>
 				<ButtonStyled class="w-full" color="secondary">
 					<button @click="openOfflineModal()">
 						<UserIcon />
@@ -201,14 +207,18 @@ import {
 import {
 	Accordion,
 	Avatar,
+	Button,
 	ButtonStyled,
 	defineMessages,
+	IconButton,
 	injectNotificationManager,
 	useVIntl,
 } from '@modrinth/ui'
 import type { Ref } from 'vue'
 import { computed, onUnmounted, ref } from 'vue'
 
+import { useAppEvent } from '@/composables/use-app-event'
+import { handleSevereError } from '@/composables/use-error.js'
 import { trackEvent } from '@/helpers/analytics'
 import {
 	cancel_elyby_login,
@@ -220,11 +230,9 @@ import {
 	users,
 } from '@/helpers/auth'
 import { currentAccountId as defaultUser, refreshCurrentAccountId } from '@/helpers/current-account'
-import { process_listener } from '@/helpers/events'
 import { getPlayerHeadUrl } from '@/helpers/rendering/batch-skin-renderer.ts'
 import type { Skin } from '@/helpers/skins'
 import { get_available_skins } from '@/helpers/skins'
-import { handleSevereError } from '@/store/error.js'
 
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
@@ -332,6 +340,7 @@ defineExpose({
 	refreshValues,
 	setEquippedSkin,
 	setLoginDisabled,
+	login,
 	loginDisabled,
 })
 
@@ -434,14 +443,13 @@ async function logout(id: string) {
 	trackEvent('AccountLogOut')
 }
 
-const unlisten = await process_listener(async (e) => {
+useAppEvent('process', async (e) => {
 	if (e.event === 'launched') {
 		await refreshValues()
 	}
 })
 
 onUnmounted(() => {
-	unlisten()
 	cancel_elyby_login()
 })
 

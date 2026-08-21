@@ -17,12 +17,10 @@
 						{{ formatMessage(messages.sharedInstance) }}
 					</span>
 
-					<ButtonStyled type="transparent">
-						<button @click="openViewContents">
-							<EyeIcon />
-							{{ formatMessage(messages.viewContents) }}
-						</button>
-					</ButtonStyled>
+					<Button type="quiet" @click="openViewContents">
+						<EyeIcon />
+						{{ formatMessage(messages.viewContents) }}
+					</Button>
 				</div>
 
 				<div class="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
@@ -112,65 +110,56 @@
 			</p>
 
 			<div class="flex w-full items-center justify-between gap-2">
-				<ButtonStyled type="transparent" color="red">
-					<button @click="handleReport">
-						<ReportIcon />
-						{{ formatMessage(commonMessages.reportButton) }}
-					</button>
-				</ButtonStyled>
+				<Button type="quiet" color="red" @click="handleReport">
+					<ReportIcon />
+					{{ formatMessage(commonMessages.reportButton) }}
+				</Button>
 
 				<div class="flex items-center gap-2">
 					<template v-if="hasExternalFiles">
-						<ButtonStyled type="transparent" color="orange">
-							<button @click="handleAccept">
-								{{ formatMessage(messages.installAnyway) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled color="brand">
-							<button @click="handleDecline">
-								<BanIcon />
-								{{ formatMessage(messages.dontInstall) }}
-							</button>
-						</ButtonStyled>
+						<Button type="quiet" color="orange" @click="handleAccept">
+							{{ formatMessage(messages.installAnyway) }}
+						</Button>
+						<Button type="colored" color="brand" @click="handleDecline">
+							<BanIcon />
+							{{ formatMessage(messages.dontInstall) }}
+						</Button>
 					</template>
 					<template v-else>
-						<ButtonStyled>
-							<button @click="handleDecline">
-								<XIcon />
-								{{ formatMessage(commonMessages.cancelButton) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled color="brand">
-							<button @click="handleAccept">
-								<DownloadIcon />
-								{{ formatMessage(messages.installButton) }}
-							</button>
-						</ButtonStyled>
+						<Button @click="handleDecline">
+							<XIcon />
+							{{ formatMessage(commonMessages.cancelButton) }}
+						</Button>
+						<Button type="colored" color="brand" @click="handleAccept">
+							<DownloadIcon />
+							{{ formatMessage(messages.installButton) }}
+						</Button>
 					</template>
 				</div>
 			</div>
 		</div>
 	</NewModal>
 
-	<ModpackContentModal
-		ref="modpackContentModal"
-		:modpack-name="project?.name ?? ''"
-		:modpack-icon-url="project?.icon_url ?? undefined"
+	<ManagedContentModal
+		ref="managedContentModal"
+		:header="formatMessage(messages.modpackContent)"
+		:source-name="project?.name ?? ''"
+		:source-icon-url="project?.icon_url ?? undefined"
 	/>
 </template>
 
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
 import { BanIcon, DownloadIcon, EyeIcon, ReportIcon, XIcon } from '@modrinth/assets'
+import { Button } from '@modrinth/ui'
 import {
 	Admonition,
 	Avatar,
-	ButtonStyled,
 	commonMessages,
 	type ContentItem,
 	defineMessages,
 	formatLoader,
-	ModpackContentModal,
+	ManagedContentModal,
 	NewModal,
 	Table,
 	type TableColumn,
@@ -279,10 +268,10 @@ function handleReport() {
 	}
 }
 
-const modpackContentModal = ref<InstanceType<typeof ModpackContentModal>>()
+const managedContentModal = ref<InstanceType<typeof ManagedContentModal>>()
 
 async function openViewContents() {
-	modpackContentModal.value?.showLoading()
+	managedContentModal.value?.showLoading()
 	try {
 		// Ensure version data is available — the useQuery may not have resolved yet
 		const versionId = modpackVersionId.value
@@ -340,10 +329,10 @@ async function openViewContents() {
 				}
 			},
 		)
-		modpackContentModal.value?.show(contentItems)
+		managedContentModal.value?.show(contentItems)
 	} catch (err) {
 		console.error('Failed to load modpack contents:', err)
-		modpackContentModal.value?.show([])
+		managedContentModal.value?.show([])
 	}
 }
 
@@ -372,6 +361,10 @@ function hide() {
 }
 
 const messages = defineMessages({
+	modpackContent: {
+		id: 'app.modal.install-to-play.managed-content.modpack-header',
+		defaultMessage: 'Modpack content',
+	},
 	installToPlay: {
 		id: 'app.modal.install-to-play.header',
 		defaultMessage: 'Install to play',
@@ -412,8 +405,7 @@ const messages = defineMessages({
 	},
 	reviewedFiles: {
 		id: 'app.modal.install-to-play.reviewed-files',
-		defaultMessage:
-			'A file is only reviewed if it’s published to Modrinth, regardless of its file format (including .mrpack).',
+		defaultMessage: "Files that aren't published to Modrinth aren't reviewed.",
 	},
 	installAnyway: {
 		id: 'app.modal.install-to-play.install-anyway',

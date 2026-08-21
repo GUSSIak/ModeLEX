@@ -19,7 +19,9 @@
 			<div v-if="musicFeatureEnabled" class="setting-row">
 				<div class="setting-row__info">
 					<h3 class="setting-row__label">Скрыть вкладку "Музыка"</h3>
-					<p class="setting-row__desc">Убирает кнопку музыкального плеера мода ModLEX Core из бокового меню.</p>
+					<p class="setting-row__desc">
+						Убирает кнопку музыкального плеера мода ModLEX Core из бокового меню.
+					</p>
 				</div>
 				<Toggle v-model="modlexHideMusicTab" />
 			</div>
@@ -93,7 +95,9 @@
 					<input v-model.number="modlexConsoleScale" type="range" min="0" max="6" step="1" />
 				</label>
 				<label class="console-field">
-					<span class="console-field__label">Зазор между буквами ({{ modlexConsoleLetterGap }})</span>
+					<span class="console-field__label"
+						>Зазор между буквами ({{ modlexConsoleLetterGap }})</span
+					>
 					<input v-model.number="modlexConsoleLetterGap" type="range" min="0" max="6" step="1" />
 				</label>
 				<label class="console-field">

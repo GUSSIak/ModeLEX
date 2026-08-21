@@ -4,7 +4,6 @@ import * as Pages from '@/pages'
 import * as CurseForge from '@/pages/curseforge'
 import * as Hosting from '@/pages/hosting/manage'
 import * as Instance from '@/pages/instance'
-import * as Library from '@/pages/library'
 import * as Project from '@/pages/project'
 
 /**
@@ -76,38 +75,6 @@ export default new createRouter({
 			component: Pages.User,
 		},
 		{
-			path: '/library',
-			name: 'Library',
-			component: Library.Index,
-			children: [
-				{
-					path: '',
-					name: 'Overview',
-					component: Library.Overview,
-				},
-				{
-					path: 'downloaded',
-					name: 'Downloaded',
-					component: Library.Downloaded,
-				},
-				{
-					path: 'modpacks',
-					name: 'Modpacks',
-					component: Library.Modpacks,
-				},
-				{
-					path: 'servers',
-					name: 'LibraryServers',
-					component: Library.Servers,
-				},
-				{
-					path: 'custom',
-					name: 'Custom',
-					component: Library.Custom,
-				},
-			],
-		},
-		{
 			path: '/:projectType(mod|plugin|datapack|resourcepack|shader|modpack)/:id/:rest(.*)*',
 			redirect: (to) => {
 				const rest = to.params.rest ? `/${[].concat(to.params.rest).join('/')}` : ''
@@ -176,7 +143,6 @@ export default new createRouter({
 			path: '/instance/:id',
 			name: 'Instance',
 			component: Instance.Index,
-			props: true,
 			children: [
 				{
 					path: 'worlds',
@@ -190,22 +156,22 @@ export default new createRouter({
 				},
 				{
 					path: '',
-					name: 'Mods',
-					component: Instance.Mods,
+					name: 'InstanceContent',
+					component: Instance.Content,
 				},
 				{
 					path: 'projects/:type',
-					name: 'ModsFilter',
-					component: Instance.Mods,
+					name: 'InstanceContentFilter',
+					component: Instance.Content,
 				},
 				{
 					path: 'files',
-					name: 'Files',
+					name: 'InstanceFiles',
 					component: Instance.Files,
 				},
 				{
 					path: 'logs',
-					name: 'Logs',
+					name: 'InstanceLogs',
 					component: Instance.Logs,
 					meta: {
 						renderMode: 'fixed',

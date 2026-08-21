@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { XIcon } from '@modrinth/assets'
-import { ButtonStyled, commonMessages, injectNotificationManager, SearchSidebarFilter, useVIntl } from '@modrinth/ui'
+import {
+	ButtonStyled,
+	commonMessages,
+	injectNotificationManager,
+	SearchSidebarFilter,
+	useVIntl,
+} from '@modrinth/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 

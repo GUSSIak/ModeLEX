@@ -19,12 +19,12 @@ pub struct Settings {
     pub advanced_rendering: bool,
     pub native_decorations: bool,
     pub toggle_sidebar: bool,
+    pub sync_theme_across_devices: bool,
+    pub sync_behavior_across_devices: bool,
 
     pub telemetry: bool,
     pub discord_rpc: bool,
     pub personalized_ads: bool,
-
-    pub onboarded: bool,
 
     pub extra_launch_args: Vec<String>,
     pub custom_env_vars: Vec<(String, String)>,
@@ -109,10 +109,16 @@ pub enum FeatureFlag {
     ServerProjectQa,
     I18nDebug,
     ShowInstancePlayTime,
+    CompactInstanceCards,
     SkipNonEssentialWarnings,
     AdvancedFiltersCollapsed,
     AlwaysShowCopyDetails,
     HideInstalledModpacks,
+    FriendsActiveCollapsed,
+    FriendsOnlineCollapsed,
+    FriendsOfflineCollapsed,
+    FriendsPendingCollapsed,
+    DismissedPhotosensitivityFilterWarning,
 }
 
 impl Settings {
@@ -127,7 +133,6 @@ impl Settings {
                 max_concurrent_writes, max_concurrent_downloads,
                 theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,
                 discord_rpc, developer_mode, telemetry, personalized_ads,
-                onboarded,
                 json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
@@ -136,6 +141,7 @@ impl Settings {
                 modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,
                 modlex_music_default_source, json(modlex_playlists) modlex_playlists,
                 modlex_update_channel, modlex_tester_id, modlex_beta_verified,
+                sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
             "
@@ -158,7 +164,6 @@ impl Settings {
             discord_rpc: res.discord_rpc == 1,
             developer_mode: res.developer_mode == 1,
             personalized_ads: res.personalized_ads == 1,
-            onboarded: res.onboarded == 1,
             extra_launch_args: res
                 .extra_launch_args
                 .as_ref()
@@ -208,6 +213,8 @@ impl Settings {
             modlex_update_channel: res.modlex_update_channel,
             modlex_tester_id: res.modlex_tester_id,
             modlex_beta_verified: res.modlex_beta_verified,
+            sync_theme_across_devices: res.sync_theme_across_devices == 1,
+            sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
             version: res.version as usize,
         })
     }
@@ -245,44 +252,45 @@ impl Settings {
                 telemetry = $11,
                 personalized_ads = $12,
 
-                onboarded = $13,
+                extra_launch_args = jsonb($13),
+                custom_env_vars = jsonb($14),
+                mc_memory_max = $15,
+                mc_force_fullscreen = $16,
+                mc_game_resolution_x = $17,
+                mc_game_resolution_y = $18,
+                hide_on_process_start = $19,
 
-                extra_launch_args = jsonb($14),
-                custom_env_vars = jsonb($15),
-                mc_memory_max = $16,
-                mc_force_fullscreen = $17,
-                mc_game_resolution_x = $18,
-                mc_game_resolution_y = $19,
-                hide_on_process_start = $20,
+                hook_pre_launch = $20,
+                hook_wrapper = $21,
+                hook_post_exit = $22,
 
-                hook_pre_launch = $21,
-                hook_wrapper = $22,
-                hook_post_exit = $23,
+                custom_dir = $23,
+                prev_custom_dir = $24,
+                migrated = $25,
 
-                custom_dir = $24,
-                prev_custom_dir = $25,
-                migrated = $26,
+                toggle_sidebar = $26,
+                feature_flags = $27,
+                hide_nametag_skins_page = $28,
 
-                toggle_sidebar = $27,
-                feature_flags = $28,
-                hide_nametag_skins_page = $29,
+                skipped_update = $29,
+                pending_update_toast_for_version = $30,
+                auto_download_updates = $31,
 
-                skipped_update = $30,
-                pending_update_toast_for_version = $31,
-                auto_download_updates = $32,
+                modlex_vk_token = $32,
+                modlex_vk_user_id = $33,
+                modlex_soundcloud_enabled = $34,
+                modlex_local_music_path = $35,
+                modlex_music_default_source = $36,
+                modlex_playlists = jsonb($37),
 
-                modlex_vk_token = $33,
-                modlex_vk_user_id = $34,
-                modlex_soundcloud_enabled = $35,
-                modlex_local_music_path = $36,
-                modlex_music_default_source = $37,
-                modlex_playlists = jsonb($38),
+                modlex_update_channel = $38,
+                modlex_tester_id = $39,
+                modlex_beta_verified = $40,
 
-                modlex_update_channel = $39,
-                modlex_tester_id = $40,
-                modlex_beta_verified = $41,
+                sync_theme_across_devices = $41,
+                sync_behavior_across_devices = $42,
 
-                version = $42
+                version = $43
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -296,7 +304,6 @@ impl Settings {
             self.developer_mode,
             self.telemetry,
             self.personalized_ads,
-            self.onboarded,
             extra_launch_args,
             custom_env_vars,
             self.memory.maximum,
@@ -325,6 +332,8 @@ impl Settings {
             self.modlex_update_channel,
             self.modlex_tester_id,
             self.modlex_beta_verified,
+            self.sync_theme_across_devices,
+            self.sync_behavior_across_devices,
             version,
         )
         .execute(exec)

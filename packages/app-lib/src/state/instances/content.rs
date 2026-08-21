@@ -1,5 +1,7 @@
 use super::ContentSourceKind;
-use crate::state::{Project, ProjectType, Version};
+use crate::state::{
+    License, Project, ProjectType, Version, VersionEnvironment,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -9,9 +11,11 @@ pub struct ContentItem {
     pub id: String,
     pub size: u64,
     pub enabled: bool,
+    pub locked: bool,
     pub project_type: ProjectType,
     pub project: Option<ContentItemProject>,
     pub version: Option<ContentItemVersion>,
+    pub environment: Option<VersionEnvironment>,
     pub owner: Option<ContentItemOwner>,
     pub has_update: bool,
     pub update_version_id: Option<String>,
@@ -21,6 +25,22 @@ pub struct ContentItem {
     pub platform: Option<String>,
     pub cf_mod_id: Option<u32>,
     //modlex
+    pub embedded_metadata: Option<EmbeddedContentMetadata>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct EmbeddedContentMetadata {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub icon_path: Option<String>,
+}
+
+impl EmbeddedContentMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none()
+            && self.version.is_none()
+            && self.icon_path.is_none()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -29,6 +49,9 @@ pub struct ContentItemProject {
     pub slug: Option<String>,
     pub title: String,
     pub icon_url: Option<String>,
+    pub license: License,
+    pub categories: Vec<String>,
+    pub additional_categories: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -58,7 +81,7 @@ pub enum OwnerType {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkedModpackInfo {
     pub project: Project,
-    pub version: Version,
+    pub version: Option<Version>,
     pub owner: Option<ContentItemOwner>,
     pub has_update: bool,
     pub update_version_id: Option<String>,

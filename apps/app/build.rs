@@ -144,6 +144,14 @@ fn main() {
                     ),
             )
             .plugin(
+                "onboarding-checklist",
+                InlinedPlugin::new()
+                    .commands(&["get_onboarding_checklist"])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "install",
                 InlinedPlugin::new()
                     .commands(&[
@@ -203,6 +211,7 @@ fn main() {
                         "instance_get_install_candidates",
                         "instance_content",
                         "instance_get_content_items",
+                        "instance_refresh_content_updates",
                         "instance_get_dependencies_as_content_items",
                         "instance_get_linked_modpack_info",
                         "instance_get_linked_modpack_content",
@@ -210,6 +219,12 @@ fn main() {
                         "instance_get_full_path",
                         "instance_get_mod_full_path",
                         "instance_list",
+                        "instance_list_groups",
+                        "instance_create_group",
+                        "instance_rename_group",
+                        "instance_delete_group",
+                        "instance_set_group_order",
+                        "instance_set_group_memberships",
                         "instance_check_installed",
                         "instance_update_all",
                         "instance_update_project",
@@ -219,6 +234,7 @@ fn main() {
                         "instance_add_project_from_path",
                         "instance_is_file_on_modrinth",
                         "instance_toggle_disable_project",
+                        "instance_set_project_locked",
                         "instance_remove_project",
                         "instance_update_managed_modrinth_version",
                         "instance_repair_managed_modrinth",
@@ -227,6 +243,9 @@ fn main() {
                         "instance_kill",
                         "instance_edit",
                         "instance_edit_icon",
+                        "instance_edit_generated_icon",
+                        "instance_cache_generated_icon",
+                        "instance_get_recent_icon_configs",
                         "instance_share_can_current_user_use",
                         "instance_share_get_users",
                         "instance_share_invite_users",
@@ -288,7 +307,11 @@ fn main() {
                         "get_user_projects",
                         "get_user_organizations",
                         "get_user_collections",
+                        "get_user_preferences",
+                        "patch_user_preferences",
                         "patch_user",
+                        "change_user_avatar",
+                        "delete_user_avatar",
                         "block_user",
                         "unblock_user",
                         "get_blocked_users",
@@ -321,7 +344,7 @@ fn main() {
                     .commands(&[
                         "init_ads_window",
                         "hide_ads_window",
-                        "show_ads_window",
+                        "update_ads_window_hold",
                         "show_ads_consent_ui",
                         "expand_ads_consent_webview",
                         "open_ads_consent_preferences",
