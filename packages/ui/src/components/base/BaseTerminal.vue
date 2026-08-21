@@ -57,6 +57,12 @@ const props = withDefaults(
 		fullscreen?: boolean
 		emptyStateType?: 'server' | 'instance'
 		loading?: boolean
+		/** Текст пустого экрана (матричный дождь). По умолчанию — "NO SIGNAL". */
+		emptyStateText?: string
+		/** Явный размер букв (1-6). Если не задан — автоподбор под размер терминала. */
+		emptyStateScale?: number
+		/** Доп. зазор между буквами в колонках терминала. */
+		emptyStateLetterGap?: number
 	}>(),
 	{
 		scrollback: Infinity,
@@ -67,29 +73,67 @@ const props = withDefaults(
 		fullscreen: false,
 		emptyStateType: undefined,
 		loading: false,
+		emptyStateText: 'NO SIGNAL',
+		emptyStateScale: undefined,
+		emptyStateLetterGap: 2,
 	},
 )
 
-// 5x7 dot-matrix font — используется как маска "дыр" в матричном дожде,
-// чтобы буквы NO SIGNAL проступали как пустое место среди падающих символов.
-// Масштабируется под размер терминала в computeLetterScale/buildNoSignalMask.
+// 5x7 dot-matrix font — используется как маска "дыр" в матричном дожде, чтобы
+// буквы проступали как пустое место среди падающих символов. Неизвестные
+// символы (вне A-Z/0-9/пробела/дефиса) тихо схлопываются в пробел — см.
+// `DOT_FONT[ch] ?? DOT_FONT[' ']` в buildNoSignalMask/computeLetterScale.
 const DOT_FONT: Record<string, string[]> = {
+	A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+	B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+	C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+	D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+	E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+	F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+	G: ['01110', '10001', '10000', '10011', '10001', '10001', '01111'],
+	H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
+	I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+	J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
+	K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+	L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+	M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
 	N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
 	O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+	P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+	Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'],
+	R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
 	S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
-	I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
-	G: ['01110', '10001', '10000', '10011', '10001', '10001', '01111'],
-	A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-	L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+	T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+	U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+	V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
+	W: ['10001', '10001', '10001', '10101', '10101', '10101', '01010'],
+	X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
+	Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+	Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
+	'0': ['01110', '10001', '10011', '10101', '11001', '10001', '01110'],
+	'1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+	'2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
+	'3': ['11111', '00010', '00100', '00010', '00001', '10001', '01110'],
+	'4': ['00010', '00110', '01010', '10010', '11111', '00010', '00010'],
+	'5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+	'6': ['00110', '01000', '10000', '11110', '10001', '10001', '01110'],
+	'7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
+	'8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
+	'9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
+	'-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
 	' ': ['000', '000', '000', '000', '000', '000', '000'],
 }
-const NO_SIGNAL_TEXT = 'NO SIGNAL'
 const FONT_HEIGHT = 7
 // Отступ внутри "логики" шрифта — держим маленьким, чтобы не съедать масштаб букв
 const LETTER_GAP_PX = 1
-// Доп. зазор между буквами в реальных колонках терминала (не масштабируется) —
-// именно он делает буквы визуально раздельными по просьбе
-const EXTRA_LETTER_GAP_COLS = 2
+
+function getEmptyStateText(): string {
+	return (props.emptyStateText || 'NO SIGNAL').toUpperCase()
+}
+
+function getLetterGap(): number {
+	return props.emptyStateLetterGap ?? 2
+}
 // Символ и цвет, которым рисуются сами буквы (плотный тёмный силуэт, а не дыра)
 const LETTER_FILL_CHAR = '#'
 const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый
@@ -106,14 +150,24 @@ function randomRainChar(): string {
 
 /** Подбирает масштаб букв так, чтобы слово занимало большую часть экрана, но помещалось. */
 function computeLetterScale(cols: number, rows: number): { scaleX: number; scaleY: number } {
-	const letters = NO_SIGNAL_TEXT.split('')
+	const letterGap = getLetterGap()
+	const letters = getEmptyStateText().split('')
 	const gapCount = letters.length - 1
+
+	// Явный размер из настроек — используем как есть, без автоподбора под контейнер
+	// (нужно для превью в настройках, где важно видеть реальный "размер точки", а не
+	// то, что подгонится под маленькую рамку предпросмотра).
+	if (props.emptyStateScale) {
+		const scaleY = Math.max(1, Math.min(6, Math.round(props.emptyStateScale)))
+		return { scaleX: Math.max(1, scaleY * 2), scaleY }
+	}
+
 	const baseWidth =
 		letters.reduce((sum, ch) => sum + (DOT_FONT[ch]?.[0]?.length ?? 0) + LETTER_GAP_PX, 0) -
 		LETTER_GAP_PX
 	// Фиксированные зазоры между буквами вычитаем из бюджета ширины заранее,
 	// чтобы они не "съедали" сам масштаб букв — только доступное место под них
-	const availableCols = Math.max(1, cols - gapCount * EXTRA_LETTER_GAP_COLS)
+	const availableCols = Math.max(1, cols - gapCount * letterGap)
 
 	const maxScaleYByHeight = Math.max(1, Math.floor((rows * 0.55) / FONT_HEIGHT))
 	const maxScaleXByWidth = Math.max(1, Math.floor((availableCols * 0.85) / baseWidth))
@@ -133,12 +187,13 @@ function buildNoSignalMask(
 ): { mask: boolean[][]; top: number; bottom: number } {
 	const mask: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false))
 	const { scaleX, scaleY } = computeLetterScale(cols, rows)
+	const letterGap = getLetterGap()
 
-	const letters = NO_SIGNAL_TEXT.split('')
+	const letters = getEmptyStateText().split('')
 	const gapCount = letters.length - 1
 	const wordWidth =
 		letters.reduce((sum, ch) => sum + (DOT_FONT[ch]?.[0]?.length ?? 0) * scaleX, 0) +
-		gapCount * (LETTER_GAP_PX * scaleX + EXTRA_LETTER_GAP_COLS)
+		gapCount * (LETTER_GAP_PX * scaleX + letterGap)
 	const wordHeight = FONT_HEIGHT * scaleY
 
 	if (cols < wordWidth + 2 || rows < wordHeight + 2) {
@@ -166,7 +221,7 @@ function buildNoSignalMask(
 				}
 			}
 		}
-		col += glyphWidth * scaleX + LETTER_GAP_PX * scaleX + EXTRA_LETTER_GAP_COLS
+		col += glyphWidth * scaleX + LETTER_GAP_PX * scaleX + letterGap
 	}
 
 	return { mask, top: startRow, bottom: startRow + wordHeight - 1 }
@@ -352,6 +407,15 @@ function clearEmptyState() {
 	terminal.value?.reset()
 	showingEmptyState.value = false
 }
+
+// Живой предпросмотр в настройках меняет текст/размер/зазор на лету — если
+// пустой экран сейчас показан, перерисовываем его с новыми параметрами.
+watch(
+	() => [props.emptyStateText, props.emptyStateScale, props.emptyStateLetterGap],
+	() => {
+		if (showingEmptyState.value) nextTick(() => writeEmptyState())
+	},
+)
 
 function getWrapperMargins() {
 	if (!wrapperRef.value) return 0

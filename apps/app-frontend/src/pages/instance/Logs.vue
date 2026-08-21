@@ -17,6 +17,11 @@ import { useRoute } from 'vue-router'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { log_listener, process_listener } from '@/helpers/events.js'
 import { delete_logs_by_filename, get_output_by_filename } from '@/helpers/logs.js'
+import {
+	modlexConsoleLetterGap,
+	modlexConsoleScale,
+	modlexConsoleText,
+} from '@/helpers/modlex-settings'
 
 const client = injectModrinthClient()
 const { handleError } = injectNotificationManager()
@@ -168,6 +173,9 @@ provideConsoleManager({
 	deleteDisabledTooltip: 'Cannot delete latest.log while the instance is running',
 	shareDisabled: computed(() => props.offline),
 	emptyStateType: 'instance',
+	emptyStateText: modlexConsoleText.value || undefined,
+	emptyStateScale: modlexConsoleScale.value || undefined,
+	emptyStateLetterGap: modlexConsoleLetterGap.value,
 	crashAnalysis,
 	onDismissCrash: () => {
 		crashAnalysis.value = null

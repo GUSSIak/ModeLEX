@@ -25,6 +25,73 @@
 			</div>
 		</div>
 
+		<!-- Акцентный цвет -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Акцентный цвет</h2>
+			<p class="settings-section__desc">
+				Свой цвет вместо стандартного фиолетового — кнопки, ссылки, выделения.
+			</p>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Цвет</h3>
+					<p class="setting-row__desc">
+						{{ modlexAccentColor ? modlexAccentColor : 'Стандартный цвет темы' }}
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<input v-model="colorPickerValue" type="color" class="color-picker" />
+					<ButtonStyled v-if="modlexAccentColor" type="outlined" size="small">
+						<button type="button" @click="modlexAccentColor = ''">Сбросить</button>
+					</ButtonStyled>
+				</div>
+			</div>
+		</div>
+
+		<!-- Консоль запуска -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Консоль запуска</h2>
+			<p class="settings-section__desc">
+				Надпись на пустом экране консоли (пока нет запущенного процесса) и её размер.
+			</p>
+			<div class="console-preview">
+				<BaseTerminal
+					ref="previewTerminal"
+					empty-state-type="instance"
+					:empty-state-text="modlexConsoleText || undefined"
+					:empty-state-scale="modlexConsoleScale || undefined"
+					:empty-state-letter-gap="modlexConsoleLetterGap"
+					@ready="previewTerminal?.writeEmptyState()"
+				/>
+			</div>
+			<div class="console-settings-controls">
+				<label class="console-field">
+					<span class="console-field__label">Надпись</span>
+					<input
+						v-model="modlexConsoleText"
+						type="text"
+						maxlength="20"
+						placeholder="NO SIGNAL"
+						class="console-text-input"
+						autocomplete="off"
+						autocorrect="off"
+						spellcheck="false"
+						data-1p-ignore
+						data-lpignore="true"
+					/>
+				</label>
+				<label class="console-field">
+					<span class="console-field__label">
+						Размер {{ modlexConsoleScale > 0 ? `(${modlexConsoleScale})` : '(авто)' }}
+					</span>
+					<input v-model.number="modlexConsoleScale" type="range" min="0" max="6" step="1" />
+				</label>
+				<label class="console-field">
+					<span class="console-field__label">Зазор между буквами ({{ modlexConsoleLetterGap }})</span>
+					<input v-model.number="modlexConsoleLetterGap" type="range" min="0" max="6" step="1" />
+				</label>
+			</div>
+		</div>
+
 		<!-- Запуск -->
 		<div v-if="multiLaunchFeatureEnabled" class="settings-section">
 			<h2 class="settings-section__title">Запуск</h2>
@@ -128,12 +195,16 @@
 </template>
 
 <script setup lang="ts">
-import { ButtonStyled, DropdownSelect, Toggle } from '@modrinth/ui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { BaseTerminal, ButtonStyled, DropdownSelect, Toggle } from '@modrinth/ui'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
+	modlexAccentColor,
+	modlexConsoleLetterGap,
+	modlexConsoleScale,
+	modlexConsoleText,
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
 	modlexHideMultiLaunch,
@@ -160,6 +231,37 @@ const { enabled: multiLaunchFeatureEnabled } = useFeatureFlag('multi_account_lau
 // пользователь когда-то включил его в настройках (это сохранённое значение
 // вернётся, как только фича разблокируется).
 const cfDisplayValue = computed(() => (cfLocked.value ? false : modlexEnableCurseForge.value))
+
+// ===== MODLEX: акцентный цвет =====
+// Отдельный локальный ref для нативного <input type="color"> вместо прямого
+// :value/@input на modlexAccentColor — так, если несколько мест одновременно
+// пишут в modlexAccentColor (например, кнопка "Сбросить" в тот же момент,
+// что пикер ещё дорисовывает предыдущее значение), нет цикла обратной связи,
+// который мог бы затирать один сброс другим значением.
+const DEFAULT_ACCENT = '#8e32f3'
+const colorPickerValue = ref(modlexAccentColor.value || DEFAULT_ACCENT)
+let syncingColorFromStore = false
+
+watch(modlexAccentColor, (v) => {
+	syncingColorFromStore = true
+	colorPickerValue.value = v || DEFAULT_ACCENT
+	nextTick(() => {
+		syncingColorFromStore = false
+	})
+})
+
+watch(colorPickerValue, (v) => {
+	if (syncingColorFromStore) return
+	modlexAccentColor.value = v
+})
+// ===== END MODLEX =====
+
+// ===== MODLEX: превью консоли запуска =====
+// Показ пустого экрана запускаем по событию @ready, а не по onMounted этого
+// компонента — сам xterm-инстанс внутри BaseTerminal создаётся асинхронно,
+// и вызов writeEmptyState() раньше готовности терминала молча ничего не сделает.
+const previewTerminal = ref<InstanceType<typeof BaseTerminal>>()
+// ===== END MODLEX =====
 
 const inlineNotice = ref<string | null>(null)
 let inlineNoticeTimeout: ReturnType<typeof setTimeout> | null = null
@@ -370,5 +472,59 @@ function onToggleCurseForge(value: boolean) {
 .settings-notice-fade-leave-to {
 	opacity: 0;
 	transform: translateY(-0.5rem);
+}
+
+.color-picker {
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: 1px solid var(--color-divider);
+	border-radius: 0.5rem;
+	background: none;
+	cursor: pointer;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+	padding: 2px;
+}
+
+.color-picker::-webkit-color-swatch {
+	border: none;
+	border-radius: 0.375rem;
+}
+
+.console-settings-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.console-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.375rem;
+}
+
+.console-field__label {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--color-contrast);
+}
+
+.console-text-input {
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--color-divider);
+	border-radius: 0.5rem;
+	background: var(--color-button-bg);
+	color: var(--color-contrast);
+	font-size: 0.875rem;
+}
+
+.console-preview {
+	width: 100%;
+	height: 260px;
+	border-radius: 0.75rem;
+	overflow: hidden;
 }
 </style>

@@ -28,6 +28,10 @@ export interface ConsoleManagerContext {
 	shareDisabled?: Ref<boolean> | ComputedRef<boolean>
 
 	emptyStateType?: 'server' | 'instance'
+	/** Кастомизация пустого экрана консоли (текст/размер/зазор матричного дождя). */
+	emptyStateText?: string
+	emptyStateScale?: number
+	emptyStateLetterGap?: number
 
 	crashAnalysis?: Ref<Mclogs.Insights.v1.InsightsResponse | null>
 	onDismissCrash?: () => void
