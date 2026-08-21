@@ -65,6 +65,8 @@
 			<p class="settings-section__desc">
 				Надпись на пустом экране консоли (пока нет запущенного процесса) и её размер.
 			</p>
+			<!-- ===== MODLEX: превью и ползунки размера/зазора временно отключены,
+			     решение по UX предпросмотра ещё не принято — см. BaseTerminal.IDEAS.md =====
 			<div class="console-preview">
 				<BaseTerminal
 					ref="previewTerminal"
@@ -77,6 +79,7 @@
 					@ready="previewTerminal?.writeEmptyState()"
 				/>
 			</div>
+			-->
 			<div class="console-settings-controls">
 				<label class="console-field">
 					<span class="console-field__label">Надпись</span>
@@ -93,6 +96,7 @@
 						data-lpignore="true"
 					/>
 				</label>
+				<!--
 				<label class="console-field">
 					<span class="console-field__label">
 						Размер {{ modlexConsoleScale > 0 ? `(${modlexConsoleScale})` : '(авто)' }}
@@ -105,6 +109,7 @@
 					>
 					<input v-model.number="modlexConsoleLetterGap" type="range" min="0" max="6" step="1" />
 				</label>
+				-->
 				<label class="console-field">
 					<span class="console-field__label">Символ, которым закрашены буквы</span>
 					<input
@@ -243,7 +248,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTerminal, Button, DropdownSelect, Toggle } from '@modrinth/ui'
+import { Button, DropdownSelect, Toggle } from '@modrinth/ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
@@ -251,9 +256,7 @@ import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
 	modlexAccentColor,
 	modlexConsoleFillChar,
-	modlexConsoleLetterGap,
 	modlexConsoleRainChars,
-	modlexConsoleScale,
 	modlexConsoleText,
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
@@ -287,11 +290,8 @@ const DEFAULT_ACCENT = '#8e32f3'
 const accentColorForPicker = computed(() => modlexAccentColor.value || DEFAULT_ACCENT)
 // ===== END MODLEX =====
 
-// ===== MODLEX: превью консоли запуска =====
-// Показ пустого экрана запускаем по событию @ready, а не по onMounted этого
-// компонента — сам xterm-инстанс внутри BaseTerminal создаётся асинхронно,
-// и вызов writeEmptyState() раньше готовности терминала молча ничего не сделает.
-const previewTerminal = ref<InstanceType<typeof BaseTerminal>>()
+// ===== MODLEX: превью консоли запуска — временно отключено, см. шаблон выше =====
+// const previewTerminal = ref<InstanceType<typeof BaseTerminal>>()
 // ===== END MODLEX =====
 
 const inlineNotice = ref<string | null>(null)
