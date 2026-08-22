@@ -342,7 +342,7 @@ const {
 	(iconPath) =>
 		creationGeneratedIcon.value?.path === iconPath ? creationGeneratedIcon.value.config : null,
 )
-const { hasLoggedIntoMinecraft, hasLoggedIntoModrinth, showChecklist } = onboardingChecklist
+const { hasLoggedIntoModrinth, showChecklist } = onboardingChecklist
 const showFriendsList = computed(() => !showChecklist.value || hasLoggedIntoModrinth.value)
 
 async function randomizeCreationIcon() {
@@ -2156,10 +2156,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				/>
 				<div id="sidebar-teleport-target" class="sidebar-teleport-content"></div>
 				<div class="sidebar-default-content" :class="{ 'sidebar-enabled': sidebarVisible }">
-					<div
-						v-show="hasLoggedIntoMinecraft"
-						class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid"
-					>
+					<div class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid">
 						<h3 class="text-base text-primary font-medium m-0">
 							{{ formatMessage(messages.playingAs) }}
 						</h3>
