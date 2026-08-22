@@ -21,6 +21,7 @@ fn main() {
                         "get_default_user",
                         "set_default_user",
                         "get_users",
+                        "get_account_skin_texture_url",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
