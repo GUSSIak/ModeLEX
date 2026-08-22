@@ -227,6 +227,7 @@ import { trackEvent } from '@/helpers/analytics'
 import {
 	cancel_elyby_login,
 	elyby_login,
+	get_account_skin_texture_url,
 	login as login_flow,
 	offline_login,
 	remove_user,
@@ -259,6 +260,9 @@ const elyByLoginDisabled = ref(false)
 const switchingAccountId = ref<string | null>(null)
 const equippedSkin = ref<Skin | null>(null)
 const headUrlCache = ref(new Map<string, string>())
+// ModLEX: рендеры голов для Ely.by-аккаунтов (не завязаны на Mojang UUID,
+// поэтому mc-heads.net их не умеет — см. loadNonMicrosoftAvatars).
+const elybyHeadCache = ref(new Map<string, string>())
 
 // --- Offline login ---
 const showOfflineModal = ref(false)
@@ -299,11 +303,40 @@ async function confirmOfflineLogin() {
 }
 // --- /Offline login ---
 
+// ModLEX: Ely.by-аккаунты не несут скин в Credentials.profile (тот заполняется
+// только один раз при входе и остаётся пустым) — подтягиваем текстуру отдельным
+// запросом на аккаунт и рендерим голову локально, как для экипированного скина.
+// Офлайн-аккаунты не трогаем — у них правда нет скина на сервере, Steve корректен.
+async function loadNonMicrosoftAvatars(accountList: MinecraftCredential[]) {
+	const pending = accountList.filter(
+		(account) => account.kind === 'elyby' && !elybyHeadCache.value.has(account.profile.id),
+	)
+	await Promise.all(
+		pending.map(async (account) => {
+			try {
+				const textureUrl = await get_account_skin_texture_url(account.profile.id)
+				if (!textureUrl) return
+				const headUrl = await getPlayerHeadUrl({
+					texture_key: account.profile.id,
+					texture: textureUrl,
+					variant: 'CLASSIC',
+					source: 'custom_external',
+					is_equipped: false,
+				} as Skin)
+				elybyHeadCache.value = new Map(elybyHeadCache.value).set(account.profile.id, headUrl)
+			} catch (error) {
+				console.warn('Failed to load Ely.by avatar for', account.profile.name, error)
+			}
+		}),
+	)
+}
+
 async function refreshValues() {
 	await refreshCurrentAccountId().catch(handleError)
 	const userList = await users().catch(handleError)
 	accounts.value = Array.isArray(userList) ? [...userList] : []
 	accounts.value.sort((a, b) => (a.profile?.name ?? '').localeCompare(b.profile?.name ?? ''))
+	loadNonMicrosoftAvatars(accounts.value)
 
 	try {
 		const skins = await get_available_skins()
@@ -378,6 +411,12 @@ const avatarUrl = computed(() => {
 	if (selectedAccount.value?.kind === 'microsoft' && selectedAccount.value?.profile?.id) {
 		return `https://mc-heads.net/avatar/${selectedAccount.value.profile.id}/128`
 	}
+	if (selectedAccount.value?.kind === 'elyby') {
+		const cachedUrl = elybyHeadCache.value.get(selectedAccount.value.profile.id)
+		if (cachedUrl) {
+			return cachedUrl
+		}
+	}
 	return STEVE_HEAD_URL
 })
 
@@ -391,7 +430,10 @@ function getAccountAvatarUrl(account: MinecraftCredential) {
 			return cachedUrl
 		}
 	}
-	// mc-heads.net is keyed by Mojang UUID, which offline/Ely.by accounts don't have
+	if (account.kind === 'elyby') {
+		return elybyHeadCache.value.get(account.profile.id) ?? STEVE_HEAD_URL
+	}
+	// mc-heads.net is keyed by Mojang UUID, which offline accounts don't have
 	if (account.kind !== 'microsoft') {
 		return STEVE_HEAD_URL
 	}

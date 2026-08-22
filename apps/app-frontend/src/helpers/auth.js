@@ -90,3 +90,15 @@ export async function elyby_login() {
 export async function cancel_elyby_login() {
 	await invoke('plugin:auth|cancel_elyby_login')
 }
+
+/**
+ * ModLEX: Fetches the current skin texture URL for a specific account, regardless of
+ * account kind or whether it's the active/default account — used to render real avatars
+ * for Ely.by accounts in the account list (Credentials.profile.skins is only ever
+ * populated at login time, so it can't be relied on afterwards).
+ * @param {UUID} user
+ * @returns {Promise<string | null>}
+ */
+export async function get_account_skin_texture_url(user) {
+	return await invoke('plugin:auth|get_account_skin_texture_url', { user })
+}

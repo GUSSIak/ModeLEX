@@ -139,6 +139,27 @@ pub async fn get_users() -> Result<Vec<Credentials>> {
     Ok(minecraft_auth::users().await?)
 }
 
+/// ModLEX: Fetches the current skin texture URL for a specific account, regardless
+/// of account kind or whether it's the active/default account. `Credentials.offline_profile`
+/// is only ever populated at login time (empty skins for Ely.by/offline), so the account
+/// list needs this to render real Ely.by avatars instead of always falling back to Steve.
+#[tauri::command]
+pub async fn get_account_skin_texture_url(
+    user: uuid::Uuid,
+) -> Result<Option<String>> {
+    let users = minecraft_auth::users().await?;
+    let Some(account) = users.into_iter().find(|c| c.offline_profile.id == user)
+    else {
+        return Ok(None);
+    };
+
+    let Some(profile) = account.online_profile().await else {
+        return Ok(None);
+    };
+
+    Ok(profile.skins.first().map(|skin| skin.url.to_string()))
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("auth")
         .invoke_handler(tauri::generate_handler![
@@ -151,6 +172,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             get_default_user,
             set_default_user,
             get_users,
+            get_account_skin_texture_url,
         ])
         .build()
 }
