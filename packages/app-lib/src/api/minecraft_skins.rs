@@ -329,10 +329,22 @@ pub async fn get_available_skins() -> crate::Result<Vec<Skin>> {
             profile.id
         });
 
-    let current_skin = online_profile
-        .as_ref()
-        .map(|profile| profile.current_skin())
-        .transpose()?;
+    // ModLEX: раньше `?` тут ронял всю команду (и весь список скинов), если у
+    // текущего профиля нет активного скина — с чем Ely.by-аккаунты без скина
+    // на ely.by легко сталкиваются. Деградируем до "скина нет", а не падаем.
+    let current_skin =
+        online_profile.as_ref().and_then(|profile| {
+            match profile.current_skin() {
+                Ok(skin) => Some(skin),
+                Err(err) => {
+                    tracing::warn!(
+                        "No active skin found for profile {}: {err}",
+                        profile.id
+                    );
+                    None
+                }
+            }
+        });
     let current_cape_id = online_profile
         .as_ref()
         .and_then(|profile| profile.current_cape())
