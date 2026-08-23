@@ -102,3 +102,14 @@ export async function cancel_elyby_login() {
 export async function get_account_skin_texture_url(user) {
 	return await invoke('plugin:auth|get_account_skin_texture_url', { user })
 }
+
+/**
+ * ModLEX: Forces a fresh online-profile fetch for a specific account, bypassing
+ * the profile cache. Used by the "Update skin" button for Ely.by accounts, since
+ * their skin is edited on ely.by's own site and the app has no other signal that
+ * it changed.
+ * @param {UUID} user
+ */
+export async function refresh_account_skin(user) {
+	await invoke('plugin:auth|refresh_account_skin', { user })
+}

@@ -77,6 +77,9 @@ pub struct Settings {
     /// Пользовательский шаблон текста Discord Rich Presence (`{instance}` —
     /// имя запущенного инстанса). Пусто/None = стандартный текст "Играет {instance}".
     pub modlex_discord_message: Option<String>,
+    /// Пользовательский текст Discord Rich Presence, когда нет запущенного
+    /// инстанса. Пусто/None = стандартный текст "Бездействует...".
+    pub modlex_discord_idle_message: Option<String>,
 
     pub version: usize,
 }
@@ -152,6 +155,7 @@ impl Settings {
                 modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,
                 modlex_music_default_source, json(modlex_playlists) modlex_playlists,
                 modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,
+                modlex_discord_idle_message,
                 sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
@@ -226,6 +230,7 @@ impl Settings {
             modlex_beta_verified: res.modlex_beta_verified,
             modlex_channel_sync_done: res.modlex_channel_sync_done,
             modlex_discord_message: res.modlex_discord_message,
+            modlex_discord_idle_message: res.modlex_discord_idle_message,
             sync_theme_across_devices: res.sync_theme_across_devices == 1,
             sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
             version: res.version as usize,
@@ -301,11 +306,12 @@ impl Settings {
                 modlex_beta_verified = $40,
                 modlex_channel_sync_done = $41,
                 modlex_discord_message = $42,
+                modlex_discord_idle_message = $43,
 
-                sync_theme_across_devices = $43,
-                sync_behavior_across_devices = $44,
+                sync_theme_across_devices = $44,
+                sync_behavior_across_devices = $45,
 
-                version = $45
+                version = $46
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -349,6 +355,7 @@ impl Settings {
             self.modlex_beta_verified,
             self.modlex_channel_sync_done,
             self.modlex_discord_message,
+            self.modlex_discord_idle_message,
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
             version,

@@ -5,6 +5,7 @@ import {
 	ExternalIcon,
 	EyeIcon,
 	InfoIcon,
+	RefreshCwIcon,
 	RotateCounterClockwiseIcon,
 	ShirtIcon,
 	SpinnerIcon,
@@ -38,7 +39,13 @@ import VirtualSkinSectionList from '@/components/ui/skin/VirtualSkinSectionList.
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { handleSevereError } from '@/composables/use-error.js'
 import { trackEvent } from '@/helpers/analytics'
-import { check_reachable, get_default_user, login as login_flow, users } from '@/helpers/auth'
+import {
+	check_reachable,
+	get_default_user,
+	login as login_flow,
+	refresh_account_skin,
+	users,
+} from '@/helpers/auth'
 import type { RenderResult } from '@/helpers/rendering/batch-skin-renderer.ts'
 import {
 	generateSkinPreviews,
@@ -183,6 +190,10 @@ const messages = defineMessages({
 	editSkinButton: {
 		id: 'app.skins.preview.edit-button',
 		defaultMessage: 'Edit skin',
+	},
+	updateSkinButton: {
+		id: 'app.skins.preview.update-button',
+		defaultMessage: 'Update skin',
 	},
 	earsFeatureNotice: {
 		id: 'app.skins.ears-feature-notice',
@@ -465,7 +476,7 @@ async function loadCapes() {
 	}
 }
 
-async function loadSkins() {
+async function loadSkins(force = false) {
 	try {
 		const loadedSkins = (await get_available_skins()) ?? []
 		const loadedEquippedSkin = loadedSkins.find((s) => s.is_equipped)
@@ -475,7 +486,11 @@ async function loadSkins() {
 				(originalSelectedSkin.value.texture.startsWith('data:image/')
 					? originalSelectedSkin.value
 					: undefined))
+		// force=true (кнопка "Обновить скин") намеренно игнорирует эту защиту от
+		// мерцания — иначе только что обновлённый на ely.by скин продолжал бы
+		// "сохраняться" как старый именно в тот момент, когда обновление и нужно.
 		const shouldPreserveKnownEquippedSkin =
+			!force &&
 			isSkinManagementReadOnly.value &&
 			locallyKnownEquippedSkin &&
 			!skinsMatch(loadedEquippedSkin, locallyKnownEquippedSkin)
@@ -491,6 +506,25 @@ async function loadSkins() {
 		if (currentUser.value && error instanceof Error) {
 			handleError(error)
 		}
+	}
+}
+
+// ModLEX: у Ely.by-аккаунтов скин меняется на их собственном сайте — приложение
+// об этом никак не узнаёт само, только по запросу. Кнопка "Обновить скин"
+// принудительно дёргает свежие данные с ely.by (в обход кэша профиля) и
+// перезагружает список — с force=true, чтобы не сработала защита от мерцания,
+// которая иначе "сохранила" бы именно тот скин, который мы хотим заменить.
+const refreshingElybySkin = ref(false)
+async function refreshElybySkin() {
+	if (!currentUserId.value || refreshingElybySkin.value) return
+	refreshingElybySkin.value = true
+	try {
+		await refresh_account_skin(currentUserId.value)
+		await loadSkins(true)
+	} catch (error) {
+		handleError(error as Error)
+	} finally {
+		refreshingElybySkin.value = false
 	}
 }
 
@@ -1190,6 +1224,18 @@ await loadSkins()
 				:header="formatMessage(messages.elybyAccountSkinNoticeHeader)"
 				:body="formatMessage(messages.elybyAccountSkinNoticeBody)"
 			/>
+			<Button
+				v-if="nonMicrosoftReadOnlyReason === 'elyby-account'"
+				type="outlined"
+				size="sm"
+				class="mt-3"
+				:disabled="refreshingElybySkin"
+				@click="refreshElybySkin"
+			>
+				<SpinnerIcon v-if="refreshingElybySkin" class="animate-spin" />
+				<RefreshCwIcon v-else />
+				{{ formatMessage(messages.updateSkinButton) }}
+			</Button>
 			<div
 				class="relative ml-5 mt-4 flex h-[calc(80vh-1rem)] items-center justify-center max-[700px]:h-[calc(50vh-1rem)]"
 			>

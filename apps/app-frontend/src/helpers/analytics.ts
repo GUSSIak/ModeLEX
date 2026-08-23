@@ -1,4 +1,9 @@
-import { posthog } from 'posthog-js'
+// ===== MODLEX: PostHog (Modrinth-телеметрия) полностью отключена =====
+// Раньше здесь был import { posthog } from 'posthog-js' и реальные вызовы
+// posthog.init/.capture/.opt_in_capturing/.opt_out_capturing/.debug(). Ниже —
+// те же экспорты (сигнатуры сохранены, чтобы не трогать ~70 мест вызова
+// trackEvent(...) по всему приложению и переключатель в PrivacySettings.vue),
+// но все они теперь no-op — никуда ничего не отправляется.
 
 interface InstanceProperties {
 	loader: string
@@ -43,38 +48,19 @@ type AnalyticsEventMap = {
 
 export type AnalyticsEvent = keyof AnalyticsEventMap
 
-let initialized = false
+export const initAnalytics = () => {}
 
-export const initAnalytics = () => {
-	if (initialized) return
-	posthog.init('phc_9Iqi6lFs9sr5BSqh9RRNRSJ0mATS9PSgirDiX3iOYJ', {
-		persistence: 'localStorage',
-		api_host: 'https://posthog.modrinth.com',
-	})
-	initialized = true
-}
+export const debugAnalytics = () => {}
 
-export const debugAnalytics = () => {
-	if (!initialized) return
-	posthog.debug()
-}
+export const optOutAnalytics = () => {}
 
-export const optOutAnalytics = () => {
-	if (!initialized) return
-	posthog.opt_out_capturing()
-}
-
-export const optInAnalytics = () => {
-	initAnalytics()
-	posthog.opt_in_capturing()
-}
+export const optInAnalytics = () => {}
 
 type OptionalArgs<T> = Record<string, never> extends T ? [properties?: T] : [properties: T]
 
 export const trackEvent = <E extends AnalyticsEvent>(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	eventName: E,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	...args: OptionalArgs<AnalyticsEventMap[E]>
-) => {
-	if (!initialized) return
-	posthog.capture(eventName, args[0])
-}
+) => {}

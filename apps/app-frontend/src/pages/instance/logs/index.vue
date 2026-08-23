@@ -18,9 +18,13 @@ import { useAppEvent } from '@/composables/use-app-event'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { delete_logs_by_filename, get_output_by_filename } from '@/helpers/logs.js'
 import {
+	modlexConsoleBgColor,
 	modlexConsoleFillChar,
+	modlexConsoleFillColor,
 	modlexConsoleLetterGap,
 	modlexConsoleRainChars,
+	modlexConsoleRainColor,
+	modlexConsoleRainEnabled,
 	modlexConsoleScale,
 	modlexConsoleText,
 } from '@/helpers/modlex-settings'
@@ -165,11 +169,17 @@ provideConsoleManager({
 	deleteDisabledTooltip: 'Cannot delete latest.log while the instance is running',
 	shareDisabled: instancePage.offline,
 	emptyStateType: 'instance',
-	emptyStateText: modlexConsoleText.value || undefined,
-	emptyStateScale: modlexConsoleScale.value || undefined,
-	emptyStateLetterGap: modlexConsoleLetterGap.value,
-	emptyStateFillChar: modlexConsoleFillChar.value || undefined,
-	emptyStateRainChars: modlexConsoleRainChars.value || undefined,
+	// computed(...), а не голые .value — чтобы правки в Настройках → Консоль
+	// запуска применялись сразу на уже открытой вкладке (см. console-manager.ts).
+	emptyStateText: computed(() => modlexConsoleText.value || undefined),
+	emptyStateScale: computed(() => modlexConsoleScale.value || undefined),
+	emptyStateLetterGap: computed(() => modlexConsoleLetterGap.value),
+	emptyStateFillChar: computed(() => modlexConsoleFillChar.value || undefined),
+	emptyStateRainChars: computed(() => modlexConsoleRainChars.value || undefined),
+	emptyStateRainEnabled: computed(() => modlexConsoleRainEnabled.value),
+	emptyStateFillColor: computed(() => modlexConsoleFillColor.value || undefined),
+	emptyStateRainColor: computed(() => modlexConsoleRainColor.value || undefined),
+	consoleBackgroundColor: computed(() => modlexConsoleBgColor.value || undefined),
 	crashAnalysis,
 	onDismissCrash: () => {
 		crashAnalysis.value = null

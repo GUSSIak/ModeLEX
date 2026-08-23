@@ -9,6 +9,7 @@ import {
 	ref,
 	type ShallowRef,
 	shallowRef,
+	watch,
 } from 'vue'
 
 export function getCssVar(name: string, fallback: string): string {
@@ -17,8 +18,15 @@ export function getCssVar(name: string, fallback: string): string {
 	return value || fallback
 }
 
-function buildTerminalTheme() {
-	const surface2 = getCssVar('--surface-2', '#1d1f23')
+/**
+ * @param backgroundOverride Кастомный фон консоли из Настроек (см.
+ * BaseTerminal.vue::backgroundColor) — перекрывает --surface-2 у самого
+ * рендерера xterm. Одной CSS-переменной .xterm-viewport недостаточно: xterm
+ * рисует фон ячеек через canvas по theme.background, а не через DOM/CSS, так
+ * что без этого кастомный цвет был виден только по краям контейнера.
+ */
+export function buildTerminalTheme(backgroundOverride?: string) {
+	const surface2 = backgroundOverride || getCssVar('--surface-2', '#1d1f23')
 	const surface5 = getCssVar('--surface-5', '#42444a')
 	const textDefault = getCssVar('--color-text-default', '#b0bac5')
 	const textTertiary = getCssVar('--color-text-tertiary', '#96a2b0')
@@ -62,6 +70,9 @@ export interface UseTerminalOptions {
 	container: Ref<HTMLElement | null>
 	options?: ITerminalOptions
 	scrollback?: number
+	/** Кастомный фон консоли (hex) — см. buildTerminalTheme. Геттер, а не Ref,
+	 * чтобы просто прокидывать `() => props.backgroundColor` без обёртки. */
+	backgroundColor?: () => string | undefined
 	onReady?: (terminal: Terminal) => void
 	onResize?: () => void
 }
@@ -174,7 +185,7 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
 			fontSize: 14,
 			lineHeight: 1.5,
 			allowProposedApi: true,
-			theme: buildTerminalTheme(),
+			theme: buildTerminalTheme(options.backgroundColor?.()),
 			...options.options,
 		})
 
@@ -244,12 +255,18 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
 		resizeObserver.observe(container)
 
 		themeObserver = new MutationObserver(() => {
-			term.options.theme = buildTerminalTheme()
+			term.options.theme = buildTerminalTheme(options.backgroundColor?.())
 		})
 		themeObserver.observe(document.documentElement, {
 			attributes: true,
 			attributeFilter: ['data-theme', 'class'],
 		})
+
+		if (options.backgroundColor) {
+			watch(options.backgroundColor, (color) => {
+				term.options.theme = buildTerminalTheme(color)
+			})
+		}
 
 		options.onReady?.(term)
 	})

@@ -69,6 +69,7 @@ import AccountsCard from '@/components/ui/AccountsCard.vue'
 import AppActionBar from '@/components/ui/AppActionBar.vue'
 import Breadcrumbs from '@/components/ui/Breadcrumbs.vue'
 import ErrorModal from '@/components/ui/ErrorModal.vue'
+import FloatingAccountWidget from '@/components/ui/FloatingAccountWidget.vue'
 import FriendsList from '@/components/ui/friends/FriendsList.vue'
 import HostingUpdateRequired from '@/components/ui/HostingUpdateRequired.vue'
 import AddServerToInstanceModal from '@/components/ui/install_flow/AddServerToInstanceModal.vue'
@@ -112,7 +113,14 @@ import {
 import { fetchModlexNews } from '@/helpers/modlex-github-news'
 import { startPing, stopPing } from '@/helpers/modlex-ping'
 // ===== ModLEX IMPORTS =====
-import { modlexHideMusicTab, modlexHideServers, modlexNewsSource } from '@/helpers/modlex-settings'
+import {
+	modlexFloatingGlassEffect,
+	modlexHideFriends,
+	modlexHideMusicTab,
+	modlexHideRightSidebar,
+	modlexHideServers,
+	modlexNewsSource,
+} from '@/helpers/modlex-settings'
 import { get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { mergeUrlQuery, parseModrinthLink } from '@/helpers/project-links.ts'
 import { get as getSettings, set as setSettings } from '@/helpers/settings.ts'
@@ -201,6 +209,20 @@ const forceSidebar = computed(
 		route.path.startsWith('/user'),
 )
 const sidebarVisible = computed(() => sidebarToggled.value || forceSidebar.value)
+
+// ===== MODLEX: скрытие правой панели =====
+// Панель всегда остаётся в DOM (нужно для #sidebar-teleport-target — Browse/
+// Discover/страница проекта телепортируют туда фильтры категорий; если убрать
+// панель через v-if, цель телепорта тоже исчезает и Vue падает при навигации).
+// Два режима, когда modlexHideRightSidebar включён:
+// — на forceSidebar-роутах (там нужны телепортированные фильтры категорий) —
+//   панель "подглядывает" узкой полоской и выезжает целиком при наведении;
+// — на всех остальных роутах — панель просто полностью уезжает за край без
+//   намёка и без реакции на наведение, вместо неё — плавающая плашка аккаунта.
+const sidebarAutoHideHovered = ref(false)
+const sidebarPeekMode = computed(() => modlexHideRightSidebar.value && forceSidebar.value)
+const sidebarFullyHideMode = computed(() => modlexHideRightSidebar.value && !forceSidebar.value)
+const sidebarRevealed = computed(() => !sidebarPeekMode.value || sidebarAutoHideHovered.value)
 const hostingRouteActive = computed(() => route.path.startsWith('/hosting'))
 const hostingUpdateRequired = computed(
 	() =>
@@ -1470,16 +1492,16 @@ const updatePopupMessages = defineMessages({
 	},
 	meteredBody: {
 		id: 'app.update-popup.body.metered',
-		defaultMessage: `Modrinth App v{version} is available now! Since you're on a metered network, we didn't automatically download it.`,
+		defaultMessage: `ModLEX App v{version} is available now! Since you're on a metered network, we didn't automatically download it.`,
 	},
 	downloadedBody: {
 		id: 'app.update-popup.body.download-complete',
-		defaultMessage: `Modrinth App v{version} has finished downloading. Reload to update now, or automatically when you close Modrinth App.`,
+		defaultMessage: `ModLEX App v{version} has finished downloading. Reload to update now, or automatically when you close ModLEX App.`,
 	},
 	linuxBody: {
 		id: 'app.update-popup.body.linux',
 		defaultMessage:
-			'Modrinth App v{version} is available. Use your package manager to update for the latest features and fixes!',
+			'ModLEX App v{version} is available. Use your package manager to update for the latest features and fixes!',
 	},
 	reload: {
 		id: 'app.update-popup.reload',
@@ -1610,7 +1632,19 @@ async function checkUpdates() {
 	}
 
 	async function performCheck() {
-		const channel = (await getSettings()).modlex_update_channel ?? 'stable'
+		// ===== MODLEX: резервный канал, если настройки недоступны =====
+		// getSettings() читает локальную БД — если её инициализация упала
+		// (например, сломанная миграция), она недоступна вообще нигде в
+		// приложении. Именно в этом случае обновление особенно нужно (оно может
+		// содержать фикс), так что проверка не должна зависеть от рабочей БД —
+		// иначе пользователь застревает: обновиться можно только руками.
+		let channel = isBetaBuild.value ? 'beta' : 'stable'
+		try {
+			channel = (await getSettings()).modlex_update_channel ?? channel
+		} catch (err) {
+			console.warn('Не удалось прочитать канал обновлений, использую дефолт:', err)
+		}
+		// ===== END MODLEX =====
 		const update = await checkUpdateChannel(channel)
 		if (!update) {
 			console.log('No update available')
@@ -1646,7 +1680,12 @@ async function checkUpdates() {
 		getUpdateSize(update.rid).then((size) => (updateSize.value = size))
 	}
 
-	await performCheck()
+	// Ретрай через 5 минут планируем всегда, даже если попытка упала — иначе
+	// один неудачный check_update_channel (например, сеть на секунду моргнула)
+	// молча убивал бы все последующие проверки до перезапуска приложения.
+	await performCheck().catch((err) => {
+		console.error('Проверка обновлений не удалась:', err)
+	})
 	setTimeout(
 		() => {
 			checkUpdates()
@@ -2058,7 +2097,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			</div>
 			<section data-tauri-drag-region class="flex shrink-0 ml-auto items-center">
 				<IconButton
-					v-if="!forceSidebar && appSettings.toggleSidebar"
+					v-if="!forceSidebar && appSettings.toggleSidebar && !modlexHideRightSidebar"
 					:type="sidebarToggled ? 'base' : 'quiet'"
 					:label="formatMessage(messages.nextImage)"
 					class="mr-3 transition-transform"
@@ -2080,7 +2119,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		v-if="stateInitialized"
 		class="app-contents"
 		:class="{
-			'sidebar-enabled': sidebarVisible,
+			'sidebar-enabled': sidebarVisible && !modlexHideRightSidebar,
 			'disable-advanced-rendering': !appTheme.advancedRendering,
 		}"
 	>
@@ -2141,7 +2180,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		</div>
 		<div
 			class="app-sidebar mt-px shrink-0 flex flex-col border-0 border-l-[1px] border-[--brand-gradient-border] border-solid"
-			:class="{ 'has-plus': hasPlus }"
+			:class="{
+				'has-plus': hasPlus,
+				'app-sidebar--peek': sidebarPeekMode,
+				'app-sidebar--revealed': sidebarRevealed,
+				'app-sidebar--fully-hidden': sidebarFullyHideMode,
+				'app-sidebar--glass': sidebarPeekMode && modlexFloatingGlassEffect,
+			}"
+			@mouseenter="sidebarPeekMode && (sidebarAutoHideHovered = true)"
+			@mouseleave="sidebarAutoHideHovered = false"
 		>
 			<div
 				v-overlay-scrollbars="sidebarOverlayScrollbarsOptions"
@@ -2165,7 +2212,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 						</suspense>
 					</div>
 					<div
-						v-show="showFriendsList"
+						v-show="showFriendsList && !modlexHideFriends"
 						class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid"
 					>
 						<suspense>
@@ -2229,6 +2276,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				</div>
 			</div>
 		</div>
+		<FloatingAccountWidget v-if="sidebarFullyHideMode" />
 	</div>
 	<I18nDebugPanel />
 	<NotificationPanel :has-sidebar="sidebarVisible" />
@@ -2382,6 +2430,45 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-sidebar.has-plus::after {
 	display: none;
 }
+
+/* ===== MODLEX: скрытие правой панели =====
+   Панель остаётся в потоке DOM (нужно для #sidebar-teleport-target — иначе
+   Discover/страница проекта роняют Vue при навигации, когда их телепорт
+   внезапно теряет цель). Два режима:
+   — "peek": узкая полоска-подглядывание, выезжает целиком при наведении
+     (только на Discover/проекте/пользователе — там нужны фильтры категорий);
+   — "fully-hidden": полностью за краем экрана, без намёка и без наведения
+     (везде остальное) — вместо неё показывается FloatingAccountWidget.vue. */
+.app-sidebar--peek {
+	position: fixed;
+	top: var(--top-bar-height);
+	right: 0;
+	z-index: 35;
+	transform: translateX(calc(100% - 0.875rem));
+	transition: transform 0.25s ease-out;
+	box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.app-sidebar--peek.app-sidebar--revealed {
+	transform: translateX(0);
+}
+
+.app-sidebar--fully-hidden {
+	position: fixed;
+	top: var(--top-bar-height);
+	right: 0;
+	transform: translateX(100%);
+	pointer-events: none;
+}
+
+.app-sidebar--glass {
+	/* --brand-gradient-bg — это linear-gradient(...), color-mix() с ним не
+	   работает, поэтому для стекла берём сплошной surface-цвет вместо него. */
+	background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+/* ===== END MODLEX ===== */
 
 .disable-advanced-rendering {
 	.app-sidebar::before {

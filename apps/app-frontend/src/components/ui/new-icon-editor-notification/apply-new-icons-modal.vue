@@ -50,7 +50,7 @@ const messages = defineMessages({
 	description: {
 		id: 'app.icon-editor.apply-icons-modal.description',
 		defaultMessage:
-			'Create custom icons for your instances right in the Modrinth App. Mix and match backgrounds with symbols from Minecraft and popular mods!',
+			'Create custom icons for your instances right in the ModLEX App. Mix and match backgrounds with symbols from Minecraft and popular mods!',
 	},
 	instancesWithoutIcons: {
 		id: 'app.icon-editor.apply-icons-modal.instances-without-icons',

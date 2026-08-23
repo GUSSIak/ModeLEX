@@ -11,11 +11,19 @@ const STORAGE_KEYS = {
 	enableCurseForge: 'modlex_enable_curseforge',
 	hideMusicTab: 'modlex_hide_music_tab',
 	hideMultiLaunch: 'modlex_hide_multi_launch',
+	hideFriends: 'modlex_hide_friends',
+	hideRightSidebar: 'modlex_hide_right_sidebar',
+	hideFloatingAccountWidget: 'modlex_hide_floating_account_widget',
+	floatingGlassEffect: 'modlex_floating_glass_effect',
 	consoleText: 'modlex_console_text',
 	consoleScale: 'modlex_console_scale',
 	consoleLetterGap: 'modlex_console_letter_gap',
 	consoleFillChar: 'modlex_console_fill_char',
 	consoleRainChars: 'modlex_console_rain_chars',
+	consoleRainEnabled: 'modlex_console_rain_enabled',
+	consoleFillColor: 'modlex_console_fill_color',
+	consoleRainColor: 'modlex_console_rain_color',
+	consoleBgColor: 'modlex_console_bg_color',
 	accentColor: 'modlex_accent_color',
 	bgColor: 'modlex_bg_color',
 	panelColor: 'modlex_panel_color',
@@ -57,6 +65,22 @@ export const modlexHideMusicTab = ref(readBool(STORAGE_KEYS.hideMusicTab, false)
 // ── Мульти-запуск ──────────────────────────────────────────────────────────
 export const modlexHideMultiLaunch = ref(readBool(STORAGE_KEYS.hideMultiLaunch, false))
 
+// ── Правая панель ──────────────────────────────────────────────────────────
+// Скрыть только блок "Друзья" внутри правой панели (панель при этом остаётся).
+export const modlexHideFriends = ref(readBool(STORAGE_KEYS.hideFriends, false))
+// Скрыть правую панель целиком (аккаунт/друзья/новости). Вместо неё — плавающая
+// плашка текущего аккаунта (см. FloatingAccountWidget.vue), которую тоже можно
+// скрыть по наведению — см. modlexHideFloatingAccountWidget ниже.
+export const modlexHideRightSidebar = ref(readBool(STORAGE_KEYS.hideRightSidebar, false))
+// Действует только при modlexHideRightSidebar — прячет и саму плавающую плашку
+// за правый край экрана, показывая её только при наведении на угол.
+export const modlexHideFloatingAccountWidget = ref(
+	readBool(STORAGE_KEYS.hideFloatingAccountWidget, false),
+)
+// Полупрозрачный фон + блюр вместо сплошного — для плавающей плашки аккаунта
+// и "подглядывающей" правой панели на Discover.
+export const modlexFloatingGlassEffect = ref(readBool(STORAGE_KEYS.floatingGlassEffect, true))
+
 // ── Новости ────────────────────────────────────────────────────────────────
 export const modlexNewsSource = ref<NewsSource>(
 	readString(STORAGE_KEYS.newsSource, 'github') as NewsSource,
@@ -96,6 +120,28 @@ export const modlexConsoleScale = ref(readNumber(STORAGE_KEYS.consoleScale, 0))
 export const modlexConsoleLetterGap = ref(readNumber(STORAGE_KEYS.consoleLetterGap, 2))
 export const modlexConsoleFillChar = ref(readString(STORAGE_KEYS.consoleFillChar, ''))
 export const modlexConsoleRainChars = ref(readString(STORAGE_KEYS.consoleRainChars, ''))
+// Отключает анимацию матричного дождя на пустом экране консоли — вместо неё
+// статичный ASCII-арт спящего волка (см. BaseTerminal.vue::writeSleepingWolf).
+export const modlexConsoleRainEnabled = ref(readBool(STORAGE_KEYS.consoleRainEnabled, false))
+// Пустая строка = стандартный цвет (тёмно-серый для заполнителя, зелёный для дождя).
+export const modlexConsoleFillColor = ref(readString(STORAGE_KEYS.consoleFillColor, ''))
+export const modlexConsoleRainColor = ref(readString(STORAGE_KEYS.consoleRainColor, ''))
+// Фон самой консоли — независимо от общего фона лаунчера (--surface-2 по умолчанию).
+export const modlexConsoleBgColor = ref(readString(STORAGE_KEYS.consoleBgColor, ''))
+
+/** Сбрасывает все настройки консоли (текст/размер/зазор/символы/цвета/дождь)
+ * к значениям по умолчанию. */
+export function resetConsoleSettings(): void {
+	modlexConsoleText.value = ''
+	modlexConsoleScale.value = 0
+	modlexConsoleLetterGap.value = 2
+	modlexConsoleFillChar.value = ''
+	modlexConsoleRainChars.value = ''
+	modlexConsoleRainEnabled.value = false
+	modlexConsoleFillColor.value = ''
+	modlexConsoleRainColor.value = ''
+	modlexConsoleBgColor.value = ''
+}
 
 // ── Акцентный цвет ─────────────────────────────────────────────────────────
 // Пустая строка = стандартный цвет темы (оверрайд не применяется).
@@ -405,6 +451,22 @@ watch(modlexHideMultiLaunch, (v) => {
 	localStorage.setItem(STORAGE_KEYS.hideMultiLaunch, String(v))
 	broadcast()
 })
+watch(modlexHideFriends, (v) => {
+	localStorage.setItem(STORAGE_KEYS.hideFriends, String(v))
+	broadcast()
+})
+watch(modlexHideRightSidebar, (v) => {
+	localStorage.setItem(STORAGE_KEYS.hideRightSidebar, String(v))
+	broadcast()
+})
+watch(modlexHideFloatingAccountWidget, (v) => {
+	localStorage.setItem(STORAGE_KEYS.hideFloatingAccountWidget, String(v))
+	broadcast()
+})
+watch(modlexFloatingGlassEffect, (v) => {
+	localStorage.setItem(STORAGE_KEYS.floatingGlassEffect, String(v))
+	broadcast()
+})
 watch(modlexNewsSource, (v) => {
 	localStorage.setItem(STORAGE_KEYS.newsSource, v)
 	broadcast()
@@ -435,6 +497,22 @@ watch(modlexConsoleFillChar, (v) => {
 })
 watch(modlexConsoleRainChars, (v) => {
 	localStorage.setItem(STORAGE_KEYS.consoleRainChars, v)
+	broadcast()
+})
+watch(modlexConsoleRainEnabled, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleRainEnabled, String(v))
+	broadcast()
+})
+watch(modlexConsoleFillColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleFillColor, v)
+	broadcast()
+})
+watch(modlexConsoleRainColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleRainColor, v)
+	broadcast()
+})
+watch(modlexConsoleBgColor, (v) => {
+	localStorage.setItem(STORAGE_KEYS.consoleBgColor, v)
 	broadcast()
 })
 watch(modlexAccentColor, (v) => {

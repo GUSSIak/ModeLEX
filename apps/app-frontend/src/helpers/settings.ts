@@ -82,6 +82,7 @@ export type AppSettings = {
 	modlex_channel_sync_done?: boolean
 
 	modlex_discord_message?: string | null
+	modlex_discord_idle_message?: string | null
 
 	version: number
 }

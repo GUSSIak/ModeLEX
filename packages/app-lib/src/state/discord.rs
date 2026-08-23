@@ -156,8 +156,13 @@ impl DiscordGuard {
             );
             self.set_activity(&msg, reconnect_if_fail).await?;
         } else {
-            self.set_activity("Бездействует...", reconnect_if_fail)
-                .await?;
+            let idle_msg = settings
+                .modlex_discord_idle_message
+                .as_deref()
+                .map(str::trim)
+                .filter(|t| !t.is_empty())
+                .unwrap_or("Бездействует...");
+            self.set_activity(idle_msg, reconnect_if_fail).await?;
         }
         Ok(())
     }

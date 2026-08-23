@@ -28,12 +28,22 @@ export interface ConsoleManagerContext {
 	shareDisabled?: Ref<boolean> | ComputedRef<boolean>
 
 	emptyStateType?: 'server' | 'instance'
-	/** Кастомизация пустого экрана консоли (текст/размер/зазор матричного дождя). */
-	emptyStateText?: string
-	emptyStateScale?: number
-	emptyStateLetterGap?: number
-	emptyStateFillChar?: string
-	emptyStateRainChars?: string
+	/**
+	 * Кастомизация пустого экрана консоли (текст/размер/зазор матричного дождя).
+	 * Именно refs/computed, а не голые значения — чтобы правки в Настройках
+	 * применялись сразу на уже открытой вкладке, без её переоткрытия (см.
+	 * layout.vue, где они разворачиваются через .value перед передачей в
+	 * BaseTerminal).
+	 */
+	emptyStateText?: Ref<string | undefined> | ComputedRef<string | undefined>
+	emptyStateScale?: Ref<number | undefined> | ComputedRef<number | undefined>
+	emptyStateLetterGap?: Ref<number | undefined> | ComputedRef<number | undefined>
+	emptyStateFillChar?: Ref<string | undefined> | ComputedRef<string | undefined>
+	emptyStateRainChars?: Ref<string | undefined> | ComputedRef<string | undefined>
+	emptyStateRainEnabled?: Ref<boolean | undefined> | ComputedRef<boolean | undefined>
+	emptyStateFillColor?: Ref<string | undefined> | ComputedRef<string | undefined>
+	emptyStateRainColor?: Ref<string | undefined> | ComputedRef<string | undefined>
+	consoleBackgroundColor?: Ref<string | undefined> | ComputedRef<string | undefined>
 
 	crashAnalysis?: Ref<Mclogs.Insights.v1.InsightsResponse | null>
 	onDismissCrash?: () => void

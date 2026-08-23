@@ -291,7 +291,7 @@ const messages = defineMessages({
 	},
 	appVersion: {
 		id: 'app.settings.app-version',
-		defaultMessage: 'Modrinth App {version}',
+		defaultMessage: 'ModLEX App {version}',
 	},
 	macos: {
 		id: 'app.settings.operating-system.macos',

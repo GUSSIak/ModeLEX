@@ -1,6 +1,9 @@
 <template>
 	<div
 		class="flex h-full w-full flex-col bg-surface-2 overflow-hidden rounded-[20px] border border-solid border-surface-4"
+		:style="
+			backgroundColor ? { '--modlex-console-bg': backgroundColor, backgroundColor } : undefined
+		"
 	>
 		<div ref="wrapperRef" class="relative min-h-0 flex-1 overflow-hidden pb-2 pt-1">
 			<div ref="containerRef" class="size-full" />
@@ -65,6 +68,15 @@ const props = withDefaults(
 		emptyStateFillChar?: string
 		/** Алфавит символов падающего "дождя". По умолчанию — катакана + цифры. */
 		emptyStateRainChars?: string
+		/** Идёт ли анимация дождя. Если false — статичный ASCII-волк вместо неё. */
+		emptyStateRainEnabled?: boolean
+		/** Цвет букв-дыр в матричном дожде (hex). По умолчанию — тёмно-серый.
+		 * Не влияет на арт волка — у него фиксированный цвет, см. WOLF_COLOR. */
+		emptyStateFillColor?: string
+		/** Цвет символов дождя (hex). По умолчанию — зелёный. */
+		emptyStateRainColor?: string
+		/** Фон терминала (hex). По умолчанию — из темы приложения. */
+		backgroundColor?: string
 	}>(),
 	{
 		scrollback: Infinity,
@@ -80,6 +92,10 @@ const props = withDefaults(
 		emptyStateLetterGap: 2,
 		emptyStateFillChar: '#',
 		emptyStateRainChars: undefined,
+		emptyStateRainEnabled: true,
+		emptyStateFillColor: undefined,
+		emptyStateRainColor: undefined,
+		backgroundColor: undefined,
 	},
 )
 
@@ -139,8 +155,75 @@ function getLetterGap(): number {
 	return props.emptyStateLetterGap ?? 2
 }
 // Цвет, которым рисуются сами буквы (плотный тёмный силуэт, а не дыра) —
-// сам символ теперь настраиваемый, см. getFillChar().
-const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый
+// сам символ теперь настраиваемый, см. getFillChar(). Дефолты — стандартная
+// 16-цветная ANSI-палитра; при заданном hex-цвете переключаемся на 24-битный
+// truecolor (\x1B[38;2;R;G;Bm), который xterm.js поддерживает нативно.
+const LETTER_FILL_COLOR = '\x1B[90m' // тёмно-серый (дефолт) — на фоне дождя это "дыра"
+const RAIN_COLOR = '\x1B[32m' // зелёный (дефолт)
+const RAIN_COLOR_BOLD = '\x1B[1;32m'
+
+function hexToAnsiTruecolor(hex: string, bold = false): string | null {
+	const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
+	if (!match) return null
+	const r = parseInt(match[1], 16)
+	const g = parseInt(match[2], 16)
+	const b = parseInt(match[3], 16)
+	return `${bold ? '\x1B[1m' : ''}\x1B[38;2;${r};${g};${b}m`
+}
+
+// Волк не участвует в матричном дожде и не окружён другими символами, так что
+// его нельзя красить тем же (нарочно тёмным, "дырчатым") цветом, что и буквы
+// в дожде — на чёрном фоне он попросту пропадает. Фиксированный светлый
+// truecolor, ни от темы (CSS-переменных), ни от пользовательского цвета
+// заполнения не зависит — иначе кастомная тёмная тема/акцент опять сделает
+// волка невидимым.
+const WOLF_COLOR = hexToAnsiTruecolor('#c7cbd4')!
+
+function getFillColorEscape(): string {
+	return (
+		(props.emptyStateFillColor && hexToAnsiTruecolor(props.emptyStateFillColor)) ||
+		LETTER_FILL_COLOR
+	)
+}
+
+function getRainColorEscape(bold: boolean): string {
+	if (props.emptyStateRainColor) {
+		const truecolor = hexToAnsiTruecolor(props.emptyStateRainColor, bold)
+		if (truecolor) return truecolor
+	}
+	return bold ? RAIN_COLOR_BOLD : RAIN_COLOR
+}
+
+// ASCII-волк (брайлевская мозаика) — статичная замена дождю, когда
+// emptyStateRainEnabled выключен. Пробелы внутри рисунка — символ "пустой
+// брайль" (U+2800), а не обычный пробел: в моноширинных шрифтах терминала
+// оба занимают одну и ту же ячейку, но брайль гарантированно не схлопывается
+// иначе при копировании/рендере в некоторых окружениях — сохраняем как есть.
+const SLEEPING_WOLF_ART = [
+	'⠀⠀⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⣸⢏⢙⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⣀⢴⠟⠙⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⡏⠉⠑⢄⠈⠳⣄⠀⢀⣀⣀⢀⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⣶⣧⣤⠄⠀⠉⠢⡈⠋⠁⠀⠀⠉⠓⠦⣄⡀⣦⣀⡠⠤⣄⠀⠀⠀⠀⠀',
+	'⠈⣟⢯⣇⠁⠀⠀⠀⠈⢶⣆⠀⠀⠀⠀⠀⣴⠽⠚⣉⣠⠇⣾⠀⠀⠀⠀⠀',
+	'⠀⠙⣆⠹⠀⠀⠀⠀⠀⠈⠙⠓⠀⠀⠀⠀⠠⠔⠋⣡⠋⢘⡏⠀⠀⠀⠀⠀',
+	'⠀⠀⠈⢦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠴⠋⠀⢀⢾⡀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠈⢧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠋⢀⣼⣋⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠈⢧⠀⠀⠀⠀⠀⠀⢀⢰⣇⠀⠀⠀⣺⠆⠀⠀⠀⠀⠙⠢⣄⠀',
+	'⠀⠀⠀⠀⠀⢸⢠⠀⢀⠀⠰⡄⠀⡷⡇⠀⠀⠉⠁⠀⠀⠀⠀⢐⠚⠻⣍⠀',
+	'⠀⠀⠀⠀⠀⠾⠛⡦⡿⡷⢷⡟⠢⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠛⠂',
+	'⠀⠀⠀⠀⠀⠀⠀⢷⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠀⠀⠀⢸⣶⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠀⠀⠀⠈⢩⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠀⠀⠀⠀⠈⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠀⠀⠀⠀⠀⢱⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+	'⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+]
+
+// Подпись под артом — только на пустом экране, пока нет реального лога.
+const SLEEPING_WOLF_CAPTION = [
+	"It's empty here for now...",
+	'Logs will appear once you launch the game',
+]
 
 const RAIN_CHARS_DEFAULT = 'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789'
 
@@ -264,6 +347,19 @@ let rainStartedAt = 0
 let ambientTop = -1
 let ambientBottom = -1
 
+// Обычный lineHeight терминала (запоминается при инициализации) против более
+// плотного — только для статичного арта волка, где стандартный интервал между
+// строк растягивает рисунок и рвёт форму. Для дождя/реальных логов не трогаем.
+let normalLineHeight = 1.5
+const WOLF_LINE_HEIGHT = 1.05
+
+function setTerminalLineHeight(value: number) {
+	if (!terminal.value) return
+	if (terminal.value.options.lineHeight === value) return
+	terminal.value.options.lineHeight = value
+	rawFit()
+}
+
 function spawnColumn(rows: number): RainColumn {
 	return {
 		head: -Math.floor(Math.random() * rows * 0.3),
@@ -288,7 +384,7 @@ function renderRainFrame() {
 
 		for (let c = 0; c < rainCols; c++) {
 			if (rainMask[r]?.[c]) {
-				line += `${LETTER_FILL_COLOR}${getFillChar()}\x1B[0m`
+				line += `${getFillColorEscape()}${getFillChar()}\x1B[0m`
 				continue
 			}
 
@@ -320,9 +416,9 @@ function renderRainFrame() {
 			if (inTrail && distFromHead === 0) {
 				line += `\x1B[1;97m${ch}\x1B[0m`
 			} else if (inTrail && trailFade > 0.6) {
-				line += `\x1B[1;32m${ch}\x1B[0m`
+				line += `${getRainColorEscape(true)}${ch}\x1B[0m`
 			} else {
-				line += `\x1B[32m${ch}\x1B[0m`
+				line += `${getRainColorEscape(false)}${ch}\x1B[0m`
 			}
 		}
 		frame += line
@@ -340,6 +436,7 @@ function renderRainFrame() {
 function startMatrixRain(startRow: number) {
 	stopMatrixRain()
 	if (!terminal.value) return
+	setTerminalLineHeight(normalLineHeight)
 
 	rainStartRow = startRow
 	rainCols = terminal.value.cols
@@ -366,6 +463,41 @@ function stopMatrixRain() {
 	if (terminal.value) {
 		terminal.value.write('\x1B[?25h') // вернуть курсор
 	}
+}
+
+/** Статичная замена дождю — рисуется один раз, без анимации/таймера. */
+function writeSleepingWolf(startRow: number) {
+	if (!terminal.value) return
+	setTerminalLineHeight(WOLF_LINE_HEIGHT)
+
+	const cols = terminal.value.cols
+	const rows = Math.max(0, terminal.value.rows - startRow + 1)
+	if (rows <= 0) return
+
+	const artWidth = Math.max(...SLEEPING_WOLF_ART.map((line) => line.length))
+	const artHeight = SLEEPING_WOLF_ART.length
+	const captionGap = 1
+	const totalHeight = artHeight + captionGap + SLEEPING_WOLF_CAPTION.length
+	const startCol = Math.max(0, Math.floor((cols - artWidth) / 2))
+	const artStartRow = Math.max(0, Math.floor((rows - totalHeight) / 2))
+	const captionStartRow = artStartRow + artHeight + captionGap
+
+	const color = WOLF_COLOR
+	let frame = '\x1B[?25l'
+	for (let r = 0; r < rows; r++) {
+		frame += `\x1B[${startRow + r};1H\x1B[2K`
+		const artLine = SLEEPING_WOLF_ART[r - artStartRow]
+		if (artLine) {
+			frame += ' '.repeat(startCol) + color + artLine + '\x1B[0m'
+			continue
+		}
+		const captionLine = SLEEPING_WOLF_CAPTION[r - captionStartRow]
+		if (captionLine) {
+			const captionCol = Math.max(0, Math.floor((cols - captionLine.length) / 2))
+			frame += ' '.repeat(captionCol) + color + captionLine + '\x1B[0m'
+		}
+	}
+	terminal.value.write(frame)
 }
 
 const emit = defineEmits<{
@@ -395,7 +527,9 @@ const {
 } = useTerminal({
 	container: containerRef,
 	scrollback: props.scrollback,
+	backgroundColor: () => props.backgroundColor,
 	onReady: (term) => {
+		normalLineHeight = term.options.lineHeight ?? normalLineHeight
 		nextTick(() => {
 			snapToRows()
 		})
@@ -413,14 +547,25 @@ function writeEmptyState() {
 	if (!terminal.value || !props.emptyStateType) return
 	terminal.value.reset()
 	showingEmptyState.value = true
-	nextTick(() => startMatrixRain(1))
+	nextTick(() => {
+		if (props.emptyStateRainEnabled) {
+			startMatrixRain(1)
+		} else {
+			stopMatrixRain()
+			writeSleepingWolf(1)
+		}
+	})
 }
 
 function clearEmptyState() {
 	if (!showingEmptyState.value) return
 	stopMatrixRain()
-	terminal.value?.reset()
+	// Флаг сбрасываем до setTerminalLineHeight — оно может синхронно вызвать
+	// resize у xterm, а обработчик onResize перерисовывает пустой экран, только
+	// пока showingEmptyState ещё true.
 	showingEmptyState.value = false
+	setTerminalLineHeight(normalLineHeight)
+	terminal.value?.reset()
 }
 
 // Живой предпросмотр в настройках меняет текст/размер/зазор на лету — если
@@ -430,7 +575,16 @@ function clearEmptyState() {
 // выглядит как хаотичное мерцание, а не плавная подстройка размера.
 let emptyStateRedrawTimer: ReturnType<typeof setTimeout> | null = null
 watch(
-	() => [props.emptyStateText, props.emptyStateScale, props.emptyStateLetterGap],
+	() => [
+		props.emptyStateText,
+		props.emptyStateScale,
+		props.emptyStateLetterGap,
+		props.emptyStateFillChar,
+		props.emptyStateRainChars,
+		props.emptyStateRainEnabled,
+		props.emptyStateFillColor,
+		props.emptyStateRainColor,
+	],
 	() => {
 		if (!showingEmptyState.value) return
 		if (emptyStateRedrawTimer) clearTimeout(emptyStateRedrawTimer)
@@ -570,7 +724,7 @@ defineExpose({
 }
 
 .xterm-viewport {
-	background-color: var(--surface-2) !important;
+	background-color: var(--modlex-console-bg, var(--surface-2)) !important;
 }
 
 .xterm .xterm-screen {

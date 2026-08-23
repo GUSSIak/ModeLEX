@@ -160,6 +160,22 @@ pub async fn get_account_skin_texture_url(
     Ok(profile.skins.first().map(|skin| skin.url.to_string()))
 }
 
+/// ModLEX: Forces a fresh online-profile fetch for a specific account, bypassing
+/// the profile cache entirely. Used by the "Update skin" button for Ely.by
+/// accounts — those are edited on ely.by's own website, so the app has no other
+/// signal that the skin changed and would otherwise keep serving cached data.
+#[tauri::command]
+pub async fn refresh_account_skin(user: uuid::Uuid) -> Result<()> {
+    let users = minecraft_auth::users().await?;
+    let Some(account) = users.into_iter().find(|c| c.offline_profile.id == user)
+    else {
+        return Ok(());
+    };
+
+    let _ = account.refresh_online_profile().await;
+    Ok(())
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("auth")
         .invoke_handler(tauri::generate_handler![
@@ -173,6 +189,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             set_default_user,
             get_users,
             get_account_skin_texture_url,
+            refresh_account_skin,
         ])
         .build()
 }

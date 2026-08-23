@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,\n                sync_theme_across_devices, sync_behavior_across_devices,\n                version\n            FROM settings\n            ",
+  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,\n                modlex_discord_idle_message,\n                sync_theme_across_devices, sync_behavior_across_devices,\n                version\n            FROM settings\n            ",
   "describe": {
     "columns": [
       {
@@ -214,18 +214,23 @@
         "type_info": "Text"
       },
       {
-        "name": "sync_theme_across_devices",
+        "name": "modlex_discord_idle_message",
         "ordinal": 42,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "sync_behavior_across_devices",
+        "name": "sync_theme_across_devices",
         "ordinal": 43,
         "type_info": "Integer"
       },
       {
-        "name": "version",
+        "name": "sync_behavior_across_devices",
         "ordinal": 44,
+        "type_info": "Integer"
+      },
+      {
+        "name": "version",
+        "ordinal": 45,
         "type_info": "Integer"
       }
     ],
@@ -275,10 +280,11 @@
       false,
       false,
       true,
+      true,
       false,
       false,
       false
     ]
   },
-  "hash": "8c0033a0dd2548c430e8a14fd83675fcf251d560230f32498ccaeed81b305ef8"
+  "hash": "89eea2224360c52d968f8bfc732a5fc27b2bc0a4e6096375aecd9e4fc11c66b5"
 }

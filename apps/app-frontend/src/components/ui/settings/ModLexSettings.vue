@@ -25,6 +25,43 @@
 				</div>
 				<Toggle v-model="modlexHideMusicTab" />
 			</div>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Скрыть блок "Друзья"</h3>
+					<p class="setting-row__desc">Убирает список друзей из правой панели.</p>
+				</div>
+				<Toggle v-model="modlexHideFriends" />
+			</div>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Скрыть правую панель</h3>
+					<p class="setting-row__desc">
+						Панель (аккаунт, друзья, новости) полностью прячется, вместо неё — компактная плашка
+						текущего аккаунта в углу. На странице модов панель вместо этого превращается в узкую
+						полоску сбоку и выезжает целиком при наведении — там нужны фильтры категорий.
+					</p>
+				</div>
+				<Toggle v-model="modlexHideRightSidebar" />
+			</div>
+			<div v-if="modlexHideRightSidebar" class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Прятать плашку аккаунта за край экрана</h3>
+					<p class="setting-row__desc">
+						Плашка тоже уезжает за правый край и выезжает обратно при наведении на угол экрана.
+					</p>
+				</div>
+				<Toggle v-model="modlexHideFloatingAccountWidget" />
+			</div>
+			<div v-if="modlexHideRightSidebar" class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Эффект стекла</h3>
+					<p class="setting-row__desc">
+						Полупрозрачный фон с блюром вместо сплошного — для плашки аккаунта и
+						полоски-подглядывания на Discover.
+					</p>
+				</div>
+				<Toggle v-model="modlexFloatingGlassEffect" />
+			</div>
 		</div>
 
 		<!-- Акцентный цвет -->
@@ -348,6 +385,103 @@
 					/>
 				</label>
 			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Анимация матричного дождя</h3>
+					<p class="setting-row__desc">
+						Если выключить — на пустом экране консоли вместо дождя будет статичный спящий волк.
+					</p>
+				</div>
+				<Toggle v-model="modlexConsoleRainEnabled" />
+			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Цвет заполняющих символов</h3>
+					<p class="setting-row__desc">
+						Только для букв в матричном дожде —
+						{{ modlexConsoleFillColor ? modlexConsoleFillColor : 'стандартный (серый)' }}
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<input
+						type="color"
+						class="color-picker"
+						:value="modlexConsoleFillColor || DEFAULT_CONSOLE_FILL"
+						@input="modlexConsoleFillColor = ($event.target as HTMLInputElement).value"
+					/>
+					<Button
+						v-if="modlexConsoleFillColor"
+						type="outlined"
+						size="sm"
+						native-type="button"
+						@click="modlexConsoleFillColor = ''"
+						>Сбросить</Button
+					>
+				</div>
+			</div>
+
+			<div v-if="modlexConsoleRainEnabled" class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Цвет символов дождя</h3>
+					<p class="setting-row__desc">
+						{{ modlexConsoleRainColor ? modlexConsoleRainColor : 'стандартный (зелёный)' }}
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<input
+						type="color"
+						class="color-picker"
+						:value="modlexConsoleRainColor || DEFAULT_CONSOLE_RAIN"
+						@input="modlexConsoleRainColor = ($event.target as HTMLInputElement).value"
+					/>
+					<Button
+						v-if="modlexConsoleRainColor"
+						type="outlined"
+						size="sm"
+						native-type="button"
+						@click="modlexConsoleRainColor = ''"
+						>Сбросить</Button
+					>
+				</div>
+			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Фон консоли</h3>
+					<p class="setting-row__desc">
+						Отдельно от общего фона лаунчера —
+						{{ modlexConsoleBgColor ? modlexConsoleBgColor : 'стандартный цвет темы' }}
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<input
+						type="color"
+						class="color-picker"
+						:value="modlexConsoleBgColor || DEFAULT_CONSOLE_BG"
+						@input="modlexConsoleBgColor = ($event.target as HTMLInputElement).value"
+					/>
+					<Button
+						v-if="modlexConsoleBgColor"
+						type="outlined"
+						size="sm"
+						native-type="button"
+						@click="modlexConsoleBgColor = ''"
+						>Сбросить</Button
+					>
+				</div>
+			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Сбросить настройки консоли</h3>
+					<p class="setting-row__desc">Вернуть надпись, символы и цвета консоли к стандартным.</p>
+				</div>
+				<Button type="outlined" size="sm" native-type="button" @click="resetConsoleSettings">
+					Сбросить всё
+				</Button>
+			</div>
 		</div>
 
 		<!-- Discord -->
@@ -371,6 +505,23 @@
 					autocomplete="off"
 					spellcheck="false"
 					@input="onDiscordMessageInput(($event.target as HTMLInputElement).value)"
+				/>
+			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Текст бездействия</h3>
+					<p class="setting-row__desc">Показывается, когда нет запущенного инстанса</p>
+				</div>
+				<input
+					:value="discordIdleMessage"
+					type="text"
+					maxlength="128"
+					placeholder="Бездействует..."
+					class="console-text-input"
+					autocomplete="off"
+					spellcheck="false"
+					@input="onDiscordIdleMessageInput(($event.target as HTMLInputElement).value)"
 				/>
 			</div>
 		</div>
@@ -503,8 +654,12 @@ import {
 	importThemeCode,
 	modlexAccentColor,
 	modlexBgColor,
+	modlexConsoleBgColor,
 	modlexConsoleFillChar,
+	modlexConsoleFillColor,
 	modlexConsoleRainChars,
+	modlexConsoleRainColor,
+	modlexConsoleRainEnabled,
 	modlexConsoleText,
 	modlexDividerColor,
 	modlexDoubleBorderEnabled,
@@ -512,8 +667,12 @@ import {
 	modlexDoubleBorderOuter,
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
+	modlexFloatingGlassEffect,
+	modlexHideFloatingAccountWidget,
+	modlexHideFriends,
 	modlexHideMultiLaunch,
 	modlexHideMusicTab,
+	modlexHideRightSidebar,
 	modlexHideServers,
 	modlexIconColor,
 	modlexNewsSource,
@@ -522,6 +681,7 @@ import {
 	modlexTextOutlineColor,
 	modlexTextOutlineEnabled,
 	type NewsSource,
+	resetConsoleSettings,
 } from '@/helpers/modlex-settings'
 import { get as getSettings, set as setSettings } from '@/helpers/settings'
 import { requestImmediateUpdateCheck } from '@/providers/app-update'
@@ -558,6 +718,9 @@ const DEFAULT_BG = '#16181c'
 const DEFAULT_PANEL = '#27292e'
 const DEFAULT_TEXT = '#ffffff'
 const DEFAULT_ICON = '#b0bac5'
+const DEFAULT_CONSOLE_FILL = '#808080'
+const DEFAULT_CONSOLE_RAIN = '#33ff33'
+const DEFAULT_CONSOLE_BG = '#16181c'
 const DEFAULT_DIVIDER = '#34363c'
 // ===== END MODLEX =====
 
@@ -658,10 +821,14 @@ function onSwitchToStableClick() {
 
 // ===== MODLEX: текст Discord Rich Presence =====
 const discordMessage = ref('')
+const discordIdleMessage = ref('')
 let discordMessageSaveTimeout: ReturnType<typeof setTimeout> | null = null
+let discordIdleMessageSaveTimeout: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
-	discordMessage.value = (await getSettings()).modlex_discord_message ?? ''
+	const settings = await getSettings()
+	discordMessage.value = settings.modlex_discord_message ?? ''
+	discordIdleMessage.value = settings.modlex_discord_idle_message ?? ''
 })
 
 function onDiscordMessageInput(value: string) {
@@ -673,11 +840,23 @@ function onDiscordMessageInput(value: string) {
 		await setSettings(settings)
 	}, 500)
 }
+
+function onDiscordIdleMessageInput(value: string) {
+	discordIdleMessage.value = value
+	if (discordIdleMessageSaveTimeout) clearTimeout(discordIdleMessageSaveTimeout)
+	discordIdleMessageSaveTimeout = setTimeout(async () => {
+		const settings = await getSettings()
+		settings.modlex_discord_idle_message = value.trim() || null
+		await setSettings(settings)
+	}, 500)
+}
+
 // ===== END MODLEX =====
 
 onBeforeUnmount(() => {
 	if (inlineNoticeTimeout) clearTimeout(inlineNoticeTimeout)
 	if (discordMessageSaveTimeout) clearTimeout(discordMessageSaveTimeout)
+	if (discordIdleMessageSaveTimeout) clearTimeout(discordIdleMessageSaveTimeout)
 })
 
 function onToggleModrinth(value: boolean) {
