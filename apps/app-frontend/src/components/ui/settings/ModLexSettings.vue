@@ -27,6 +27,15 @@
 			</div>
 			<div class="setting-row">
 				<div class="setting-row__info">
+					<h3 class="setting-row__label">Скрыть ИИ-агента</h3>
+					<p class="setting-row__desc">
+						Убирает плавающую иконку ИИ-помощника в правом нижнем углу.
+					</p>
+				</div>
+				<Toggle v-model="modlexHideAiAgent" />
+			</div>
+			<div class="setting-row">
+				<div class="setting-row__info">
 					<h3 class="setting-row__label">Скрыть блок "Друзья"</h3>
 					<p class="setting-row__desc">Убирает список друзей из правой панели.</p>
 				</div>
@@ -668,6 +677,7 @@ import {
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
 	modlexFloatingGlassEffect,
+	modlexHideAiAgent,
 	modlexHideFloatingAccountWidget,
 	modlexHideFriends,
 	modlexHideMultiLaunch,
@@ -692,7 +702,7 @@ function getNewsLabel(value: NewsSource): string {
 	return { github: 'GitHub', modrinth: 'Modrinth', off: 'Выключено' }[value] ?? value
 }
 
-const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform')
+const { locked: cfLocked, message: cfLockedMessage } = useFeatureFlag('curseforge_platform_v2')
 const { locked: switchToStableLocked, message: switchToStableLockedMessage } = useFeatureFlag(
 	'switch_to_stable_channel',
 )

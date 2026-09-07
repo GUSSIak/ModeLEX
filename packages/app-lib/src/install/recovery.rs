@@ -408,6 +408,9 @@ fn display_from_request(state: &InstallJobState) -> Option<InstallJobDisplay> {
             crate::api::pack::install_from::CreatePackLocation::FromFile {
                 ..
             } => None,
+            crate::api::pack::install_from::CreatePackLocation::FromCurseForge {
+                ..
+            } => None,
         },
         InstallRequest::CreateSharedInstance { data } => {
             Some(InstallJobDisplay {

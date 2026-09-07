@@ -95,7 +95,7 @@ fn result_summary(
     }
 }
 
-fn write_environment_details(details: &mut String) {
+pub(crate) fn write_environment_details(details: &mut String) {
     let _ = writeln!(details);
     let _ = writeln!(details, "Environment");
     let _ = writeln!(details, "App version: {}", env!("CARGO_PKG_VERSION"));
@@ -528,7 +528,7 @@ fn json_string<T: serde::Serialize>(value: &T) -> String {
         .unwrap_or_else(|_| "unknown".to_string())
 }
 
-async fn latest_launcher_log_tail(
+pub(crate) async fn latest_launcher_log_tail(
     state: &State,
 ) -> crate::Result<Option<(PathBuf, String)>> {
     let Some(logs_dir) = state.directories.launcher_logs_dir() else {
@@ -587,7 +587,7 @@ fn read_file_tail(path: &Path, max_bytes: u64) -> crate::Result<String> {
     Ok(output)
 }
 
-async fn censor_support_text(
+pub(crate) async fn censor_support_text(
     mut text: String,
     state: &State,
 ) -> crate::Result<String> {

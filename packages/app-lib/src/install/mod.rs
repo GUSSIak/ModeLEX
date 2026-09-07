@@ -1,4 +1,4 @@
-mod diagnostics;
+pub(crate) mod diagnostics;
 pub mod events;
 pub mod model;
 pub mod recovery;

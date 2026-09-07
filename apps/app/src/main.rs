@@ -163,7 +163,7 @@ fn main() {
 
     let _log_guard = theseus::start_logger(&tauri_context.config().identifier);
 
-    tracing::info!("Initialized tracing subscriber. Loading ModLEX App!");
+    tracing::info!("Initialized tracing subscriber. Loading ModLEX App!"); // MODLEX: rebrand
 
     let mut builder = tauri::Builder::default();
 
@@ -292,6 +292,7 @@ fn main() {
         .plugin(api::worlds::init())
         //modlex
         .plugin(api::curseforge::init())
+        .plugin(api::modlex_ai::init())
         //modlex
         .manage(PendingUpdateData::default())
         .invoke_handler(tauri::generate_handler![

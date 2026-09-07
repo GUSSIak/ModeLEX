@@ -427,6 +427,22 @@ fn main() {
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
                     ),
+            )
+            .plugin(
+                "modlex-ai",
+                InlinedPlugin::new()
+                    .commands(&[
+                        "modlex_ai_agent_step",
+                        "modlex_ai_agent_resume",
+                        "modlex_ai_list_models",
+                        "modlex_ai_send_bug_report",
+                        "modlex_ai_dev_ping_available",
+                        "modlex_ai_ping_key_pool",
+                        "modlex_ai_ping_own_key",
+                    ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
             ),
     )
     .expect("Failed to run tauri-build");

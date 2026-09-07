@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
 	enableModrinth: 'modlex_enable_modrinth',
 	enableCurseForge: 'modlex_enable_curseforge',
 	hideMusicTab: 'modlex_hide_music_tab',
+	hideAiAgent: 'modlex_hide_ai_agent',
 	hideMultiLaunch: 'modlex_hide_multi_launch',
 	hideFriends: 'modlex_hide_friends',
 	hideRightSidebar: 'modlex_hide_right_sidebar',
@@ -62,6 +63,9 @@ export const modlexHideServers = ref(readBool(STORAGE_KEYS.hideServers, false))
 // ── Музыка ─────────────────────────────────────────────────────────────────
 export const modlexHideMusicTab = ref(readBool(STORAGE_KEYS.hideMusicTab, false))
 
+// ── ИИ-агент ───────────────────────────────────────────────────────────────
+export const modlexHideAiAgent = ref(readBool(STORAGE_KEYS.hideAiAgent, false))
+
 // ── Мульти-запуск ──────────────────────────────────────────────────────────
 export const modlexHideMultiLaunch = ref(readBool(STORAGE_KEYS.hideMultiLaunch, false))
 
@@ -105,7 +109,7 @@ export const availablePlatforms = computed<Array<'modrinth' | 'curseforge'>>(() 
 	if (modlexEnableModrinth.value) list.push('modrinth')
 	// Фича-флаг может отключить CurseForge независимо от выбора пользователя
 	// (useFeatureFlag сам учитывает devMode — см. helpers/feature-flags.ts)
-	if (modlexEnableCurseForge.value && useFeatureFlag('curseforge_platform').enabled.value) {
+	if (modlexEnableCurseForge.value && useFeatureFlag('curseforge_platform_v2').enabled.value) {
 		list.push('curseforge')
 	}
 	// хотя бы одна всегда есть — если обе выкл, возвращаем modrinth как fallback
@@ -446,6 +450,9 @@ watch(modlexHideServers, (v) => {
 watch(modlexHideMusicTab, (v) => {
 	localStorage.setItem(STORAGE_KEYS.hideMusicTab, String(v))
 	broadcast()
+})
+watch(modlexHideAiAgent, (v) => {
+	localStorage.setItem(STORAGE_KEYS.hideAiAgent, String(v))
 })
 watch(modlexHideMultiLaunch, (v) => {
 	localStorage.setItem(STORAGE_KEYS.hideMultiLaunch, String(v))

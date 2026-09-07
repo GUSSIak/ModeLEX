@@ -1310,6 +1310,31 @@ pub(super) async fn install_pack(
     reason: DownloadReason,
 ) -> crate::Result<()> {
     let reporter = InstallProgressReporter::new(job_id, job_state.clone());
+
+    // MODLEX: CurseForge modpacks use a completely different archive format
+    // (manifest.json + overrides/, not modrinth.index.json) — handled by its
+    // own pipeline in curseforge.rs instead of being forced through the
+    // mrpack-specific generate_pack_from_*/install_zipped_mrpack_files_with_reporter
+    // path below. It still reports through the same reporter/phase system,
+    // and still ends by installing Minecraft+Java the same way.
+    if let CreatePackLocation::FromCurseForge {
+        mod_id,
+        file_id,
+        game_version,
+        loader,
+    } = location
+    {
+        return crate::api::curseforge::install_modpack_with_reporter(
+            mod_id,
+            file_id,
+            &game_version,
+            &loader,
+            instance_id,
+            reporter,
+        )
+        .await;
+    }
+
     reporter
         .update(
             InstallPhaseId::DownloadingPackFile,
@@ -1353,6 +1378,9 @@ pub(super) async fn install_pack(
                 )
                 .await?;
             generate_pack_from_file(path, instance_id.clone()).await?
+        }
+        CreatePackLocation::FromCurseForge { .. } => {
+            unreachable!("FromCurseForge returns early above")
         }
     };
 
@@ -1515,6 +1543,10 @@ fn set_initial_display(job_state: &mut InstallJobState) {
                 CreatePackLocation::FromFile { path } => {
                     Some((get_local_pack_instance(path).name, None))
                 }
+                // MODLEX: CF's title isn't known without an async API call;
+                // prepare_initial_instance sets the real display moments
+                // later once it resolves the mod via get_instance_from_pack.
+                CreatePackLocation::FromCurseForge { .. } => None,
             }
         }
         _ => None,
@@ -1644,6 +1676,17 @@ pub(super) fn modpack_details(
         CreatePackLocation::FromFile { .. } => InstallPhaseDetails::Modpack {
             project_id: None,
             version_id: None,
+            title: None,
+        },
+        // MODLEX: CF's title isn't known synchronously here (unlike
+        // FromVersionId, whose title is supplied by the frontend) — it gets
+        // resolved once install_modpack_with_reporter fetches the mod, same
+        // as the FromFile case leaves it blank until later phases.
+        CreatePackLocation::FromCurseForge {
+            mod_id, file_id, ..
+        } => InstallPhaseDetails::Modpack {
+            project_id: Some(mod_id.to_string()),
+            version_id: file_id.map(|f| f.to_string()),
             title: None,
         },
     }

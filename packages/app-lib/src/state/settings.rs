@@ -45,6 +45,9 @@ pub struct Settings {
     pub pending_update_toast_for_version: Option<String>,
     pub auto_download_updates: Option<bool>,
 
+    // ===== MODLEX: собственные поля настроек — единственный источник
+    // конфликтов при апстрим-мерже этой структуры: новое upstream-поле
+    // просто встанет рядом с этим блоком, а не заменит что-то внутри него. =====
     /// VK access token pasted in by advanced users for the ModLEX Core music player.
     /// Obtained by the user through their own separate tooling; never collected via a
     /// login form. Stored locally only and forwarded to the mod's signed session file.
@@ -80,6 +83,36 @@ pub struct Settings {
     /// Пользовательский текст Discord Rich Presence, когда нет запущенного
     /// инстанса. Пусто/None = стандартный текст "Бездействует...".
     pub modlex_discord_idle_message: Option<String>,
+
+    /// Свой ключ Groq для ИИ-агента — запасной вариант "для продвинутых",
+    /// как modlex_vk_token: используется только когда встроенный пул
+    /// бесплатных ключей (см. api::modlex_ai) весь упёрся в рейт-лимит.
+    /// Пользователь получает его сам на console.groq.com, ключ никогда
+    /// никуда не отправляется кроме api.groq.com.
+    pub modlex_ai_api_key: Option<String>,
+    /// Groq model id (e.g. "openai/gpt-oss-120b") — see api::modlex_ai::list_models
+    /// for the live, current list; hardcoding a fixed choice would go stale
+    /// as Groq's own lineup changes.
+    pub modlex_ai_model: String,
+    /// Форсирует конкретного провайдера в обход обычной цепочки фолбэков
+    /// (Groq → z.ai → Cloudflare) — "auto" | "groq" | "zai" | "cloudflare".
+    /// Добавлено для отладки/теста конкретного провайдера в изоляции (напр.
+    /// проверить, ломается ли конкретный баг именно на Groq).
+    pub modlex_ai_provider: String,
+    /// "Не спрашивать" — Confirm-tier инструменты (установка/удаление модов
+    /// и т.п.) выполняются сразу, без карточки подтверждения. НЕ влияет на
+    /// AskFirst-тир (зарезервирован, пока не используется) — там дело в
+    /// приватности (данные уходят во внешний API), а не в риске ошибки,
+    /// такое подтверждают всегда независимо от этой настройки. Фронт
+    /// показывает одноразовое предупреждение при включении.
+    pub modlex_ai_auto_confirm: bool,
+    /// Лимит автоматических шагов агента за один ход (0 = использовать
+    /// дефолт бэкенда, см. `modlex_ai::resolve_max_hops`). Комплексные
+    /// задачи (заменить сразу 10 модов) могут упереться в маленький лимит
+    /// и оборваться с "не смог разобраться" не закончив дело — это тут
+    /// настраивается, а не хардкодится.
+    pub modlex_ai_max_hops: u32,
+    // ===== END MODLEX =====
 
     pub version: usize,
 }
@@ -156,6 +189,7 @@ impl Settings {
                 modlex_music_default_source, json(modlex_playlists) modlex_playlists,
                 modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,
                 modlex_discord_idle_message,
+                modlex_ai_api_key, modlex_ai_model, modlex_ai_provider, modlex_ai_auto_confirm, modlex_ai_max_hops,
                 sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
@@ -231,6 +265,11 @@ impl Settings {
             modlex_channel_sync_done: res.modlex_channel_sync_done,
             modlex_discord_message: res.modlex_discord_message,
             modlex_discord_idle_message: res.modlex_discord_idle_message,
+            modlex_ai_api_key: res.modlex_ai_api_key,
+            modlex_ai_model: res.modlex_ai_model,
+            modlex_ai_provider: res.modlex_ai_provider,
+            modlex_ai_auto_confirm: res.modlex_ai_auto_confirm,
+            modlex_ai_max_hops: res.modlex_ai_max_hops as u32,
             sync_theme_across_devices: res.sync_theme_across_devices == 1,
             sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
             version: res.version as usize,
@@ -308,10 +347,16 @@ impl Settings {
                 modlex_discord_message = $42,
                 modlex_discord_idle_message = $43,
 
-                sync_theme_across_devices = $44,
-                sync_behavior_across_devices = $45,
+                modlex_ai_api_key = $44,
+                modlex_ai_model = $45,
+                modlex_ai_provider = $46,
+                modlex_ai_auto_confirm = $47,
+                modlex_ai_max_hops = $48,
 
-                version = $46
+                sync_theme_across_devices = $49,
+                sync_behavior_across_devices = $50,
+
+                version = $51
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -356,6 +401,11 @@ impl Settings {
             self.modlex_channel_sync_done,
             self.modlex_discord_message,
             self.modlex_discord_idle_message,
+            self.modlex_ai_api_key,
+            self.modlex_ai_model,
+            self.modlex_ai_provider,
+            self.modlex_ai_auto_confirm,
+            self.modlex_ai_max_hops,
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
             version,

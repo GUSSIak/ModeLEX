@@ -2,7 +2,7 @@ use super::content::get_projects;
 use crate::server_address::ServerAddress;
 use crate::state::{
     Credentials, InstanceLink, MemorySettings, ProcessMetadata, Settings,
-    State,
+    State, WindowSize,
 };
 use crate::util::fetch;
 use crate::util::io::IOError;
@@ -27,6 +27,8 @@ pub enum QuickPlayType {
 pub struct EphemeralLaunchOverrides {
     pub memory: Option<MemorySettings>,
     pub extra_launch_args: Option<Vec<String>>,
+    pub game_resolution: Option<WindowSize>,
+    pub force_fullscreen: Option<bool>,
 }
 
 #[tracing::instrument]
@@ -185,9 +187,10 @@ async fn run_credentials(
         .and_then(|o| o.memory)
         .or(context.launch_overrides.memory)
         .unwrap_or(settings.memory);
-    let resolution = context
-        .launch_overrides
-        .game_resolution
+    let resolution = overrides
+        .as_ref()
+        .and_then(|o| o.game_resolution)
+        .or(context.launch_overrides.game_resolution)
         .unwrap_or(settings.game_resolution);
     let has_hook_commands = pre_launch_hook.is_some()
         || wrapper.is_some()
@@ -281,7 +284,11 @@ async fn run_credentials(
         .filter(|hook_command| !hook_command.is_empty());
 
     let mut mc_set_options: Vec<(String, String)> = vec![];
-    if let Some(fullscreen) = context.launch_overrides.force_fullscreen {
+    if let Some(fullscreen) = overrides
+        .as_ref()
+        .and_then(|o| o.force_fullscreen)
+        .or(context.launch_overrides.force_fullscreen)
+    {
         mc_set_options.push(("fullscreen".to_string(), fullscreen.to_string()));
     } else if settings.force_fullscreen {
         mc_set_options.push(("fullscreen".to_string(), "true".to_string()));

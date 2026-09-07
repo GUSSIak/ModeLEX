@@ -73,6 +73,7 @@ pub async fn cf_install_mod(
     file_id: Option<u32>,
     game_version: String,
     loader: String,
+    world_folder: Option<String>,
 ) -> Result<Vec<u32>> {
     Ok(curseforge::install_mod(
         &profile_path,
@@ -80,14 +81,14 @@ pub async fn cf_install_mod(
         file_id,
         &game_version,
         &loader,
+        world_folder,
     )
     .await?)
 }
 
 #[tauri::command]
 pub async fn cf_remove_mod(profile_path: String, mod_id: u32) -> Result<()> {
-    use theseus::api::curseforge::read_sidecar;
-    use theseus::api::instance::get_full_path;
+    use theseus::api::curseforge::{read_sidecar, resolve_profile_dir};
 
     let mut sidecar = read_sidecar(&profile_path).await;
     let to_remove: Vec<String> = sidecar
@@ -97,7 +98,11 @@ pub async fn cf_remove_mod(profile_path: String, mod_id: u32) -> Result<()> {
         .map(|(hash, _)| hash.clone())
         .collect();
 
-    let profile_base = get_full_path(&profile_path).await?;
+    // MODLEX: profile_path тут — instance.value.path с фронтенда (сырое имя
+    // папки из БД), НЕ instance ID — get_full_path() ожидала ID и падала с
+    // "Unknown instance" на каждое удаление CF-мода (тот же баг, что был в
+    // install_mod, см. resolve_profile_dir в app-lib/curseforge.rs).
+    let profile_base = resolve_profile_dir(&profile_path).await?;
     for hash in &to_remove {
         if let Some(meta) = sidecar.0.get(hash) {
             let file_path = profile_base.join("mods").join(&meta.file_name);
@@ -135,8 +140,17 @@ pub async fn cf_install_modpack(
     file_id: Option<u32>,
     game_version: String,
     loader: String,
-) -> Result<String> {
-    Ok(curseforge::install_modpack(mod_id, file_id, &game_version, &loader).await?)
+) -> Result<theseus::install::InstallJobSnapshot> {
+    Ok(theseus::install::create_modpack_instance(
+        theseus::pack::install_from::CreatePackLocation::FromCurseForge {
+            mod_id,
+            file_id,
+            game_version,
+            loader,
+        },
+        None,
+    )
+    .await?)
 }
 
 #[tauri::command]

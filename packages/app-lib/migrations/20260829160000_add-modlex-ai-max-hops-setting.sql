@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN modlex_ai_max_hops INTEGER NOT NULL DEFAULT 0;

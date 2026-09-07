@@ -847,15 +847,24 @@ pub async fn instance_run_as_account(
     server_address: Option<String>,
     memory_mb: Option<u32>,
     extra_launch_args: Option<Vec<String>>,
+    game_resolution: Option<(u16, u16)>,
+    force_fullscreen: Option<bool>,
 ) -> Result<ProcessMetadata> {
     let quick_play = match server_address {
         Some(addr) => QuickPlayType::Server(ServerAddress::Unresolved(addr)),
         None => QuickPlayType::None,
     };
-    let overrides = if memory_mb.is_some() || extra_launch_args.is_some() {
+    let overrides = if memory_mb.is_some()
+        || extra_launch_args.is_some()
+        || game_resolution.is_some()
+        || force_fullscreen.is_some()
+    {
         Some(theseus::instance::EphemeralLaunchOverrides {
             memory: memory_mb.map(|maximum| MemorySettings { maximum }),
             extra_launch_args,
+            game_resolution: game_resolution
+                .map(|(width, height)| WindowSize(width, height)),
+            force_fullscreen,
         })
     } else {
         None

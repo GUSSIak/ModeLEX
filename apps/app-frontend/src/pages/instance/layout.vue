@@ -485,6 +485,8 @@ async function launchSelectedAccounts(selections: MultiLaunchSelection[]) {
 			null,
 			selection.memoryMb,
 			selection.extraLaunchArgs,
+			selection.gameResolution,
+			selection.forceFullscreen,
 		).catch(handleError)
 	}
 	await updatePlayState()

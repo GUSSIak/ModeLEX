@@ -29,6 +29,13 @@
 		"curseforge:allow-cf-get-categories",
 		"curseforge:allow-cf-install-modpack",
 		"curseforge:allow-cf-get-mod-details",
+		"modlex-ai:allow-modlex-ai-agent-step",
+		"modlex-ai:allow-modlex-ai-agent-resume",
+		"modlex-ai:allow-modlex-ai-list-models",
+		"modlex-ai:allow-modlex-ai-send-bug-report",
+		"modlex-ai:allow-modlex-ai-dev-ping-available",
+		"modlex-ai:allow-modlex-ai-ping-key-pool",
+		"modlex-ai:allow-modlex-ai-ping-own-key",
 		{
 			"identifier": "http:default",
 			"allow": [
@@ -49,18 +56,6 @@
 				},
 				{
 					"url": "https://api.purpurmc.org/*"
-				},
-				{
-					"url": "http://localhost:8000/*"
-				},
-				{
-					"url": "http://127.0.0.1:8000/*"
-				},
-				{
-					"url": "http://*.taila228c5.ts.net/*"
-				},
-				{
-					"url": "https://*.taila228c5.ts.net/*"
 				},
 				{
 					"url": "https://gussiak.github.io/*"

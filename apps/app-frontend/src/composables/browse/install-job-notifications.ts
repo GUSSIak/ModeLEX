@@ -11,6 +11,7 @@ import { computed, ref } from 'vue'
 import type { Router } from 'vue-router'
 
 import { useAppSettings } from '@/composables/use-app-settings.ts'
+import { requestAiAgentHelp } from '@/composables/use-ai-agent-bridge'
 import {
 	install_job_dismiss,
 	install_job_list,
@@ -479,6 +480,15 @@ export async function useInstallJobNotifications(opts: {
 					await install_job_retry(job.job_id).catch(opts.handleError)
 					await refresh()
 				},
+			})
+			buttons.push({
+				label: 'Спросить ИИ',
+				color: 'standard',
+				keepOpen: true,
+				action: () =>
+					requestAiAgentHelp(
+						`Не удалось установить "${getTitle(job)}": ${getFailureSummary(job)}. Нужна помощь с этим.`,
+					),
 			})
 		}
 

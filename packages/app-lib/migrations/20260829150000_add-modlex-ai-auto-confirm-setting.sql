@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN modlex_ai_auto_confirm BOOLEAN NOT NULL DEFAULT FALSE;

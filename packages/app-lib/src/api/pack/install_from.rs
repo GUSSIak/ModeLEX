@@ -103,6 +103,16 @@ pub enum CreatePackLocation {
     FromFile {
         path: PathBuf,
     },
+    // MODLEX: create a pack from a CurseForge modpack file. Title/icon aren't
+    // passed in from the frontend (unlike FromVersionId) — they're resolved
+    // from the CF API inside get_instance_from_pack/install_modpack_with_reporter,
+    // so the Tauri command signature can stay unchanged.
+    FromCurseForge {
+        mod_id: u32,
+        file_id: Option<u32>,
+        game_version: String,
+        loader: String,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -194,6 +204,27 @@ pub async fn get_instance_from_pack(
             }),
             ..Default::default()
         }),
+        CreatePackLocation::FromCurseForge {
+            mod_id,
+            game_version,
+            loader,
+            ..
+        } => {
+            let cf_mod = crate::api::curseforge::get_mod(mod_id).await?;
+            let icon_url = cf_mod
+                .logo
+                .as_ref()
+                .and_then(crate::api::curseforge::CfLogo::best_url)
+                .map(str::to_string);
+            Ok(CreatePackInstance {
+                name: cf_mod.name,
+                game_version,
+                modloader: ModLoader::from_string(&loader.to_lowercase()),
+                icon_url,
+                link: Some(InstanceLink::Unmanaged),
+                ..Default::default()
+            })
+        }
         CreatePackLocation::FromFile { path } => {
             let mut instance = get_local_pack_instance(&path);
             let file_size = tokio::fs::metadata(&path).await?.len();

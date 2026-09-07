@@ -184,7 +184,7 @@ pub(crate) async fn resolve_icon_path(
     ignore_missing_remote_icon: bool,
     state: &State,
 ) -> crate::Result<Option<String>> {
-    let Some(icon) = icon_path else {
+    let Some(icon) = icon_path.filter(|icon| !icon.is_empty()) else {
         return Ok(None);
     };
 

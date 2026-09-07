@@ -181,8 +181,10 @@ import {
 	findInstalledCounterpart,
 	resolveLatestFile,
 } from '@/helpers/curseforge'
+import { installJobInstanceId } from '@/helpers/install'
 import { get as getInstance, get_content_items as getContentItems } from '@/helpers/instance'
 import { get_game_versions, get_loaders } from '@/helpers/tags'
+import { injectCfContentInstall, resolveWorldFolder } from '@/providers/cf-content-install'
 import { provideBreadcrumbParent, useBreadcrumb } from '@/providers/breadcrumbs'
 import { injectServerInstall } from '@/providers/server-install'
 import { createServerInstallContent } from '@/providers/setup/server-install-content'
@@ -190,6 +192,7 @@ import { createServerInstallContent } from '@/providers/setup/server-install-con
 dayjs.extend(relativeTime)
 
 const { handleError } = injectNotificationManager()
+const cfContentInstall = injectCfContentInstall()
 const route = useRoute()
 const router = useRouter()
 const { formatMessage } = useVIntl()
@@ -212,6 +215,10 @@ const messages = defineMessages({
 injectServerInstall()
 const installing = ref(false)
 const data = shallowRef(null)
+// MODLEX: сырой CfMod с настоящими полями CurseForge (id/name/logo и т.п.) —
+// data выше пересобран под форму Modrinth-проекта для общих sidebar-компонентов
+// и для cfContentInstall.install() не подходит.
+const rawCfMod = shallowRef(null)
 const files = shallowRef([])
 const members = shallowRef([])
 const organization = shallowRef(null)
@@ -418,18 +425,25 @@ async function fetchProjectData() {
 			return
 		}
 
-		const modData = details.mod_data || {}
+		const modData = details.modData || {}
+		rawCfMod.value = modData
 		const screenshots = details.screenshots || []
 		const categoriesData = modData.categories || []
 		const authorsData = modData.authors || []
 		const fileListSafe = fileList || []
 
+		// Общий shared project-page код (ProjectSidebarLinks/Details/Creators и т.п.)
+		// написан под реальную форму Modrinth-проекта и местами читает поля без "?."
+		// (donation_urls.length, license.name, member.user.username) — раз CurseForge
+		// этого не даёт, обязательно подставляем безопасные заглушки, иначе страница
+		// падает с TypeError на первом же рендере и рендерится полностью пустой.
 		data.value = {
 			id: modData.id ? String(modData.id) : String(modId),
 			title: modData.name || 'Unknown Project',
 			name: modData.name || 'Unknown Project',
 			slug: modData.slug || String(modId),
 			summary: modData.summary || 'No description available',
+			description: modData.summary || 'No description available',
 			body: details.description || 'No description available',
 			icon_url: modData.logo?.thumbnailUrl || modData.logo?.url || null,
 			project_type: cfClassIdToProjectType(modData.classId),
@@ -448,13 +462,39 @@ async function fetchProjectData() {
 				avatar_url: 'https://www.curseforge.com/favicon.ico',
 			})),
 			downloads: Math.floor(modData.downloadCount || 0),
+			followers: 0,
 			date_modified: modData.dateModified || new Date().toISOString(),
 			loaders: fileListSafe.flatMap((f) => f.gameVersions || []),
 			versions: [],
+			// CurseForge не отдаёт эти поля вообще — ставим безопасные "нет данных"
+			// значения вместо undefined, чтобы ProjectSidebarLinks/Details не падали.
+			issues_url: null,
+			source_url: modData.links?.sourceUrl || null,
+			wiki_url: null,
+			discord_url: null,
+			site_url: modData.links?.websiteUrl || null,
+			donation_urls: [],
+			license: {
+				id: 'LicenseRef-Unknown',
+				name: 'Unknown',
+				url: null,
+			},
 		}
 
 		files.value = fileListSafe
-		members.value = data.value.authors
+		// Форма под TeamMember (ProjectSidebarCreators ожидает member.user.username
+		// и т.п.) — плоский {username, name, avatar_url} тут не подходит.
+		members.value = authorsData.map((a, idx) => ({
+			id: a.id != null ? String(a.id) : String(idx),
+			role: 'Member',
+			is_owner: idx === 0,
+			accepted: true,
+			user: {
+				id: a.id != null ? String(a.id) : String(idx),
+				username: a.name || 'Unknown',
+				avatar_url: 'https://www.curseforge.com/favicon.ico',
+			},
+		}))
 		projectBreadcrumbLabel.value = data.value.title
 
 		if (route.query.i) {
@@ -564,14 +604,10 @@ async function install(version) {
 			if (!target) {
 				throw new Error('No CurseForge files available for this modpack')
 			}
-			const profilePath = await cf_install_modpack(
-				modId,
-				target.file.id,
-				target.gameVersion,
-				target.loader,
-			)
-			if (profilePath) {
-				router.push(`/instance/${profilePath}`)
+			const job = await cf_install_modpack(modId, target.file.id, target.gameVersion, target.loader)
+			const instanceId = installJobInstanceId(job)
+			if (instanceId) {
+				router.push(`/instance/${instanceId}`)
 			}
 		} catch (err) {
 			handleError(err)
@@ -582,7 +618,9 @@ async function install(version) {
 	}
 
 	if (!instance.value) {
-		router.push(`/browse?select=${data.value.id}`)
+		if (rawCfMod.value) {
+			await cfContentInstall.install(rawCfMod.value, files.value)
+		}
 		return
 	}
 
@@ -597,12 +635,18 @@ async function install(version) {
 			await cf_remove_mod(instance.value.path, Number(data.value.id))
 		}
 
+		const worldFolder =
+			data.value?.project_type === 'datapack'
+				? await resolveWorldFolder(instance.value.id)
+				: undefined
+
 		await cf_install_mod(
 			instance.value.path,
 			Number(data.value.id),
 			fileToInstall.id,
 			instance.value.game_version,
 			instance.value.loader,
+			worldFolder,
 		)
 
 		installed.value = true

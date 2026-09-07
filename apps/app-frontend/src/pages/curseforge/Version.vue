@@ -43,7 +43,13 @@
 			<div class="description-cards">
 				<Card>
 					<h3 class="card-title">Changelog</h3>
-					<div class="markdown-body" v-html="version.changelog || 'No changelog provided'" />
+					<!-- MODLEX: chейнджлог приходит от CurseForge как сырой HTML — обязательно
+					через renderString() (markdown + XSS-санитайзер), как и весь остальной
+					удалённый контент в проекте, а не голым v-html. -->
+					<div
+						class="markdown-body"
+						v-html="renderString(version.changelog || 'No changelog provided')"
+					/>
 				</Card>
 				<Card>
 					<h3 class="card-title">Files</h3>
@@ -147,6 +153,7 @@ import {
 	useFormatBytes,
 	useFormatDateTime,
 } from '@modrinth/ui'
+import { renderString } from '@modrinth/utils'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 

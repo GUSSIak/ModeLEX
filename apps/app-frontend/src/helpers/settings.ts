@@ -70,6 +70,10 @@ export type AppSettings = {
 	pending_update_toast_for_version: string | null
 	auto_download_updates: boolean | null
 
+	// ===== MODLEX: собственные поля настроек (музыка, бета-канал, Discord RPC,
+	// ИИ-агент) — единственный источник конфликтов при апстрим-мерже этого
+	// типа: новое upstream-поле в Settings просто встанет рядом, а не заменит
+	// что-то из этого блока. =====
 	modlex_vk_token?: string | null
 	modlex_vk_user_id?: number | null
 	modlex_soundcloud_enabled: boolean
@@ -83,6 +87,18 @@ export type AppSettings = {
 
 	modlex_discord_message?: string | null
 	modlex_discord_idle_message?: string | null
+
+	modlex_ai_api_key?: string | null
+	modlex_ai_model: string
+	/** "auto" (обычная цепочка фолбэков) | "groq" | "zai" | "cloudflare" —
+	 * форсирует конкретного провайдера в обход остальных, для теста/отладки. */
+	modlex_ai_provider: string
+	/** "Не спрашивать" — Confirm-tier действия (установка/удаление модов и
+	 * т.п.) выполняются сразу, без карточки подтверждения. */
+	modlex_ai_auto_confirm: boolean
+	/** Лимит автоматических шагов агента за один ход. 0 = дефолт бэкенда. */
+	modlex_ai_max_hops: number
+	// ===== END MODLEX =====
 
 	version: number
 }

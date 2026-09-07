@@ -22,6 +22,7 @@ pub mod users;
 pub mod utils;
 //modlex
 pub mod curseforge;
+pub mod modlex_ai;
 //modlex
 
 //#[cfg(target_os = "macos")]

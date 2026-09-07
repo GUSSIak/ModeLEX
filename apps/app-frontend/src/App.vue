@@ -83,6 +83,7 @@ import InstallToPlayModal from '@/components/ui/modal/InstallToPlayModal.vue'
 import ModpackAlreadyInstalledModal from '@/components/ui/modal/ModpackAlreadyInstalledModal.vue'
 import ModrinthAccountRequiredModal from '@/components/ui/modal/ModrinthAccountRequiredModal.vue'
 import UpdateToPlayModal from '@/components/ui/modal/UpdateToPlayModal.vue'
+import ModlexAiAgent from '@/components/ui/ModlexAiAgent.vue'
 import NavButton from '@/components/ui/NavButton.vue'
 import NewIconEditorNotification from '@/components/ui/new-icon-editor-notification/index.vue'
 import { shouldShowNewIconEditorNotification } from '@/components/ui/new-icon-editor-notification/show-notification'
@@ -115,6 +116,7 @@ import { startPing, stopPing } from '@/helpers/modlex-ping'
 // ===== ModLEX IMPORTS =====
 import {
 	modlexFloatingGlassEffect,
+	modlexHideAiAgent,
 	modlexHideFriends,
 	modlexHideMusicTab,
 	modlexHideRightSidebar,
@@ -151,6 +153,7 @@ import {
 	setAppUpdateActions,
 } from '@/providers/app-update.ts'
 import { createBreadcrumbManager, provideBreadcrumbManager } from '@/providers/breadcrumbs'
+import { createCfContentInstall, provideCfContentInstall } from '@/providers/cf-content-install'
 import { createContentInstall, provideContentInstall } from '@/providers/content-install'
 import {
 	provideAppUpdateDownloadProgress,
@@ -223,6 +226,12 @@ const sidebarAutoHideHovered = ref(false)
 const sidebarPeekMode = computed(() => modlexHideRightSidebar.value && forceSidebar.value)
 const sidebarFullyHideMode = computed(() => modlexHideRightSidebar.value && !forceSidebar.value)
 const sidebarRevealed = computed(() => !sidebarPeekMode.value || sidebarAutoHideHovered.value)
+// Реально резервирует ли панель место в раскладке (грид-колонка --right-bar-width) —
+// то же условие, что у класса .sidebar-enabled ниже. При modlexHideRightSidebar
+// панель либо полностью уезжает за край, либо "подглядывает" position:fixed
+// узкой полоской — в обоих случаях реального места она не занимает, так что
+// уведомления не должны сдвигаться на фантомные 300px (--right-bar-width).
+const sidebarReservesSpace = computed(() => sidebarVisible.value && !modlexHideRightSidebar.value)
 const hostingRouteActive = computed(() => route.path.startsWith('/hosting'))
 const hostingUpdateRequired = computed(
 	() =>
@@ -1044,6 +1053,25 @@ const {
 	handleIncompatibilityWarningCancel: handleContentInstallIncompatibilityWarningCancel,
 } = contentInstall
 
+// MODLEX: CF-аналог того же паттерна — своя модалка выбора/создания
+// инстанции для CurseForge-модов (см. providers/cf-content-install.ts про
+// причину, почему это не может быть просто веткой в contentInstall выше).
+const cfContentInstall = createCfContentInstall({ router, handleError })
+provideCfContentInstall(cfContentInstall)
+const {
+	instances: cfContentInstallInstances,
+	compatibleLoaders: cfContentInstallLoaders,
+	gameVersions: cfContentInstallGameVersions,
+	loading: cfContentInstallLoading,
+	defaultTab: cfContentInstallDefaultTab,
+	projectInfo: cfContentInstallProjectInfo,
+	handleInstallToInstance: handleCfInstallToInstance,
+	handleCreateAndInstall: handleCfCreateAndInstall,
+	handleNavigate: handleCfContentInstallNavigate,
+	handleCancel: handleCfContentInstallCancel,
+	setModal: setCfContentInstallModal,
+} = cfContentInstall
+
 async function prepareCreationProjectInstall(projectId, projectType) {
 	if (projectType === 'modpack') {
 		await contentInstall.install(
@@ -1088,6 +1116,7 @@ const {
 } = serverInstall
 
 const modInstallModal = ref()
+const cfModInstallModal = ref()
 const modpackAlreadyInstalledModal = ref()
 const contentInstallModpackAlreadyInstalledModal = ref()
 const addServerToInstanceModal = ref()
@@ -1302,6 +1331,7 @@ onMounted(() => {
 
 	setContentIncompatibilityWarningModal(incompatibilityWarningModal.value)
 	setContentInstallModal(modInstallModal.value)
+	setCfContentInstallModal(cfModInstallModal.value)
 	setContentInstallModpackAlreadyInstalledModal(contentInstallModpackAlreadyInstalledModal.value)
 	setModpackAlreadyInstalledModal(modpackAlreadyInstalledModal.value)
 	setServerAddServerToInstanceModal(addServerToInstanceModal.value)
@@ -2278,9 +2308,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		</div>
 		<FloatingAccountWidget v-if="sidebarFullyHideMode" />
 	</div>
+	<ModlexAiAgent v-if="!modlexHideAiAgent" />
 	<I18nDebugPanel />
-	<NotificationPanel :has-sidebar="sidebarVisible" />
-	<PopupNotificationPanel :has-sidebar="sidebarVisible" />
+	<NotificationPanel :has-sidebar="sidebarReservesSpace" />
+	<PopupNotificationPanel :has-sidebar="sidebarReservesSpace" />
 	<ErrorModal ref="errorModal" />
 	<MinecraftAuthErrorModal ref="minecraftAuthErrorModal" />
 	<MinecraftRequiredModal ref="minecraftRequiredModal" />
@@ -2301,6 +2332,19 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		@create-and-install="handleCreateAndInstall"
 		@navigate="handleContentInstallNavigate"
 		@cancel="handleContentInstallCancel"
+	/>
+	<ContentInstallModal
+		ref="cfModInstallModal"
+		:instances="cfContentInstallInstances"
+		:compatible-loaders="cfContentInstallLoaders"
+		:game-versions="cfContentInstallGameVersions"
+		:loading="cfContentInstallLoading"
+		:default-tab="cfContentInstallDefaultTab"
+		:project-info="cfContentInstallProjectInfo"
+		@install="handleCfInstallToInstance"
+		@create-and-install="handleCfCreateAndInstall"
+		@navigate="handleCfContentInstallNavigate"
+		@cancel="handleCfContentInstallCancel"
 	/>
 	<ModpackAlreadyInstalledModal
 		ref="modpackAlreadyInstalledModal"

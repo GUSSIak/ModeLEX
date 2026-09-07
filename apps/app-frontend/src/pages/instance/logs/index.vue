@@ -1,11 +1,20 @@
 <template>
 	<div class="flex flex-col gap-4 h-full">
+		<!-- MODLEX: CollapsibleAdmonition (крашкарта выше, из ConsolePageLayout)
+		     — общий с веб-версией компонент без слота под кастомную кнопку,
+		     поэтому кнопка "Спросить ИИ" рендерится тут отдельно, а не внутри
+		     него. -->
+		<Button v-if="crashAnalysis" color="brand" class="modlex-ask-ai-crash" @click="askAiAboutCrash">
+			<BotIcon /> Спросить ИИ об этом краше
+		</Button>
 		<ConsolePageLayout />
 	</div>
 </template>
 
 <script setup>
+import { BotIcon } from '@modrinth/assets'
 import {
+	Button,
 	ConsolePageLayout,
 	injectModrinthClient,
 	injectNotificationManager,
@@ -15,6 +24,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { computed, ref, shallowRef, triggerRef, watch, watchEffect } from 'vue'
 
 import { useAppEvent } from '@/composables/use-app-event'
+import { requestAiAgentHelp } from '@/composables/use-ai-agent-bridge'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { delete_logs_by_filename, get_output_by_filename } from '@/helpers/logs.js'
 import {
@@ -120,6 +130,12 @@ watchEffect(() => {
 })
 
 const crashAnalysis = ref(null)
+
+function askAiAboutCrash() {
+	const problems = crashAnalysis.value?.analysis?.problems ?? []
+	const summary = problems.map((p) => `- ${p.message}`).join('\n')
+	requestAiAgentHelp(`У меня краш в этой инстанции. Обнаруженные проблемы:\n${summary}\n\nПомоги разобраться.`)
+}
 
 async function analyseForCrash() {
 	const lines = liveConsole.output.value

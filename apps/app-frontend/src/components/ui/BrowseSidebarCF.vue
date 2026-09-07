@@ -10,7 +10,7 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { cf_get_categories, type CfCategory } from '@/helpers/curseforge'
+import { cf_get_categories, type CfCategory,cfClassIdToProjectType } from '@/helpers/curseforge'
 import { get_game_versions, get_loaders } from '@/helpers/tags'
 
 const route = useRoute()
@@ -21,6 +21,8 @@ const props = defineProps<{
 	classId: number
 	instance?: { game_version: string; loader: string } | null
 }>()
+
+const projectType = computed(() => cfClassIdToProjectType(props.classId))
 
 const emit = defineEmits<{
 	categorySelect: [categoryId: number | null]
@@ -212,6 +214,7 @@ const filterOptions = computed(() => filterTypes.value.filter((f) => f.options.l
 					v-model:overridden-provided-filter-types="overriddenProvidedFilterTypes"
 					:provided-filters="providedFilters"
 					:filter-type="filterType"
+					:project-type="projectType"
 					:class="filterClass"
 					:button-class="buttonClass"
 					:content-class="contentClass"

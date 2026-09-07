@@ -2,6 +2,8 @@
 import type { ContentItem } from '@modrinth/ui'
 import { invoke } from '@tauri-apps/api/core'
 
+import type { InstallJobSnapshot } from '@/helpers/install'
+
 export interface CfLogo {
 	url: string
 	thumbnailUrl?: string
@@ -78,13 +80,10 @@ export interface CfScreenshot {
 	title: string
 }
 
-export interface CfModDetails extends CfMod {
-	screenshots: CfScreenshot[]
+export interface CfModDetails {
+	modData: CfMod
 	description: string
-	links: {
-		websiteUrl?: string
-		sourceUrl?: string
-	}
+	screenshots: CfScreenshot[]
 }
 
 export interface CfInstallResult {
@@ -142,6 +141,9 @@ export async function cf_install_mod(
 	fileId: number | null,
 	gameVersion: string,
 	loader: string,
+	/** Required for datapacks (classId 6945) — see cf-content-install.ts,
+	 * which resolves this via the instance's worlds before calling in. */
+	worldFolder?: string,
 ): Promise<number[]> {
 	return await invoke(`${CF_API_BASE}|cf_install_mod`, {
 		profilePath,
@@ -149,6 +151,7 @@ export async function cf_install_mod(
 		fileId,
 		gameVersion,
 		loader,
+		worldFolder,
 	})
 }
 
@@ -165,7 +168,7 @@ export async function cf_install_modpack(
 	fileId: number | null,
 	gameVersion: string,
 	loader: string,
-): Promise<string> {
+): Promise<InstallJobSnapshot> {
 	return await invoke(`${CF_API_BASE}|cf_install_modpack`, {
 		modId,
 		fileId,

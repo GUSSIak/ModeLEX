@@ -3,6 +3,7 @@ import {
 	ArrowLeftRightIcon,
 	DownloadIcon,
 	LockIcon,
+	ModrinthIcon,
 	MoreVerticalIcon,
 	SpinnerIcon,
 	TrashExclamationIcon,
@@ -226,6 +227,13 @@ const installTooltip = computed(() => {
 							<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
 								<path d="M8 6h10l-3 7h5L9 28l3-11H7L8 6z" fill="#F16436" />
 							</svg>
+						</span>
+						<span
+							v-else-if="platform === 'modrinth'"
+							v-tooltip="'Modrinth'"
+							class="inline-flex size-4 shrink-0 items-center justify-center text-brand"
+						>
+							<ModrinthIcon class="size-4" />
 						</span>
 						<slot name="title-badges" />
 						<span

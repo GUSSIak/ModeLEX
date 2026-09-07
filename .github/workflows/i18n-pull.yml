@@ -16,7 +16,11 @@ jobs:
   pull_translations:
     name: 'Pull translations from Crowdin'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # MODLEX: этот форк не владеет upstream-проектом Crowdin (нет своих
+    # CROWDIN_PROJECT_ID/CROWDIN_PERSONAL_TOKEN) — джоба всегда падала на
+    # preflight-проверке. Тихо пропускаем на форке вместо падения; если
+    # когда-нибудь мёржится обратно в апстрим, снова заработает как есть.
+    if: github.ref == 'refs/heads/main' && github.repository_owner == 'modrinth'
     concurrency:
       group: i18n-pull:${{ github.ref }}
       cancel-in-progress: true

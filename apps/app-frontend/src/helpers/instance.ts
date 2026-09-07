@@ -393,6 +393,8 @@ export async function runAsAccount(
 	serverAddress: string | null = null,
 	memoryMb?: number,
 	extraLaunchArgs?: string[],
+	gameResolution?: [number, number],
+	forceFullscreen?: boolean,
 ): Promise<unknown> {
 	return await invoke('plugin:instance|instance_run_as_account', {
 		instanceId,
@@ -400,6 +402,8 @@ export async function runAsAccount(
 		serverAddress,
 		memoryMb,
 		extraLaunchArgs,
+		gameResolution,
+		forceFullscreen,
 	})
 }
 

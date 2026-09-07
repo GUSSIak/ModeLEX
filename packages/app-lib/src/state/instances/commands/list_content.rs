@@ -947,36 +947,37 @@ async fn content_files_to_content_items(
 
     // MODLEX: обогащаем CF-моды данными из сайдкара
     // CF всегда побеждает — даже если мод есть на Modrinth, но скачан с CF
+    // Метку "modrinth" ставим независимо от того, есть ли вообще CF-моды в
+    // инстансе — иначе бейдж платформы никогда не появится в чисто-Modrinth
+    // инстансах.
     let cf_sidecar = crate::api::curseforge::read_sidecar(&instance.path).await;
-    if !cf_sidecar.0.is_empty() {
-        for item in &mut items {
-            if let Some(cf_meta) = cf_sidecar.0.get(&item.id) {
-                item.platform = Some("curseforge".to_string());
-                item.cf_mod_id = Some(cf_meta.mod_id);
-                // CF всегда перезаписывает project — игнорируем совпадение с Modrinth
-                item.project = Some(ContentItemProject {
-                    id: cf_meta.mod_id.to_string(),
-                    slug: None,
-                    title: cf_meta.title.clone(),
-                    icon_url: cf_meta.icon_url.clone(),
-                    // CurseForge sidecar doesn't carry license/category data
-                    license: crate::state::License {
-                        id: "unknown".to_string(),
-                        name: "Unknown".to_string(),
-                        url: None,
-                    },
-                    categories: Vec::new(),
-                    additional_categories: Vec::new(),
-                });
-                item.version = Some(ContentItemVersion {
-                    id: cf_meta.file_id.to_string(),
-                    version_number: cf_meta.version.clone(),
-                    file_name: cf_meta.file_name.clone(),
-                    date_published: None,
-                });
-            } else if item.project.is_some() {
-                item.platform = Some("modrinth".to_string());
-            }
+    for item in &mut items {
+        if let Some(cf_meta) = cf_sidecar.0.get(&item.id) {
+            item.platform = Some("curseforge".to_string());
+            item.cf_mod_id = Some(cf_meta.mod_id);
+            // CF всегда перезаписывает project — игнорируем совпадение с Modrinth
+            item.project = Some(ContentItemProject {
+                id: cf_meta.mod_id.to_string(),
+                slug: None,
+                title: cf_meta.title.clone(),
+                icon_url: cf_meta.icon_url.clone(),
+                // CurseForge sidecar doesn't carry license/category data
+                license: crate::state::License {
+                    id: "unknown".to_string(),
+                    name: "Unknown".to_string(),
+                    url: None,
+                },
+                categories: Vec::new(),
+                additional_categories: Vec::new(),
+            });
+            item.version = Some(ContentItemVersion {
+                id: cf_meta.file_id.to_string(),
+                version_number: cf_meta.version.clone(),
+                file_name: cf_meta.file_name.clone(),
+                date_published: None,
+            });
+        } else if item.project.is_some() {
+            item.platform = Some("modrinth".to_string());
         }
     }
 
