@@ -13,6 +13,7 @@ import _FourOhFourNotFound from './branding/404.svg?component'
 import _BrowserWindowSuccessIllustration from './branding/illustrations/browser-window-success.svg?component'
 import _InviteBackgroundIllustration from './branding/illustrations/invite-bg.webp?url'
 import _ModrinthIcon from './branding/logo.svg?component'
+import _ModrinthPlatformIcon from './branding/modrinth-platform-logo.svg?component'
 import _ModrinthPlusIcon from './branding/modrinth-plus.svg?component'
 import _AngryRinthbot from './branding/rinthbot/angry.webp'
 import _AnnoyedRinthbot from './branding/rinthbot/annoyed.webp'
@@ -84,6 +85,11 @@ import _NoSearchResultIllustration from './illustrations/no-search-result.svg?co
 import _NoTasksIllustration from './illustrations/no-tasks.svg?component'
 
 export const ModrinthIcon = _ModrinthIcon
+// Реальный логотип площадки Modrinth (отдельно от ModrinthIcon/logo.svg, который
+// теперь — собственная иконка ModLEX). Используется там, где имеется в виду именно
+// платформа Modrinth (бейдж источника проекта, "команда Modrinth" и т.п.), а не
+// сам лаунчер.
+export const ModrinthPlatformIcon = _ModrinthPlatformIcon
 export const BrowserWindowSuccessIllustration = _BrowserWindowSuccessIllustration
 export const InviteBackgroundIllustration = _InviteBackgroundIllustration
 export const FourOhFourNotFound = _FourOhFourNotFound

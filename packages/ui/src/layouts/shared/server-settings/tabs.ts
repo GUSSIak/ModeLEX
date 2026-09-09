@@ -2,7 +2,7 @@ import type { Archon } from '@modrinth/api-client'
 import {
 	CardIcon,
 	ListIcon,
-	ModrinthIcon,
+	ModrinthPlatformIcon,
 	SettingsIcon,
 	TextQuoteIcon,
 	VersionIcon,
@@ -74,7 +74,7 @@ export const serverSettingsTabDefinitions: ServerSettingsTabDefinition[] = [
 	{
 		id: 'admin-billing',
 		label: 'Admin Billing',
-		icon: ModrinthIcon,
+		icon: ModrinthPlatformIcon,
 		href: ({ ownerId }) => `/admin/billing/${ownerId}`,
 		external: true,
 		shown: ({ isAdmin }) => isAdmin,

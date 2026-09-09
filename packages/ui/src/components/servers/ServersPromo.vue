@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ModrinthIcon, RightArrowIcon, XIcon } from '@modrinth/assets'
+import { ModrinthPlatformIcon, RightArrowIcon, XIcon } from '@modrinth/assets'
 
 import { ButtonLink, IconButton } from '#ui/components/base/buttons'
 
@@ -21,7 +21,7 @@ withDefaults(
 	<div
 		class="brand-gradient-bg card-shadow bg-bg relative p-4 border-[1px] border-solid border-brand rounded-2xl grid grid-cols-[1fr_auto] overflow-hidden"
 	>
-		<ModrinthIcon
+		<ModrinthPlatformIcon
 			class="absolute -top-12 -right-12 size-48 text-brand-highlight opacity-25"
 			fill="none"
 			stroke="var(--color-brand)"

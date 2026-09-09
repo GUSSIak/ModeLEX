@@ -3,7 +3,7 @@ import {
 	ArrowLeftRightIcon,
 	DownloadIcon,
 	LockIcon,
-	ModrinthIcon,
+	ModrinthPlatformIcon,
 	MoreVerticalIcon,
 	SpinnerIcon,
 	TrashExclamationIcon,
@@ -233,7 +233,7 @@ const installTooltip = computed(() => {
 							v-tooltip="'Modrinth'"
 							class="inline-flex size-4 shrink-0 items-center justify-center text-brand"
 						>
-							<ModrinthIcon class="size-4" />
+							<ModrinthPlatformIcon class="size-4" />
 						</span>
 						<slot name="title-badges" />
 						<span
