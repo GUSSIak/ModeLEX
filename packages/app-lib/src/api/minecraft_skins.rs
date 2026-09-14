@@ -518,13 +518,29 @@ pub async fn get_available_skins() -> crate::Result<Vec<Skin>> {
             skin.is_equipped = true;
             available_skins.push(skin);
         } else if let Some(current_skin) = current_skin {
+            // ModLEX: unlike every other branch in this function, this one used to hand
+            // back the raw remote texture URL untouched instead of a data: URL. Harmless
+            // for real Mojang accounts (textures.minecraft.net sends proper CORS headers),
+            // but Ely.by's texture host sends none at all — the frontend's crossOrigin
+            // image load (needed to draw the head thumbnail onto a canvas) fails there,
+            // and worse, it fails specifically in the packaged app (its tauri:// origin is
+            // stricter than a dev server's http://localhost). Route it through the same
+            // fetch-and-convert-to-data-url path every other skin source already uses.
+            let texture = resolve_texture_as_data_url(&current_skin.url)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|data_url| Url::parse(&data_url).ok())
+                .map(Arc::new)
+                .unwrap_or_else(|| Arc::clone(&current_skin.url));
+
             available_skins.push(Skin {
                 texture_key: current_skin_texture_key,
                 name: current_skin.name.as_deref().map(Arc::from),
                 section: None,
                 variant: current_skin_variant,
                 cape_id: current_cape_id,
-                texture: Arc::clone(&current_skin.url),
+                texture,
                 source: SkinSource::CustomExternal,
                 is_equipped: true,
             });

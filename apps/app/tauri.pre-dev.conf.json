@@ -1,0 +1,15 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "ModLEX App Pre-Dev",
+	"mainBinaryName": "ModLEX App Pre-Dev",
+	"identifier": "ModLEXAppPreDev",
+	"version": "0.0.1",
+	"bundle": {
+		"icon": [
+			"icons-pre-dev/128x128.png",
+			"icons-pre-dev/128x128@2x.png",
+			"icons-pre-dev/icon.icns",
+			"icons-pre-dev/icon.ico"
+		]
+	}
+}

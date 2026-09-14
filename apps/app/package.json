@@ -4,6 +4,8 @@
 		"tauri": "tauri",
 		"build": "tauri build",
 		"dev": "tauri dev --features export-app-events",
+		"build:pre-dev": "tauri build --config tauri.pre-dev.conf.json",
+		"dev:pre-dev": "tauri dev --features export-app-events --config tauri.pre-dev.conf.json",
 		"test": "cargo nextest run --all-targets --no-fail-fast",
 		"lint": "cargo fmt --check && cargo clippy --all-targets && cargo clippy --all-targets --features updater",
 		"lint:ancillary": "prettier --check .",

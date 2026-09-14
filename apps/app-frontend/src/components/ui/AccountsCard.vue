@@ -35,11 +35,7 @@
 				<Avatar
 					size="36px"
 					disable-conditional-icon-padding
-					:src="
-						selectedAccount
-							? avatarUrl
-							: 'https://launcher-files.modrinth.com/assets/steve_head.png'
-					"
+					:src="selectedAccount ? avatarUrl : steveSkinAsset"
 				/>
 				<div class="flex flex-col items-start w-full min-w-0">
 					<span class="flex items-center gap-1 w-full min-w-0">
@@ -221,6 +217,13 @@ import {
 import type { Ref } from 'vue'
 import { computed, onUnmounted, ref } from 'vue'
 
+// ModLEX: было ссылкой на launcher-files.modrinth.com — этот хост не шлёт CORS
+// вообще, из-за чего crossOrigin-загрузка (нужна для рендера головы в canvas)
+// надёжно падала именно в билде (более строгий tauri://-origin, чем
+// http://localhost у dev-сервера). Локальный ассет — тот же файл, что уже
+// используется в редакторе скина, — вообще не подвержен CORS.
+import steveSkinAsset from '@/assets/skins/steve.png'
+
 import { useAppEvent } from '@/composables/use-app-event'
 import { handleSevereError } from '@/composables/use-error.js'
 import { trackEvent } from '@/helpers/analytics'
@@ -398,7 +401,7 @@ function accountKindLabel(kind: MinecraftCredential['kind'] | undefined) {
 	}
 }
 
-const STEVE_HEAD_URL = 'https://launcher-files.modrinth.com/assets/steve_head.png'
+const STEVE_HEAD_URL = steveSkinAsset
 
 const avatarUrl = computed(() => {
 	if (equippedSkin.value?.texture_key) {

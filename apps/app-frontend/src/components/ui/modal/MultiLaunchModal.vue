@@ -211,6 +211,10 @@ import {
 } from '@modrinth/ui'
 import { computed, reactive, ref, watch } from 'vue'
 
+// ModLEX: см. такой же комментарий в AccountsCard.vue — launcher-files.modrinth.com
+// не шлёт CORS-заголовки, локальный ассет от этого не зависит вообще.
+import steveSkinAsset from '@/assets/skins/steve.png'
+
 export interface MultiLaunchAccount {
 	id: string
 	name: string
@@ -353,7 +357,7 @@ const kindLabels = {
 	elyby: messages.kindElyby,
 } as const
 
-const STEVE_HEAD_URL = 'https://launcher-files.modrinth.com/assets/steve_head.png'
+const STEVE_HEAD_URL = steveSkinAsset
 
 function avatarUrl(account: MultiLaunchAccount) {
 	if (account.kind !== 'microsoft') return STEVE_HEAD_URL
