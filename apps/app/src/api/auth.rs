@@ -4,6 +4,7 @@ use chrono::{Duration, Utc};
 use tauri::plugin::TauriPlugin;
 use tauri::{Manager, Runtime, UserAttentionType};
 use tauri_plugin_opener::OpenerExt;
+use theseus::minecraft_skins;
 use theseus::prelude::*;
 use tokio::sync::oneshot;
 
@@ -157,7 +158,15 @@ pub async fn get_account_skin_texture_url(
         return Ok(None);
     };
 
-    Ok(profile.skins.first().map(|skin| skin.url.to_string()))
+    let Some(skin) = profile.skins.first() else {
+        return Ok(None);
+    };
+
+    // ModLEX: return an already-fetched data: URL, not the raw remote URL — some
+    // texture hosts (Ely.by's storage) send no CORS headers, which the packaged
+    // app's stricter tauri:// origin refuses to load cross-origin even though a
+    // `dev` build's http://localhost origin lets it slide. See resolve_texture_as_data_url.
+    Ok(minecraft_skins::resolve_texture_as_data_url(&skin.url).await?)
 }
 
 /// ModLEX: Forces a fresh online-profile fetch for a specific account, bypassing

@@ -1001,8 +1001,10 @@ function onToggleCurseForge(value: boolean) {
 	border-radius: 999px;
 	border: 1px solid rgba(255, 255, 255, 0.25);
 	background: rgba(59, 130, 246, 0.28);
+	/* ModLEX: сборка минифицирует соседние backdrop-filter/-webkit-backdrop-filter
+	   с одинаковым значением так, что стандартное свойство пропадает — не пишем
+	   -webkit-, WebView2 в нём не нуждается. */
 	backdrop-filter: blur(16px);
-	-webkit-backdrop-filter: blur(16px);
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 	color: #fff;
 	font-size: 0.875rem;

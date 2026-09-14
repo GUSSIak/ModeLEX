@@ -2509,8 +2509,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	/* --brand-gradient-bg — это linear-gradient(...), color-mix() с ним не
 	   работает, поэтому для стекла берём сплошной surface-цвет вместо него. */
 	background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+	/* ModLEX: сборка минифицирует соседние backdrop-filter/-webkit-backdrop-filter
+	   с одинаковым значением так, что стандартное свойство пропадает — не пишем
+	   -webkit-, WebView2 в нём не нуждается. */
 	backdrop-filter: blur(20px) saturate(160%);
-	-webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 /* ===== END MODLEX ===== */
 

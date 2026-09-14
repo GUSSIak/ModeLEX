@@ -50,7 +50,11 @@ import {
    изнутри (Tailwind-класс), поэтому переопределяем его снаружи через :deep. */
 .floating-account-widget--glass :deep(.bg-button-bg) {
 	background: color-mix(in srgb, var(--color-button-bg) 55%, transparent);
+	/* ModLEX: сборка (не dev) минифицирует "backdrop-filter: X; -webkit-backdrop-filter: X;"
+	   так, что стандартное свойство пропадает из готового CSS, остаётся только
+	   -webkit-. WebView2 (современный Chromium) уже давно поддерживает
+	   непрефиксованное свойство и вовсе не нуждается в -webkit- — просто не
+	   пишем его, чтобы минификатору не с чем было схлопывать. */
 	backdrop-filter: blur(16px) saturate(160%);
-	-webkit-backdrop-filter: blur(16px) saturate(160%);
 }
 </style>

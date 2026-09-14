@@ -1441,3 +1441,24 @@ async fn sync_cape(
 
     Ok(())
 }
+
+/// Fetches the texture at `url` and re-encodes it as a `data:image/png;base64,...`
+/// URL, so the frontend never has to load it cross-origin itself. Some third-party
+/// texture hosts (e.g. Ely.by's `ely.by/storage/skins/...`) send no CORS headers at
+/// all — a plain `<img crossorigin="anonymous">` load of those works from a `dev`
+/// server's `http://localhost` origin (WebView2 is lenient there) but reliably fails
+/// once the same page is served from the packaged app's `tauri://`/`https://tauri.localhost`
+/// origin, since that's treated as a stricter cross-origin context. A `data:` URL has
+/// no origin at all, so it sidesteps the whole problem regardless of the host's CORS
+/// support.
+pub async fn resolve_texture_as_data_url(url: &Url) -> crate::Result<Option<String>> {
+    let bytes = png_util::url_to_data_stream(url)
+        .await?
+        .try_fold(Vec::new(), |mut texture, chunk| async move {
+            texture.extend_from_slice(&chunk);
+            Ok(texture)
+        })
+        .await?;
+
+    Ok(png_util::blob_to_data_url(bytes).map(|url| url.to_string()))
+}
