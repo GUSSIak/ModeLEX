@@ -22,7 +22,7 @@ use std::sync::{Arc, LazyLock};
 use std::time::{self, Duration, Instant, SystemTime};
 use tokio::sync::Semaphore;
 use tokio::{fs::File, io::AsyncReadExt, io::AsyncWriteExt};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 pub const DOWNLOAD_META_HEADER: &str = "modrinth-download-meta";
 
@@ -330,12 +330,65 @@ fn duration_seconds_ceil(duration: Duration) -> u64 {
         .saturating_add(u64::from(duration.subsec_nanos() > 0))
 }
 
+/// Reads the system proxy configuration reqwest would otherwise trust blindly
+/// (`HTTPS_PROXY`/`ALL_PROXY`, checked in that order, matching what our traffic
+/// is: almost entirely HTTPS) and does a quick TCP probe of it.
+///
+/// A proxy env var can easily go stale — a VPN/proxy client rotating its local
+/// port, or a leftover value from a tool that no longer runs — leaving it
+/// pointing at nothing. reqwest has no way to notice this itself: it just
+/// fails every single request through that dead proxy, silently, for as long
+/// as the process runs. Since this can strand *any* outbound request the
+/// launcher makes (not just one feature), it's worth checking once up front
+/// rather than leaving each call site to guess why it's failing.
+fn configured_proxy_is_reachable() -> Option<bool> {
+    const PROXY_ENV_VARS: &[&str] =
+        &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
+
+    let proxy_url = PROXY_ENV_VARS.iter().find_map(|key| {
+        let value = std::env::var(key).ok()?;
+        if value.is_empty() {
+            return None;
+        }
+        url::Url::parse(&value).ok()
+    })?;
+
+    let Some(host) = proxy_url.host_str() else {
+        return Some(false);
+    };
+    let Some(port) = proxy_url.port_or_known_default() else {
+        return Some(false);
+    };
+
+    use std::net::{TcpStream, ToSocketAddrs};
+    let reachable = (host, port)
+        .to_socket_addrs()
+        .into_iter()
+        .flatten()
+        .any(|addr| {
+            TcpStream::connect_timeout(&addr, Duration::from_millis(500))
+                .is_ok()
+        });
+
+    Some(reachable)
+}
+
 fn reqwest_client_builder() -> reqwest::ClientBuilder {
-    reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .connect_timeout(time::Duration::from_secs(15))
         .read_timeout(time::Duration::from_secs(30))
         .tcp_keepalive(Some(time::Duration::from_secs(10)))
-        .user_agent(crate::launcher_user_agent())
+        .user_agent(crate::launcher_user_agent());
+
+    match configured_proxy_is_reachable() {
+        Some(false) => {
+            warn!(
+                "Configured system proxy is unreachable; bypassing it for launcher network requests"
+            );
+            builder.no_proxy()
+        }
+        _ => builder,
+    }
 }
 
 pub static INSECURE_REQWEST_CLIENT: LazyLock<reqwest::Client> =

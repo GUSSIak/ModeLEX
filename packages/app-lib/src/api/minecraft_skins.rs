@@ -521,18 +521,26 @@ pub async fn get_available_skins() -> crate::Result<Vec<Skin>> {
             // ModLEX: unlike every other branch in this function, this one used to hand
             // back the raw remote texture URL untouched instead of a data: URL. Harmless
             // for real Mojang accounts (textures.minecraft.net sends proper CORS headers),
-            // but Ely.by's texture host sends none at all — the frontend's crossOrigin
-            // image load (needed to draw the head thumbnail onto a canvas) fails there,
-            // and worse, it fails specifically in the packaged app (its tauri:// origin is
-            // stricter than a dev server's http://localhost). Route it through the same
-            // fetch-and-convert-to-data-url path every other skin source already uses.
-            let texture = resolve_texture_as_data_url(&current_skin.url)
-                .await
-                .ok()
-                .flatten()
-                .and_then(|data_url| Url::parse(&data_url).ok())
-                .map(Arc::new)
-                .unwrap_or_else(|| Arc::clone(&current_skin.url));
+            // but Ely.by's texture host sends none at all, so the frontend's crossOrigin
+            // image load (needed to draw the head thumbnail onto a canvas) fails there.
+            // Route it through the same fetch-and-convert-to-data-url path every other
+            // skin source already uses.
+            let texture = match resolve_texture_as_data_url(&current_skin.url).await {
+                Ok(Some(data_url)) => Url::parse(&data_url).ok(),
+                Ok(None) => None,
+                Err(error) => {
+                    // Falls back to the raw remote URL below, which will render fine for
+                    // Mojang accounts but fail (CORS) for Ely.by ones — log it so that
+                    // failure isn't silently indistinguishable from "everything's fine".
+                    tracing::warn!(
+                        ?error,
+                        "Failed to resolve active skin texture to a data: URL"
+                    );
+                    None
+                }
+            }
+            .map(Arc::new)
+            .unwrap_or_else(|| Arc::clone(&current_skin.url));
 
             available_skins.push(Skin {
                 texture_key: current_skin_texture_key,

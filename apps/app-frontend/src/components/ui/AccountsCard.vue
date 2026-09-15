@@ -35,7 +35,7 @@
 				<Avatar
 					size="36px"
 					disable-conditional-icon-padding
-					:src="selectedAccount ? avatarUrl : steveSkinAsset"
+					:src="selectedAccount ? avatarUrl : STEVE_HEAD_URL"
 				/>
 				<div class="flex flex-col items-start w-full min-w-0">
 					<span class="flex items-center gap-1 w-full min-w-0">
@@ -401,7 +401,28 @@ function accountKindLabel(kind: MinecraftCredential['kind'] | undefined) {
 	}
 }
 
-const STEVE_HEAD_URL = steveSkinAsset
+// ModLEX: steveSkinAsset is the full 64x64 skin sheet (body unwrap), not a
+// head crop — used directly as an <img src> it shows the whole texture
+// sheet instead of a face. Derive a real head icon from it once, through the
+// same head-cropping pipeline used for real skins, and fall back to the raw
+// sheet only for the instant before that resolves.
+const STEVE_HEAD_URL = ref<string>(steveSkinAsset)
+getPlayerHeadUrl({
+	texture_key: 'steve-fallback',
+	name: null,
+	section: null,
+	variant: 'CLASSIC',
+	cape_id: null,
+	texture: steveSkinAsset,
+	source: 'default',
+	is_equipped: false,
+} as Skin)
+	.then((url) => {
+		STEVE_HEAD_URL.value = url
+	})
+	.catch((error) => {
+		console.warn('Failed to render local Steve head fallback', error)
+	})
 
 const avatarUrl = computed(() => {
 	if (equippedSkin.value?.texture_key) {
@@ -420,7 +441,7 @@ const avatarUrl = computed(() => {
 			return cachedUrl
 		}
 	}
-	return STEVE_HEAD_URL
+	return STEVE_HEAD_URL.value
 })
 
 function getAccountAvatarUrl(account: MinecraftCredential) {
@@ -434,11 +455,11 @@ function getAccountAvatarUrl(account: MinecraftCredential) {
 		}
 	}
 	if (account.kind === 'elyby') {
-		return elybyHeadCache.value.get(account.profile.id) ?? STEVE_HEAD_URL
+		return elybyHeadCache.value.get(account.profile.id) ?? STEVE_HEAD_URL.value
 	}
 	// mc-heads.net is keyed by Mojang UUID, which offline accounts don't have
 	if (account.kind !== 'microsoft') {
-		return STEVE_HEAD_URL
+		return STEVE_HEAD_URL.value
 	}
 	return `https://mc-heads.net/avatar/${account.profile.id}/128`
 }

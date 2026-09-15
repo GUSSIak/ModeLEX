@@ -214,6 +214,8 @@ import { computed, reactive, ref, watch } from 'vue'
 // ModLEX: см. такой же комментарий в AccountsCard.vue — launcher-files.modrinth.com
 // не шлёт CORS-заголовки, локальный ассет от этого не зависит вообще.
 import steveSkinAsset from '@/assets/skins/steve.png'
+import { getPlayerHeadUrl } from '@/helpers/rendering/batch-skin-renderer.ts'
+import type { Skin } from '@/helpers/skins'
 
 export interface MultiLaunchAccount {
 	id: string
@@ -357,10 +359,28 @@ const kindLabels = {
 	elyby: messages.kindElyby,
 } as const
 
-const STEVE_HEAD_URL = steveSkinAsset
+// ModLEX: steveSkinAsset is the full skin sheet, not a head crop — see the
+// same fix + comment in AccountsCard.vue.
+const STEVE_HEAD_URL = ref<string>(steveSkinAsset)
+getPlayerHeadUrl({
+	texture_key: 'steve-fallback',
+	name: null,
+	section: null,
+	variant: 'CLASSIC',
+	cape_id: null,
+	texture: steveSkinAsset,
+	source: 'default',
+	is_equipped: false,
+} as Skin)
+	.then((url) => {
+		STEVE_HEAD_URL.value = url
+	})
+	.catch((error) => {
+		console.warn('Failed to render local Steve head fallback', error)
+	})
 
 function avatarUrl(account: MultiLaunchAccount) {
-	if (account.kind !== 'microsoft') return STEVE_HEAD_URL
+	if (account.kind !== 'microsoft') return STEVE_HEAD_URL.value
 	return `https://mc-heads.net/avatar/${account.id}/128`
 }
 
