@@ -350,7 +350,15 @@ fn configured_proxy_is_reachable() -> Option<bool> {
         if value.is_empty() {
             return None;
         }
-        url::Url::parse(&value).ok()
+        // Proxy env vars are conventionally full URLs (`http://host:port`), but
+        // plenty of tools (this machine's own persisted `HTTPS_PROXY` included)
+        // set a bare `host:port` with no scheme. `url::Url::parse` rejects that
+        // outright — but `reqwest`'s own proxy resolution is more forgiving and
+        // accepts it anyway, so a strict parse here would make this reachability
+        // check silently no-op on exactly the values most likely to be stale.
+        url::Url::parse(&value)
+            .or_else(|_| url::Url::parse(&format!("http://{value}")))
+            .ok()
     })?;
 
     let Some(host) = proxy_url.host_str() else {
@@ -387,7 +395,16 @@ fn reqwest_client_builder() -> reqwest::ClientBuilder {
             );
             builder.no_proxy()
         }
-        _ => builder,
+        Some(true) => {
+            debug!(
+                "Configured system proxy is reachable; trusting it for launcher network requests"
+            );
+            builder
+        }
+        None => {
+            debug!("No system proxy configured; using direct connections");
+            builder
+        }
     }
 }
 
