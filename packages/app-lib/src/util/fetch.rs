@@ -345,7 +345,7 @@ fn configured_proxy_is_reachable() -> Option<bool> {
     const PROXY_ENV_VARS: &[&str] =
         &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
 
-    let proxy_url = PROXY_ENV_VARS.iter().find_map(|key| {
+    let found = PROXY_ENV_VARS.iter().find_map(|key| {
         let value = std::env::var(key).ok()?;
         if value.is_empty() {
             return None;
@@ -356,15 +356,23 @@ fn configured_proxy_is_reachable() -> Option<bool> {
         // outright — but `reqwest`'s own proxy resolution is more forgiving and
         // accepts it anyway, so a strict parse here would make this reachability
         // check silently no-op on exactly the values most likely to be stale.
-        url::Url::parse(&value)
+        let url = url::Url::parse(&value)
             .or_else(|_| url::Url::parse(&format!("http://{value}")))
-            .ok()
-    })?;
+            .ok()?;
+        Some((*key, value, url))
+    });
+
+    let Some((key, raw_value, proxy_url)) = found else {
+        info!("No system proxy env var found; using direct connections");
+        return None;
+    };
 
     let Some(host) = proxy_url.host_str() else {
+        info!(key, raw_value, "System proxy env var has no host; treating as unreachable");
         return Some(false);
     };
     let Some(port) = proxy_url.port_or_known_default() else {
+        info!(key, raw_value, host, "System proxy env var has no resolvable port; treating as unreachable");
         return Some(false);
     };
 
@@ -377,6 +385,8 @@ fn configured_proxy_is_reachable() -> Option<bool> {
             TcpStream::connect_timeout(&addr, Duration::from_millis(500))
                 .is_ok()
         });
+
+    info!(key, raw_value, host, port, reachable, "System proxy reachability check");
 
     Some(reachable)
 }

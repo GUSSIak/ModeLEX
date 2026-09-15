@@ -527,7 +527,7 @@ impl Credentials {
             }
             Err(err) => {
                 tracing::warn!(
-                    "Failed to fetch online profile for UUID {}: {err}",
+                    "Failed to fetch online profile for UUID {}: {err:?}",
                     self.offline_profile.id
                 );
 
