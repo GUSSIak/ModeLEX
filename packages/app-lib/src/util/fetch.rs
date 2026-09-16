@@ -330,65 +330,95 @@ fn duration_seconds_ceil(duration: Duration) -> u64 {
         .saturating_add(u64::from(duration.subsec_nanos() > 0))
 }
 
-/// Reads the system proxy configuration reqwest would otherwise trust blindly
-/// (`HTTPS_PROXY`/`ALL_PROXY`, checked in that order, matching what our traffic
-/// is: almost entirely HTTPS) and does a quick TCP probe of it.
+/// Reads every proxy env var reqwest itself would consult (`HTTP_PROXY` for
+/// plain-http requests, `HTTPS_PROXY` for https ones, `ALL_PROXY` as a
+/// catch-all for both — each also checked lowercase) and does a quick TCP
+/// probe of each distinct one that's actually set.
 ///
-/// A proxy env var can easily go stale — a VPN/proxy client rotating its local
-/// port, or a leftover value from a tool that no longer runs — leaving it
-/// pointing at nothing. reqwest has no way to notice this itself: it just
-/// fails every single request through that dead proxy, silently, for as long
-/// as the process runs. Since this can strand *any* outbound request the
-/// launcher makes (not just one feature), it's worth checking once up front
-/// rather than leaving each call site to guess why it's failing.
+/// A proxy env var can easily go stale — a VPN/proxy client rotating its
+/// local port, or a leftover value from a tool that no longer runs — leaving
+/// it pointing at nothing. reqwest has no way to notice this itself: it just
+/// fails every request through that dead proxy, silently, for as long as the
+/// process runs. Since this can strand *any* outbound request the launcher
+/// makes (not just one feature, and not just one scheme — this app makes
+/// both plain-http and https requests), it's worth checking every relevant
+/// var once up front rather than leaving each call site to guess why it's
+/// failing.
+///
+/// Returns `true` only if every configured proxy is reachable (i.e. reqwest
+/// can be trusted to use them as normal); `false` if any of them is dead
+/// (the client should bypass proxying entirely); `None` if none are set.
 fn configured_proxy_is_reachable() -> Option<bool> {
-    const PROXY_ENV_VARS: &[&str] =
-        &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
+    const PROXY_ENV_VARS: &[&str] = &[
+        "HTTP_PROXY",
+        "http_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+    ];
 
-    let found = PROXY_ENV_VARS.iter().find_map(|key| {
-        let value = std::env::var(key).ok()?;
+    let mut checked: Vec<(&'static str, String)> = Vec::new();
+    let mut any_unreachable = false;
+
+    for key in PROXY_ENV_VARS {
+        let Ok(value) = std::env::var(key) else {
+            continue;
+        };
         if value.is_empty() {
-            return None;
+            continue;
         }
+
         // Proxy env vars are conventionally full URLs (`http://host:port`), but
-        // plenty of tools (this machine's own persisted `HTTPS_PROXY` included)
-        // set a bare `host:port` with no scheme. `url::Url::parse` rejects that
+        // plenty of tools (this machine's own persisted proxy vars included) set
+        // a bare `host:port` with no scheme. `url::Url::parse` rejects that
         // outright — but `reqwest`'s own proxy resolution is more forgiving and
         // accepts it anyway, so a strict parse here would make this reachability
         // check silently no-op on exactly the values most likely to be stale.
-        let url = url::Url::parse(&value)
+        let Some(proxy_url) = url::Url::parse(&value)
             .or_else(|_| url::Url::parse(&format!("http://{value}")))
-            .ok()?;
-        Some((*key, value, url))
-    });
+            .ok()
+        else {
+            continue;
+        };
 
-    let Some((key, raw_value, proxy_url)) = found else {
-        info!("No system proxy env var found; using direct connections");
+        let Some(host) = proxy_url.host_str() else {
+            continue;
+        };
+        let Some(port) = proxy_url.port_or_known_default() else {
+            continue;
+        };
+
+        // Multiple env vars (e.g. HTTP_PROXY and HTTPS_PROXY) often point at the
+        // exact same local proxy — no need to probe the same address twice.
+        if checked.iter().any(|(_, addr)| *addr == format!("{host}:{port}")) {
+            continue;
+        }
+        checked.push((key, format!("{host}:{port}")));
+
+        use std::net::{TcpStream, ToSocketAddrs};
+        let reachable = (host, port)
+            .to_socket_addrs()
+            .into_iter()
+            .flatten()
+            .any(|addr| {
+                TcpStream::connect_timeout(&addr, Duration::from_millis(500))
+                    .is_ok()
+            });
+
+        info!(key, host, port, reachable, "System proxy reachability check");
+
+        if !reachable {
+            any_unreachable = true;
+        }
+    }
+
+    if checked.is_empty() {
+        info!("No system proxy env vars found; using direct connections");
         return None;
-    };
+    }
 
-    let Some(host) = proxy_url.host_str() else {
-        info!(key, raw_value, "System proxy env var has no host; treating as unreachable");
-        return Some(false);
-    };
-    let Some(port) = proxy_url.port_or_known_default() else {
-        info!(key, raw_value, host, "System proxy env var has no resolvable port; treating as unreachable");
-        return Some(false);
-    };
-
-    use std::net::{TcpStream, ToSocketAddrs};
-    let reachable = (host, port)
-        .to_socket_addrs()
-        .into_iter()
-        .flatten()
-        .any(|addr| {
-            TcpStream::connect_timeout(&addr, Duration::from_millis(500))
-                .is_ok()
-        });
-
-    info!(key, raw_value, host, port, reachable, "System proxy reachability check");
-
-    Some(reachable)
+    Some(!any_unreachable)
 }
 
 fn reqwest_client_builder() -> reqwest::ClientBuilder {
@@ -401,7 +431,7 @@ fn reqwest_client_builder() -> reqwest::ClientBuilder {
     match configured_proxy_is_reachable() {
         Some(false) => {
             warn!(
-                "Configured system proxy is unreachable; bypassing it for launcher network requests"
+                "At least one configured system proxy is unreachable; bypassing all proxying for launcher network requests"
             );
             builder.no_proxy()
         }
