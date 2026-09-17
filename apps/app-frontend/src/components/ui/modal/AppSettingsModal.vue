@@ -8,6 +8,7 @@ import {
 	ModrinthIcon,
 	PaintbrushIcon,
 	Settings2Icon,
+	ShieldAlertIcon,
 	ShieldIcon,
 	SparklesIcon,
 	ToggleRightIcon,
@@ -37,6 +38,7 @@ import LanguageSettings from '@/components/ui/settings/display/LanguageSettings.
 import DefaultInstanceSettings from '@/components/ui/settings/instances/DefaultInstanceSettings.vue'
 import JavaSettings from '@/components/ui/settings/instances/JavaSettings.vue'
 import ResourceManagementSettings from '@/components/ui/settings/instances/ResourceManagementSettings.vue'
+import ModLexAdvancedSettings from '@/components/ui/settings/ModLexAdvancedSettings.vue'
 import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { get, set } from '@/helpers/settings.ts'
@@ -163,6 +165,14 @@ const tabs = [
 		}),
 		icon: SparklesIcon,
 		content: ModLexSettings,
+	},
+	{
+		name: defineMessage({
+			id: 'app.settings.tabs.modlex-advanced',
+			defaultMessage: 'Для опытных',
+		}),
+		icon: ShieldAlertIcon,
+		content: ModLexAdvancedSettings,
 	},
 ]
 

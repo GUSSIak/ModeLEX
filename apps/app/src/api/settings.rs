@@ -9,7 +9,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             settings_get,
             settings_set,
             cancel_directory_change,
-            modlex_list_local_music_files
+            modlex_list_local_music_files,
+            modlex_can_write_hosts_file,
+            modlex_restore_hosts_file
         ])
         .build()
 }
@@ -44,5 +46,16 @@ pub async fn modlex_list_local_music_files(
     folder: &str,
 ) -> Result<Vec<LocalMusicFile>> {
     let res = theseus::modlex_music::list_local_music_files(folder).await?;
+    Ok(res)
+}
+
+#[tauri::command]
+pub async fn modlex_can_write_hosts_file() -> bool {
+    theseus::settings::modlex_can_write_hosts_file().await
+}
+
+#[tauri::command]
+pub async fn modlex_restore_hosts_file() -> Result<bool> {
+    let res = theseus::settings::modlex_restore_hosts_file().await?;
     Ok(res)
 }

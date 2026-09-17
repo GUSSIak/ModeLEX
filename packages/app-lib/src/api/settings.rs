@@ -22,6 +22,25 @@ pub async fn set(settings: Settings) -> crate::Result<()> {
     Ok(())
 }
 
+/// Whether this process currently has permission to edit the hosts file —
+/// used by the "for experienced users" settings tab to show accurate status
+/// for `modlex_experimental_offline_multiplayer_fix` before the user even
+/// tries to launch anything.
+#[tracing::instrument]
+pub async fn modlex_can_write_hosts_file() -> bool {
+    crate::launcher::offline_multiplayer_fix::can_write_hosts_file().await
+}
+
+/// Manually restores the hosts file from the one-time pristine backup taken
+/// the first time the offline-multiplayer fix ever ran, discarding whatever
+/// is currently there. Returns `false` if no backup exists yet (the fix has
+/// never actually run) rather than an error, since "nothing to restore" is
+/// an expected, harmless case for this button.
+#[tracing::instrument]
+pub async fn modlex_restore_hosts_file() -> crate::Result<bool> {
+    crate::launcher::offline_multiplayer_fix::restore_from_backup().await
+}
+
 #[tracing::instrument]
 pub async fn cancel_directory_change(
     app_identifier: &str,

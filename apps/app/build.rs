@@ -273,6 +273,9 @@ fn main() {
                         "settings_get",
                         "settings_set",
                         "cancel_directory_change",
+                        "modlex_list_local_music_files",
+                        "modlex_can_write_hosts_file",
+                        "modlex_restore_hosts_file",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,

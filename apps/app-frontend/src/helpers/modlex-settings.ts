@@ -36,6 +36,7 @@ const STORAGE_KEYS = {
 	doubleBorderOuter: 'modlex_double_border_outer_color',
 	textOutlineEnabled: 'modlex_text_outline_enabled',
 	textOutlineColor: 'modlex_text_outline_color',
+	experiencedModeUnlocked: 'modlex_experienced_mode_unlocked',
 } as const
 
 export type NewsSource = 'github' | 'modrinth' | 'off'
@@ -56,6 +57,15 @@ function readNumber(key: string, fallback: number): number {
 	const parsed = Number(raw)
 	return Number.isFinite(parsed) ? parsed : fallback
 }
+
+// ── Для опытных ────────────────────────────────────────────────────────────
+// Отдельный гейт от devMode: не про сокрытие незаконченных фич от тестеров,
+// а про осознанное согласие на потенциально рискованные настройки (сейчас —
+// автофикс офлайн/Ely.by-мультиплеера через hosts) — доступен всем через
+// двухшаговое подтверждение, не через секретную фразу.
+export const modlexExperiencedModeUnlocked = ref(
+	readBool(STORAGE_KEYS.experiencedModeUnlocked, false),
+)
 
 // ── Внешний вид ────────────────────────────────────────────────────────────
 export const modlexHideServers = ref(readBool(STORAGE_KEYS.hideServers, false))
@@ -443,6 +453,9 @@ function broadcast() {
 	)
 }
 
+watch(modlexExperiencedModeUnlocked, (v) => {
+	localStorage.setItem(STORAGE_KEYS.experiencedModeUnlocked, String(v))
+})
 watch(modlexHideServers, (v) => {
 	localStorage.setItem(STORAGE_KEYS.hideServers, String(v))
 	broadcast()

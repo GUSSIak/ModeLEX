@@ -46,6 +46,58 @@ mod imp {
         PathBuf::from(system_root).join("System32\\drivers\\etc\\hosts")
     }
 
+    /// Where a one-time pristine copy of the hosts file is kept, taken before
+    /// this feature ever touches it for the first time — a safety net for
+    /// "something went catastrophically wrong" independent of the normal
+    /// marker-based revert, and what the manual "Restore hosts file" button
+    /// in Settings restores from.
+    async fn backup_path() -> crate::Result<PathBuf> {
+        let state = crate::State::get().await?;
+        Ok(state.directories.settings_dir.join("modlex_hosts_backup.txt"))
+    }
+
+    async fn ensure_backup_exists() {
+        let Ok(path) = backup_path().await else {
+            return;
+        };
+        if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+            return;
+        }
+        let Ok(current) = tokio::fs::read_to_string(hosts_path()).await else {
+            return;
+        };
+        // Never back up a copy that already has our own block in it — this
+        // should be unreachable in practice (begin()/end() keep the file
+        // clean outside their own brief window) but a pristine backup is the
+        // whole point, so guard it explicitly rather than trust that.
+        let clean = strip_existing_block(&current);
+        if let Err(error) = tokio::fs::write(&path, clean).await {
+            tracing::warn!(
+                "Failed to save a pristine hosts file backup for the offline-multiplayer fix: {error}"
+            );
+        }
+    }
+
+    /// Manually restores the hosts file from the one-time pristine backup,
+    /// discarding whatever is currently there (including our own redirect
+    /// block, if somehow still present). For the "Restore hosts file" button
+    /// — a deliberate escape hatch independent of the normal begin()/end()
+    /// bookkeeping, for when a user suspects something's actually wrong.
+    pub async fn restore_from_backup() -> crate::Result<bool> {
+        let path = backup_path().await?;
+        let Ok(backup) = tokio::fs::read_to_string(&path).await else {
+            return Ok(false);
+        };
+        let _guard = HOSTS_LOCK.lock().await;
+        tokio::fs::write(hosts_path(), backup).await.map_err(|source| {
+            crate::ErrorKind::FSError(format!(
+                "Failed to restore hosts file from backup: {source}"
+            ))
+        })?;
+        ACTIVE_COUNT.store(0, Ordering::SeqCst);
+        Ok(true)
+    }
+
     /// There's no clean way to ask "am I elevated" that isn't itself a chunk
     /// of Win32 API surface — but what we actually care about is narrower
     /// and more direct: can this process write to the hosts file. Probing
@@ -116,6 +168,8 @@ mod imp {
     /// each other — the hosts file is only actually touched on the 0->1
     /// and 1->0 transitions.
     pub async fn begin() -> crate::Result<()> {
+        ensure_backup_exists().await;
+
         let _guard = HOSTS_LOCK.lock().await;
         let previous = ACTIVE_COUNT.fetch_add(1, Ordering::SeqCst);
         if previous == 0 {
@@ -175,6 +229,10 @@ mod imp {
     pub async fn end() {}
 
     pub async fn cleanup_stale_block_on_startup() {}
+
+    pub async fn restore_from_backup() -> crate::Result<bool> {
+        Ok(false)
+    }
 }
 
 pub use imp::*;
