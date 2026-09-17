@@ -649,6 +649,24 @@
 				⚠ Включите хотя бы одну платформу.
 			</p>
 		</div>
+
+		<!-- Для опытных — всегда в самом конце -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Для опытных пользователей</h2>
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Показать вкладку "Для опытных"</h3>
+					<p class="setting-row__desc">
+						Открывает отдельную вкладку с настройками, которые либо рискованны для обычного
+						пользователя, либо требуют понимания последствий (например, автофикс мультиплеера через
+						hosts). Требует осознанного подтверждения.
+					</p>
+				</div>
+				<Toggle :model-value="modlexExperiencedModeUnlocked" @update:model-value="onExperiencedToggle" />
+			</div>
+		</div>
+
+		<ExperiencedModeUnlockModal ref="unlockModal" />
 	</div>
 </template>
 
@@ -656,6 +674,7 @@
 import { Button, DropdownSelect, Toggle } from '@modrinth/ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import ExperiencedModeUnlockModal from '@/components/ui/settings/ExperiencedModeUnlockModal.vue'
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
@@ -676,6 +695,7 @@ import {
 	modlexDoubleBorderOuter,
 	modlexEnableCurseForge,
 	modlexEnableModrinth,
+	modlexExperiencedModeUnlocked,
 	modlexFloatingGlassEffect,
 	modlexHideAiAgent,
 	modlexHideFloatingAccountWidget,
@@ -695,6 +715,18 @@ import {
 } from '@/helpers/modlex-settings'
 import { get as getSettings, set as setSettings } from '@/helpers/settings'
 import { requestImmediateUpdateCheck } from '@/providers/app-update'
+
+// ===== MODLEX: разлок вкладки "Для опытных" =====
+const unlockModal = ref<InstanceType<typeof ExperiencedModeUnlockModal>>()
+
+function onExperiencedToggle(value: boolean) {
+	if (value) {
+		unlockModal.value?.show()
+		return
+	}
+	modlexExperiencedModeUnlocked.value = false
+}
+// ===== END MODLEX =====
 
 const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
 

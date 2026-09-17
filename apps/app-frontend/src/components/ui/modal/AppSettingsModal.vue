@@ -42,6 +42,7 @@ import ModLexAdvancedSettings from '@/components/ui/settings/ModLexAdvancedSetti
 import ModLexSettings from '@/components/ui/settings/ModLexSettings.vue'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { get, set } from '@/helpers/settings.ts'
+import { modlexExperiencedModeUnlocked } from '@/helpers/modlex-settings'
 import {
 	appSettingsModalContextKey,
 	type UnsavedChangesController,
@@ -173,11 +174,16 @@ const tabs = [
 		}),
 		icon: ShieldAlertIcon,
 		content: ModLexAdvancedSettings,
+		experiencedOnly: true,
 	},
 ]
 
 const availableTabs = computed(() =>
-	tabs.filter((tab) => !tab.developerOnly || appSettings.devMode),
+	tabs.filter(
+		(tab) =>
+			(!tab.developerOnly || appSettings.devMode) &&
+			(!tab.experiencedOnly || modlexExperiencedModeUnlocked.value),
+	),
 )
 
 const modal = ref<InstanceType<typeof TabbedModal> | null>(null)
@@ -285,6 +291,16 @@ watch(
 		modal.value.setTab(newIndex >= 0 ? newIndex : 0)
 	},
 )
+
+// ModLEX: как и devMode выше — вкладка "Для опытных" может появиться/исчезнуть
+// прямо во время открытого модального окна (тумблер живёт на другой вкладке).
+watch(modlexExperiencedModeUnlocked, async () => {
+	await nextTick()
+	if (!modal.value) return
+	const currentTab = availableTabs.value[modal.value.selectedTab]
+	const newIndex = currentTab ? availableTabs.value.indexOf(currentTab) : -1
+	modal.value.setTab(newIndex >= 0 ? newIndex : 0)
+})
 
 function devModeCount() {
 	devModeCounter.value++

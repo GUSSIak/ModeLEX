@@ -1,29 +1,6 @@
 <template>
 	<div class="flex flex-col gap-6">
 		<div class="settings-section">
-			<h2 class="settings-section__title">Для опытных пользователей</h2>
-			<p class="m-0 text-sm text-secondary">
-				Настройки здесь либо рискованны для обычного пользователя, либо требуют понимания
-				последствий. Используйте их, только если понимаете, что делаете, изучили, что делает
-				конкретная настройка, и осознаёте возможные проблемы. Мы не несём ответственности за
-				проблемы, возникшие из-за их использования.
-			</p>
-
-			<div v-if="!unlocked" class="mt-3">
-				<Button type="colored" color="orange" native-type="button" @click="unlockModal?.show()">
-					<ShieldAlertIcon />
-					Разблокировать
-				</Button>
-			</div>
-			<div v-else class="mt-3">
-				<Button type="transparent" native-type="button" @click="modlexExperiencedModeUnlocked = false">
-					<LockIcon />
-					Спрятать обратно
-				</Button>
-			</div>
-		</div>
-
-		<div v-if="unlocked" class="settings-section">
 			<h2 class="settings-section__title">Автофикс мультиплеера офлайн/Ely.by-аккаунтов</h2>
 			<p class="m-0 text-sm text-secondary">
 				На некоторых версиях (подтверждено на 1.16.5) ванильный клиент блокирует Multiplayer для
@@ -63,8 +40,6 @@
 			</div>
 		</div>
 
-		<ExperiencedModeUnlockModal ref="unlockModal" />
-
 		<ConfirmModal
 			ref="enableFixModal"
 			title="Включить автофикс мультиплеера?"
@@ -77,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { HistoryIcon, LockIcon, ShieldAlertIcon, SpinnerIcon } from '@modrinth/assets'
+import { HistoryIcon, SpinnerIcon } from '@modrinth/assets'
 import { Button, ConfirmModal, injectNotificationManager, Toggle } from '@modrinth/ui'
 import { onMounted, ref } from 'vue'
 
@@ -87,13 +62,9 @@ import {
 	modlexRestoreHostsFile,
 	set as setSettings,
 } from '@/helpers/settings'
-import { modlexExperiencedModeUnlocked as unlocked } from '@/helpers/modlex-settings'
-
-import ExperiencedModeUnlockModal from './ExperiencedModeUnlockModal.vue'
 
 const { addNotification, handleError } = injectNotificationManager()
 
-const unlockModal = ref<InstanceType<typeof ExperiencedModeUnlockModal>>()
 const enableFixModal = ref<InstanceType<typeof ConfirmModal>>()
 const fixEnabled = ref(false)
 const canWriteHosts = ref(true)
