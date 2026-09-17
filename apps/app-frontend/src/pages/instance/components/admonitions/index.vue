@@ -20,21 +20,32 @@
 				@dismiss="sharedInstanceUnavailableDismissed = true"
 				@delete="emit('delete')"
 			/>
+			<InstanceAdmonitionsOfflineMultiplayerVersionQuirk
+				v-else-if="item.kind === 'offline-multiplayer-version-quirk'"
+			/>
 		</template>
 	</StackedAdmonitions>
 </template>
 
 <script setup lang="ts">
 import { StackedAdmonitions } from '@modrinth/ui'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
+import { users } from '@/helpers/auth'
+import { currentAccountId } from '@/helpers/current-account'
 import type { SharedInstanceUnavailableReason } from '@/helpers/install'
 import type { GameInstance } from '@/helpers/types'
 
+import InstanceAdmonitionsOfflineMultiplayerVersionQuirk from './offline-multiplayer-version-quirk.vue'
 import InstanceAdmonitionsSharedInstanceStale from './shared-instance-stale.vue'
 import InstanceAdmonitionsSharedInstanceUnavailable from './shared-instance-unavailable.vue'
 import InstanceAdmonitionsSharedInstanceWrongAccount from './shared-instance-wrong-account.vue'
 import type { InstanceAdmonitionItem, SharedInstanceRole } from './types.ts'
+
+// ModLEX: versions known to hide the Multiplayer button for offline accounts
+// if the internet is reachable while the game starts up (see the toggle in
+// Settings -> ModLEX -> "Запуск" for an experimental automatic workaround).
+const OFFLINE_MULTIPLAYER_QUIRK_VERSIONS = new Set(['1.16.5'])
 
 defineOptions({
 	inheritAttrs: false,
@@ -54,6 +65,23 @@ const emit = defineEmits<{
 	published: []
 	delete: []
 }>()
+
+// ModLEX: "is the currently playing-as account offline-mode" for the
+// multiplayer-version-quirk admonition below.
+const accountsList = ref<Awaited<ReturnType<typeof users>>>([])
+onMounted(async () => {
+	accountsList.value = await users().catch(() => [])
+})
+const currentAccountIsOffline = computed(
+	() =>
+		accountsList.value.find((account) => account.profile.id === currentAccountId.value)
+			?.kind === 'offline',
+)
+const showOfflineMultiplayerQuirkAdmonition = computed(
+	() =>
+		currentAccountIsOffline.value &&
+		OFFLINE_MULTIPLAYER_QUIRK_VERSIONS.has(props.instance.game_version),
+)
 
 const sharedInstanceWrongAccount = computed(() => props.sharedInstanceWrongAccount ?? false)
 const displayedSharedInstanceUnavailableReason = computed<SharedInstanceUnavailableReason | null>(
@@ -100,6 +128,15 @@ const stackItems = computed<InstanceAdmonitionItem[]>(() => {
 			type: 'warning',
 			dismissible: false,
 			kind: 'shared-instance-stale',
+		})
+	}
+
+	if (showOfflineMultiplayerQuirkAdmonition.value) {
+		items.push({
+			id: 'offline-multiplayer-version-quirk',
+			type: 'info',
+			dismissible: true,
+			kind: 'offline-multiplayer-version-quirk',
 		})
 	}
 

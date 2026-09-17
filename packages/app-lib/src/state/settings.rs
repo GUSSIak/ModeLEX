@@ -112,6 +112,12 @@ pub struct Settings {
     /// и оборваться с "не смог разобраться" не закончив дело — это тут
     /// настраивается, а не хардкодится.
     pub modlex_ai_max_hops: u32,
+    /// Экспериментальный автофикс мультиплеера офлайн-аккаунтов на версиях
+    /// вроде 1.16.5, где ванильный клиент почему-то блокирует Multiplayer,
+    /// если интернет доступен во время запуска (но не если недоступен, и
+    /// не после запуска, если включить обратно). Гейтится в UI за devMode —
+    /// сам по себе не проверяется бэкендом, см. `launcher::mod::launch_minecraft`.
+    pub modlex_experimental_offline_multiplayer_fix: bool,
     // ===== END MODLEX =====
 
     pub version: usize,
@@ -190,6 +196,7 @@ impl Settings {
                 modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,
                 modlex_discord_idle_message,
                 modlex_ai_api_key, modlex_ai_model, modlex_ai_provider, modlex_ai_auto_confirm, modlex_ai_max_hops,
+                modlex_experimental_offline_multiplayer_fix,
                 sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
@@ -270,6 +277,8 @@ impl Settings {
             modlex_ai_provider: res.modlex_ai_provider,
             modlex_ai_auto_confirm: res.modlex_ai_auto_confirm,
             modlex_ai_max_hops: res.modlex_ai_max_hops as u32,
+            modlex_experimental_offline_multiplayer_fix: res
+                .modlex_experimental_offline_multiplayer_fix,
             sync_theme_across_devices: res.sync_theme_across_devices == 1,
             sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
             version: res.version as usize,
@@ -352,11 +361,12 @@ impl Settings {
                 modlex_ai_provider = $46,
                 modlex_ai_auto_confirm = $47,
                 modlex_ai_max_hops = $48,
+                modlex_experimental_offline_multiplayer_fix = $49,
 
-                sync_theme_across_devices = $49,
-                sync_behavior_across_devices = $50,
+                sync_theme_across_devices = $50,
+                sync_behavior_across_devices = $51,
 
-                version = $51
+                version = $52
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -406,6 +416,7 @@ impl Settings {
             self.modlex_ai_provider,
             self.modlex_ai_auto_confirm,
             self.modlex_ai_max_hops,
+            self.modlex_experimental_offline_multiplayer_fix,
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
             version,

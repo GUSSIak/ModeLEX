@@ -15,8 +15,9 @@ use crate::launcher::quick_play_version::{
 use crate::server_address::{ServerAddress, parse_server_address};
 use crate::state::server_join_log::JoinLogEntry;
 use crate::state::{
-    Credentials, InstanceInstallStage, InstanceLaunchContext, InstanceLink,
-    JavaVersion, MemorySettings, ProcessMetadata, WindowSize,
+    AccountKind, Credentials, InstanceInstallStage, InstanceLaunchContext,
+    InstanceLink, JavaVersion, MemorySettings, ProcessMetadata, Settings,
+    WindowSize,
 };
 use crate::util::io;
 use crate::util::rpc::RpcServerBuilder;
@@ -986,6 +987,32 @@ pub async fn launch_minecraft(
 
     let rpc_server = RpcServerBuilder::new().launch().await?;
 
+    let mut java_args = Vec::from(java_args);
+    // ModLEX: experimental — on some versions (1.16.5 confirmed, possibly others),
+    // the vanilla client only shows Multiplayer as available for an offline account
+    // if it *can't* reach Mojang's session/auth endpoints during launch; toggling
+    // internet off then back on after launch works around it, which points at a
+    // client-side quirk in how that one-time startup check is handled rather than
+    // anything actually broken about local/offline play itself. This setting (dev
+    // gated in the UI, off by default, see Settings::modlex_experimental_offline_multiplayer_fix)
+    // makes only *this* JVM's own http(s)/java.net calls fail fast by pointing them
+    // at a dead local proxy — it does not touch the OS network, and does not affect
+    // Minecraft's actual multiplayer protocol (which uses raw TCP sockets, not HTTP).
+    if credentials.kind == AccountKind::Offline {
+        let settings = Settings::get(&state.pool).await?;
+        if settings.modlex_experimental_offline_multiplayer_fix {
+            tracing::info!(
+                "Experimental offline-multiplayer fix enabled: routing this instance's JVM http(s) traffic through a dead local proxy for launch"
+            );
+            java_args.extend([
+                "-Dhttp.proxyHost=127.0.0.1".to_string(),
+                "-Dhttp.proxyPort=1".to_string(),
+                "-Dhttps.proxyHost=127.0.0.1".to_string(),
+                "-Dhttps.proxyPort=1".to_string(),
+            ]);
+        }
+    }
+
     command.args(
         args::get_jvm_arguments(
             args.get(&d::minecraft::ArgumentType::Jvm)
@@ -1003,7 +1030,7 @@ pub async fn launch_minecraft(
             &main_class_path,
             &version_jar,
             *memory,
-            Vec::from(java_args),
+            java_args,
             &java_version.architecture,
             &quick_play_type,
             quick_play_version,

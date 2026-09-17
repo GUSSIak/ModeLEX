@@ -98,6 +98,12 @@ export type AppSettings = {
 	modlex_ai_auto_confirm: boolean
 	/** Лимит автоматических шагов агента за один ход. 0 = дефолт бэкенда. */
 	modlex_ai_max_hops: number
+	/** Экспериментально: на некоторых версиях (1.16.5 подтверждена) ванильный
+	 * клиент блокирует Multiplayer для offline-аккаунта, если во время запуска
+	 * доступен интернет — этот флаг подсовывает JVM инстанса мёртвый локальный
+	 * прокси для http(s)-трафика, не трогая реальную сеть ОС и мультиплеерный
+	 * протокол игры (тот работает через сырые TCP-сокеты, а не HTTP). */
+	modlex_experimental_offline_multiplayer_fix: boolean
 	// ===== END MODLEX =====
 
 	version: number

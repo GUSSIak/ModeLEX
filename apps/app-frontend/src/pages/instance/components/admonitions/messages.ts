@@ -66,4 +66,13 @@ export const instanceAdmonitionsMessages = defineMessages({
 		id: 'app.instance.shared-instance-wrong-account.fallback-username',
 		defaultMessage: 'the linked account',
 	},
+	offlineMultiplayerQuirkHeader: {
+		id: 'app.instance.admonitions.offline-multiplayer-quirk.header',
+		defaultMessage: 'Multiplayer may be disabled on launch',
+	},
+	offlineMultiplayerQuirkBody: {
+		id: 'app.instance.admonitions.offline-multiplayer-quirk.body',
+		defaultMessage:
+			"Minecraft 1.16.5 is known to disable the Multiplayer button for offline accounts if the internet is available while it starts up. If this happens, try disabling your internet connection right before launching, then turning it back on afterward — it can stay on for the rest of the session.",
+	},
 })

@@ -547,6 +547,26 @@
 				</div>
 				<Toggle v-model="modlexHideMultiLaunch" />
 			</div>
+			<div v-if="appSettings.devMode" class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">
+						Экспериментально: автофикс мультиплеера офлайн-аккаунтов
+					</h3>
+					<p class="setting-row__desc">
+						На некоторых версиях (подтверждено на 1.16.5) ванильный клиент блокирует Multiplayer
+						для офлайн-аккаунта, только если интернет доступен во время запуска — включение и
+						выключение интернета обратно после запуска чинит это, но вручную. Этот тумблер
+						пытается сделать то же самое автоматически: подсовывает JVM инстанса недоступный
+						локальный прокси для http(s)-трафика на время запуска, не трогая реальную сеть и не
+						влияя на сам мультиплеерный протокол игры (он работает через TCP-сокеты напрямую).
+						Может не сработать или повлиять на другие сетевые функции мода — тестовая функция.
+					</p>
+				</div>
+				<Toggle
+					:model-value="experimentalOfflineMultiplayerFix"
+					@update:model-value="onExperimentalOfflineMultiplayerFixToggle"
+				/>
+			</div>
 		</div>
 
 		<!-- Обновления -->
@@ -657,6 +677,7 @@ import { Button, DropdownSelect, Toggle } from '@modrinth/ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import BetaChannelModal from '@/components/ui/modal/BetaChannelModal.vue'
+import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { useFeatureFlag } from '@/helpers/feature-flags'
 import {
 	exportThemeCode,
@@ -695,6 +716,8 @@ import {
 } from '@/helpers/modlex-settings'
 import { get as getSettings, set as setSettings } from '@/helpers/settings'
 import { requestImmediateUpdateCheck } from '@/providers/app-update'
+
+const appSettings = useAppSettings()
 
 const newsSourceOptions: NewsSource[] = ['github', 'modrinth', 'off']
 
@@ -768,6 +791,22 @@ function applyThemeCodeInput() {
 	const ok = importThemeCode(importThemeCodeInput.value)
 	showInlineNotice(ok ? 'Тема применена' : 'Не удалось прочитать код темы')
 	if (ok) importThemeCodeInput.value = ''
+}
+// ===== END MODLEX =====
+
+// ===== MODLEX: экспериментальный автофикс офлайн-мультиплеера =====
+const experimentalOfflineMultiplayerFix = ref(false)
+
+onMounted(async () => {
+	experimentalOfflineMultiplayerFix.value =
+		(await getSettings()).modlex_experimental_offline_multiplayer_fix ?? false
+})
+
+async function onExperimentalOfflineMultiplayerFixToggle(value: boolean) {
+	experimentalOfflineMultiplayerFix.value = value
+	const settings = await getSettings()
+	settings.modlex_experimental_offline_multiplayer_fix = value
+	await setSettings(settings)
 }
 // ===== END MODLEX =====
 
