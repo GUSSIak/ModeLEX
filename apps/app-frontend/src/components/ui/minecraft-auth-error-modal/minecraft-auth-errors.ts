@@ -56,6 +56,17 @@ export const minecraftAuthErrors: MinecraftAuthError[] = [
 		],
 	},
 	{
+		errorMatchers: ['Network error while fetching your Minecraft profile'],
+		whatHappened:
+			"ModLEX App reached Microsoft/Xbox sign-in successfully, but the network request to fetch your Minecraft profile failed — this is a connectivity problem, not an account or license problem.",
+		stepsToFix: [
+			'Check your internet connection',
+			'If you use a VPN or proxy, try temporarily disabling it and signing in again',
+			'Try signing in to ModLEX App again',
+			'If this keeps happening, contact support with the debug information below',
+		],
+	},
+	{
 		errorMatchers: ['Failed to fetch player profile'],
 		whatHappened:
 			'Minecraft services could not return a Java Edition profile for this account. This most often happens when the game was purchased recently, the Java profile has not finished being created, or the wrong Microsoft account is being used.',

@@ -183,11 +183,30 @@ pub async fn login_finish(
     // player UUID and name to use for the offline profile, in order for that offline
     // profile to make sense. It's also important to modify the returned credentials
     // object, as otherwise continued usage of it will skip the profile cache due to
-    // the dummy UUID
-    let online_profile = credentials
-        .online_profile()
-        .await
-        .ok_or(io::Error::other("Failed to fetch player profile"))?;
+    // the dummy UUID.
+    //
+    // ModLEX: this used to go through `credentials.online_profile()`, which collapses
+    // every failure reason (a genuine "this account has no Java Edition profile"
+    // response, a transient network error, a proxy misconfiguration, ...) into a bare
+    // `None` — so a network hiccup during this one request showed users the exact same
+    // "you don't own Minecraft" message as an actual missing license, sending them on
+    // a wild goose chase (see the ely.by skins saga this session for the same class of
+    // bug). Calling `minecraft_profile` directly here keeps the underlying error kind
+    // so the two cases can be told apart.
+    let online_profile = match minecraft_profile(&credentials.access_token).await {
+        Ok(profile) => profile,
+        Err(MinecraftAuthenticationError::Request { source, .. }) => {
+            return Err(io::Error::other(format!(
+                "Network error while fetching your Minecraft profile: {source}"
+            ))
+            .into());
+        }
+        Err(_) => {
+            return Err(
+                io::Error::other("Failed to fetch player profile").into()
+            );
+        }
+    };
     credentials.offline_profile = MinecraftProfile {
         id: online_profile.id,
         name: online_profile.name.clone(),
