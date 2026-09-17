@@ -37,10 +37,9 @@
 </template>
 
 <script setup lang="ts">
-import { NewModal } from '@modrinth/ui'
+import { Button, NewModal } from '@modrinth/ui'
 import { ref } from 'vue'
 
-import { Button } from '#ui/components/base/buttons'
 import { modlexExperiencedModeUnlocked } from '@/helpers/modlex-settings'
 
 const stepOneModal = ref<InstanceType<typeof NewModal>>()
