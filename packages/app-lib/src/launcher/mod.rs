@@ -998,7 +998,11 @@ pub async fn launch_minecraft(
     // makes only *this* JVM's own http(s)/java.net calls fail fast by pointing them
     // at a dead local proxy — it does not touch the OS network, and does not affect
     // Minecraft's actual multiplayer protocol (which uses raw TCP sockets, not HTTP).
-    if credentials.kind == AccountKind::Offline {
+    // ModLEX: applies to Ely.by too, not just true Offline accounts — the game is
+    // always launched with `--userType msa` (see args.rs) regardless of account
+    // kind, and Ely.by accounts carry a real (Ely.by-issued, not Microsoft) access
+    // token, which Mojang's real sessionserver.mojang.com can't validate either.
+    if matches!(credentials.kind, AccountKind::Offline | AccountKind::ElyBy) {
         let settings = Settings::get(&state.pool).await?;
         if settings.modlex_experimental_offline_multiplayer_fix {
             tracing::info!(

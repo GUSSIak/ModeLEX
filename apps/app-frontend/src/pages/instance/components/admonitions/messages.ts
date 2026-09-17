@@ -73,6 +73,6 @@ export const instanceAdmonitionsMessages = defineMessages({
 	offlineMultiplayerQuirkBody: {
 		id: 'app.instance.admonitions.offline-multiplayer-quirk.body',
 		defaultMessage:
-			"Minecraft 1.16.5 is known to disable the Multiplayer button for offline accounts if the internet is available while it starts up. If this happens, try disabling your internet connection right before launching, then turning it back on afterward — it can stay on for the rest of the session.",
+			"Minecraft 1.16.5 is known to disable the Multiplayer button for offline and Ely.by accounts if the internet is available while it starts up. If this happens, try disabling your internet connection right before launching, then turning it back on afterward — it can stay on for the rest of the session.",
 	},
 })

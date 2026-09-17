@@ -66,20 +66,25 @@ const emit = defineEmits<{
 	delete: []
 }>()
 
-// ModLEX: "is the currently playing-as account offline-mode" for the
-// multiplayer-version-quirk admonition below.
+// ModLEX: "is the currently playing-as account offline or Ely.by" for the
+// multiplayer-version-quirk admonition below — the game is always launched
+// with --userType msa regardless of account kind (see launcher/mod.rs), so
+// neither a true offline account nor an Ely.by one (whose access token is
+// real, but issued by Ely.by, not Microsoft) can pass Mojang's real session
+// check, and it's that check being reachable that seems to trip up 1.16.5.
 const accountsList = ref<Awaited<ReturnType<typeof users>>>([])
 onMounted(async () => {
 	accountsList.value = await users().catch(() => [])
 })
-const currentAccountIsOffline = computed(
-	() =>
-		accountsList.value.find((account) => account.profile.id === currentAccountId.value)
-			?.kind === 'offline',
-)
+const currentAccountKindAffected = computed(() => {
+	const kind = accountsList.value.find(
+		(account) => account.profile.id === currentAccountId.value,
+	)?.kind
+	return kind === 'offline' || kind === 'elyby'
+})
 const showOfflineMultiplayerQuirkAdmonition = computed(
 	() =>
-		currentAccountIsOffline.value &&
+		currentAccountKindAffected.value &&
 		OFFLINE_MULTIPLAYER_QUIRK_VERSIONS.has(props.instance.game_version),
 )
 
