@@ -8,9 +8,17 @@
 				изучили, что делает каждая конкретная настройка. Мы не несём ответственности за проблемы,
 				возникшие из-за их использования.
 			</p>
-			<div class="flex gap-2 justify-end">
-				<Button @click="cancel">Я не разбираюсь и не уверен в своих действиях</Button>
-				<Button type="colored" color="orange" @click="goToStepTwo">Я уверен</Button>
+			<div class="flex gap-2 justify-end items-stretch">
+				<Button
+					class="flex-1 h-auto py-2"
+					style="white-space: normal; text-align: left; line-height: 1.3"
+					@click="cancel"
+				>
+					Я не разбираюсь и не уверен в своих действиях
+				</Button>
+				<Button type="colored" color="orange" class="shrink-0" @click="goToStepTwo">
+					Я уверен
+				</Button>
 			</div>
 		</div>
 	</NewModal>
