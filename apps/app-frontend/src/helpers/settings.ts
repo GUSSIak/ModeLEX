@@ -104,6 +104,16 @@ export type AppSettings = {
 	 * прокси для http(s)-трафика, не трогая реальную сеть ОС и мультиплеерный
 	 * протокол игры (тот работает через сырые TCP-сокеты, а не HTTP). */
 	modlex_experimental_offline_multiplayer_fix: boolean
+
+	/** Локальный закэшированный путь к файлу глобального фона лаунчера
+	 * (картинка/GIF/видео, без ресайза). `null`/пусто — фон не задан. */
+	modlex_global_background_path?: string | null
+	/** 0.0-1.0 */
+	modlex_global_background_opacity: number
+	/** px, CSS `filter: blur()` */
+	modlex_global_background_blur_px: number
+	/** Мастер-тумблер анимации (для слабых устройств) */
+	modlex_global_background_animated: boolean
 	// ===== END MODLEX =====
 
 	version: number
@@ -173,4 +183,14 @@ export async function modlexCanWriteHostsFile(): Promise<boolean> {
 
 export async function modlexRestoreHostsFile(): Promise<boolean> {
 	return await invoke('plugin:settings|modlex_restore_hosts_file')
+}
+
+export async function modlexCacheGlobalBackground(path: string): Promise<string> {
+	return await invoke('plugin:settings|modlex_cache_global_background', { path })
+}
+
+export async function modlexRemoveCachedGlobalBackground(cachedPath: string): Promise<void> {
+	return await invoke('plugin:settings|modlex_remove_cached_global_background', {
+		cachedPath,
+	})
 }

@@ -118,6 +118,21 @@ pub struct Settings {
     /// не после запуска, если включить обратно). Гейтится в UI за devMode —
     /// сам по себе не проверяется бэкендом, см. `launcher::mod::launch_minecraft`.
     pub modlex_experimental_offline_multiplayer_fix: bool,
+
+    /// Глобальный фон лаунчера (Home/Library), закэшированный локальный путь
+    /// к оригинальному файлу — изображение, GIF или видео, без ресайза/
+    /// перекодирования (в отличие от иконок инстансов), см. `modlex_background.rs`.
+    /// `None` — фон не задан.
+    pub modlex_global_background_path: Option<String>,
+    /// 0.0-1.0. Управляется на фронте.
+    pub modlex_global_background_opacity: f64,
+    /// Радиус блюра в пикселях (CSS `filter: blur(...)`), 0 = без блюра.
+    pub modlex_global_background_blur_px: f64,
+    /// Мастер-тумблер "выключить анимацию совсем" — для слабых устройств.
+    /// Видео просто не автоплеится (показывает первый кадр); GIF при
+    /// выключенном тумблере фон временно скрывается целиком (заморозка
+    /// GIF без конвертации не поддерживается).
+    pub modlex_global_background_animated: bool,
     // ===== END MODLEX =====
 
     pub version: usize,
@@ -197,6 +212,8 @@ impl Settings {
                 modlex_discord_idle_message,
                 modlex_ai_api_key, modlex_ai_model, modlex_ai_provider, modlex_ai_auto_confirm, modlex_ai_max_hops,
                 modlex_experimental_offline_multiplayer_fix,
+                modlex_global_background_path, modlex_global_background_opacity,
+                modlex_global_background_blur_px, modlex_global_background_animated,
                 sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
@@ -279,6 +296,13 @@ impl Settings {
             modlex_ai_max_hops: res.modlex_ai_max_hops as u32,
             modlex_experimental_offline_multiplayer_fix: res
                 .modlex_experimental_offline_multiplayer_fix,
+            modlex_global_background_path: res.modlex_global_background_path,
+            modlex_global_background_opacity: res
+                .modlex_global_background_opacity,
+            modlex_global_background_blur_px: res
+                .modlex_global_background_blur_px,
+            modlex_global_background_animated: res
+                .modlex_global_background_animated,
             sync_theme_across_devices: res.sync_theme_across_devices == 1,
             sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
             version: res.version as usize,
@@ -363,10 +387,15 @@ impl Settings {
                 modlex_ai_max_hops = $48,
                 modlex_experimental_offline_multiplayer_fix = $49,
 
-                sync_theme_across_devices = $50,
-                sync_behavior_across_devices = $51,
+                modlex_global_background_path = $50,
+                modlex_global_background_opacity = $51,
+                modlex_global_background_blur_px = $52,
+                modlex_global_background_animated = $53,
 
-                version = $52
+                sync_theme_across_devices = $54,
+                sync_behavior_across_devices = $55,
+
+                version = $56
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -417,6 +446,10 @@ impl Settings {
             self.modlex_ai_auto_confirm,
             self.modlex_ai_max_hops,
             self.modlex_experimental_offline_multiplayer_fix,
+            self.modlex_global_background_path,
+            self.modlex_global_background_opacity,
+            self.modlex_global_background_blur_px,
+            self.modlex_global_background_animated,
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
             version,

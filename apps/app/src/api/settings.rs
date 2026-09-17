@@ -11,7 +11,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             cancel_directory_change,
             modlex_list_local_music_files,
             modlex_can_write_hosts_file,
-            modlex_restore_hosts_file
+            modlex_restore_hosts_file,
+            modlex_cache_global_background,
+            modlex_remove_cached_global_background
         ])
         .build()
 }
@@ -58,4 +60,23 @@ pub async fn modlex_can_write_hosts_file() -> bool {
 pub async fn modlex_restore_hosts_file() -> Result<bool> {
     let res = theseus::settings::modlex_restore_hosts_file().await?;
     Ok(res)
+}
+
+#[tauri::command]
+pub async fn modlex_cache_global_background(
+    path: std::path::PathBuf,
+) -> Result<String> {
+    let res = theseus::modlex_background::cache_global_background(path).await?;
+    Ok(res)
+}
+
+#[tauri::command]
+pub async fn modlex_remove_cached_global_background(
+    cached_path: String,
+) -> Result<()> {
+    theseus::modlex_background::remove_cached_global_background(
+        &cached_path,
+    )
+    .await?;
+    Ok(())
 }

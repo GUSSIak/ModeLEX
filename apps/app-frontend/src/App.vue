@@ -111,6 +111,15 @@ import {
 	startFeatureFlagPolling,
 	stopFeatureFlagPolling,
 } from '@/helpers/modlex-feature-flags'
+import {
+	globalBackgroundAnimated as modlexGlobalBackgroundAnimated,
+	globalBackgroundBlurPx as modlexGlobalBackgroundBlurPx,
+	globalBackgroundIsGif as modlexGlobalBackgroundIsGif,
+	globalBackgroundIsVideo as modlexGlobalBackgroundIsVideo,
+	globalBackgroundOpacity as modlexGlobalBackgroundOpacity,
+	globalBackgroundPath as modlexGlobalBackgroundPath,
+	refreshGlobalBackground,
+} from '@/helpers/global-background'
 import { fetchModlexNews } from '@/helpers/modlex-github-news'
 import { startPing, stopPing } from '@/helpers/modlex-ping'
 // ===== ModLEX IMPORTS =====
@@ -212,6 +221,23 @@ const forceSidebar = computed(
 		route.path.startsWith('/user'),
 )
 const sidebarVisible = computed(() => sidebarToggled.value || forceSidebar.value)
+
+// ===== MODLEX: глобальный фон лаунчера =====
+const modlexGlobalBackgroundPreviewUrl = computed(() =>
+	modlexGlobalBackgroundPath.value ? convertFileSrc(modlexGlobalBackgroundPath.value) : null,
+)
+// Видео/GIF только когда анимация включена; статичная картинка — всегда.
+// (см. modlex_global_background_animated в Settings.rs — выключенный тумблер
+// прячет анимированный фон целиком, а не морозит его на первом кадре.)
+const modlexGlobalBackgroundShouldPlayVideo = computed(
+	() => modlexGlobalBackgroundIsVideo.value && modlexGlobalBackgroundAnimated.value,
+)
+const modlexGlobalBackgroundShouldShowImage = computed(
+	() =>
+		!modlexGlobalBackgroundIsVideo.value &&
+		(!modlexGlobalBackgroundIsGif.value || modlexGlobalBackgroundAnimated.value),
+)
+// ===== /MODLEX =====
 
 // ===== MODLEX: скрытие правой панели =====
 // Панель всегда остаётся в DOM (нужно для #sidebar-teleport-target — Browse/
@@ -856,6 +882,9 @@ async function setupApp() {
 
 	get_opening_command().then(handleCommand)
 	fetchCredentials()
+	refreshGlobalBackground().catch((error) => {
+		console.warn('Failed to load global background settings.', error)
+	})
 
 	try {
 		const skins = (await get_available_skins()) ?? []
@@ -2178,6 +2207,32 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					width: 'calc(100% - var(--right-bar-width))',
 				}"
 			></div>
+			<div
+				v-if="modlexGlobalBackgroundPath"
+				class="absolute h-full -z-20 rounded-tl-[--radius-xl] overflow-hidden pointer-events-none"
+				:style="{
+					width: 'calc(100% - var(--right-bar-width))',
+					opacity: modlexGlobalBackgroundOpacity,
+				}"
+			>
+				<video
+					v-if="modlexGlobalBackgroundShouldPlayVideo"
+					:src="modlexGlobalBackgroundPreviewUrl!"
+					autoplay
+					loop
+					muted
+					playsinline
+					class="h-full w-full object-cover"
+					:style="{ filter: `blur(${modlexGlobalBackgroundBlurPx}px)` }"
+				/>
+				<img
+					v-else-if="modlexGlobalBackgroundShouldShowImage"
+					:src="modlexGlobalBackgroundPreviewUrl!"
+					alt=""
+					class="h-full w-full object-cover"
+					:style="{ filter: `blur(${modlexGlobalBackgroundBlurPx}px)` }"
+				/>
+			</div>
 			<Admonition
 				v-if="criticalErrorMessage"
 				type="critical"

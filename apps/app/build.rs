@@ -276,6 +276,8 @@ fn main() {
                         "modlex_list_local_music_files",
                         "modlex_can_write_hosts_file",
                         "modlex_restore_hosts_file",
+                        "modlex_cache_global_background",
+                        "modlex_remove_cached_global_background",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,

@@ -319,6 +319,99 @@
 			</div>
 		</div>
 
+		<!-- Фон лаунчера -->
+		<div class="settings-section">
+			<h2 class="settings-section__title">Фон лаунчера</h2>
+			<p class="settings-section__desc">
+				Картинка, GIF или видео позади главного экрана (Home/Library). Без ограничений на размер
+				файла — только предупреждение, если файл тяжёлый.
+			</p>
+
+			<div v-if="globalBackgroundPreviewUrl" class="bg-preview">
+				<video
+					v-if="globalBackgroundIsVideo"
+					:src="globalBackgroundPreviewUrl"
+					autoplay
+					loop
+					muted
+					playsinline
+					class="bg-preview__media"
+				/>
+				<img v-else :src="globalBackgroundPreviewUrl" alt="" class="bg-preview__media" />
+			</div>
+
+			<div class="setting-row">
+				<div class="setting-row__info">
+					<h3 class="setting-row__label">Файл фона</h3>
+					<p class="setting-row__desc">Изображение, GIF или видео (mp4/webm).</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<Button
+						type="outlined"
+						size="sm"
+						native-type="button"
+						:disabled="pickingBackground"
+						@click="pickGlobalBackground"
+					>
+						{{ globalBackgroundPreviewUrl ? 'Заменить' : 'Выбрать файл' }}
+					</Button>
+					<Button
+						v-if="globalBackgroundPreviewUrl"
+						type="outlined"
+						size="sm"
+						native-type="button"
+						@click="removeGlobalBackground"
+					>
+						Убрать
+					</Button>
+				</div>
+			</div>
+			<p v-if="backgroundSizeWarning" class="platform-warning">⚠ {{ backgroundSizeWarning }}</p>
+
+			<template v-if="globalBackgroundPreviewUrl">
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Непрозрачность</h3>
+					</div>
+					<input
+						type="range"
+						min="0"
+						max="1"
+						step="0.05"
+						:value="modlexGlobalBackgroundOpacity"
+						class="bg-slider"
+						@input="onOpacityInput"
+					/>
+				</div>
+				<div class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Блюр</h3>
+					</div>
+					<input
+						type="range"
+						min="0"
+						max="30"
+						step="1"
+						:value="modlexGlobalBackgroundBlurPx"
+						class="bg-slider"
+						@input="onBlurInput"
+					/>
+				</div>
+				<div v-if="globalBackgroundIsAnimated" class="setting-row">
+					<div class="setting-row__info">
+						<h3 class="setting-row__label">Анимация</h3>
+						<p class="setting-row__desc">
+							Выключи, если фон тормозит на слабом устройстве.
+						</p>
+					</div>
+					<Toggle
+						:model-value="modlexGlobalBackgroundAnimated"
+						@update:model-value="onAnimatedToggle"
+					/>
+				</div>
+			</template>
+		</div>
+
 		<!-- Консоль запуска -->
 		<div class="settings-section">
 			<h2 class="settings-section__title">Консоль запуска</h2>
@@ -713,7 +806,26 @@ import {
 	type NewsSource,
 	resetConsoleSettings,
 } from '@/helpers/modlex-settings'
-import { get as getSettings, set as setSettings } from '@/helpers/settings'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { stat } from '@tauri-apps/plugin-fs'
+
+import {
+	globalBackgroundAnimated as modlexGlobalBackgroundAnimated,
+	globalBackgroundBlurPx as modlexGlobalBackgroundBlurPx,
+	globalBackgroundIsAnimated,
+	globalBackgroundIsVideo,
+	globalBackgroundOpacity as modlexGlobalBackgroundOpacity,
+	globalBackgroundPath,
+	persistGlobalBackground,
+	refreshGlobalBackground,
+} from '@/helpers/global-background'
+import {
+	get as getSettings,
+	modlexCacheGlobalBackground,
+	modlexRemoveCachedGlobalBackground,
+	set as setSettings,
+} from '@/helpers/settings'
 import { requestImmediateUpdateCheck } from '@/providers/app-update'
 
 // ===== MODLEX: разлок вкладки "Для опытных" =====
@@ -725,6 +837,74 @@ function onExperiencedToggle(value: boolean) {
 		return
 	}
 	modlexExperiencedModeUnlocked.value = false
+}
+// ===== END MODLEX =====
+
+// ===== MODLEX: фон лаунчера =====
+const pickingBackground = ref(false)
+const backgroundSizeWarning = ref('')
+const BACKGROUND_SIZE_WARNING_THRESHOLD_MB = 100
+
+onMounted(refreshGlobalBackground)
+
+const globalBackgroundPreviewUrl = computed(() =>
+	globalBackgroundPath.value ? convertFileSrc(globalBackgroundPath.value) : null,
+)
+
+async function pickGlobalBackground() {
+	const selected = await open({
+		multiple: false,
+		filters: [
+			{
+				name: 'Изображение / GIF / видео',
+				extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv'],
+			},
+		],
+	})
+	if (!selected) return
+
+	pickingBackground.value = true
+	backgroundSizeWarning.value = ''
+	try {
+		const fileInfo = await stat(selected)
+		if (fileInfo.size / (1024 * 1024) > BACKGROUND_SIZE_WARNING_THRESHOLD_MB) {
+			backgroundSizeWarning.value = `Файл ${(fileInfo.size / (1024 * 1024)).toFixed(0)} МБ — на слабом устройстве может тормозить. Ограничений нет, это просто предупреждение.`
+		}
+
+		const previousPath = globalBackgroundPath.value
+		const cachedPath = await modlexCacheGlobalBackground(selected)
+		await persistGlobalBackground({ path: cachedPath })
+		if (previousPath && previousPath !== cachedPath) {
+			await modlexRemoveCachedGlobalBackground(previousPath).catch(() => {})
+		}
+	} catch (error) {
+		showInlineNotice(error instanceof Error ? error.message : 'Не удалось установить фон')
+	} finally {
+		pickingBackground.value = false
+	}
+}
+
+async function removeGlobalBackground() {
+	const previousPath = globalBackgroundPath.value
+	await persistGlobalBackground({ path: null })
+	backgroundSizeWarning.value = ''
+	if (previousPath) {
+		await modlexRemoveCachedGlobalBackground(previousPath).catch(() => {})
+	}
+}
+
+function onOpacityInput(event: Event) {
+	const value = Number((event.target as HTMLInputElement).value)
+	persistGlobalBackground({ opacity: value })
+}
+
+function onBlurInput(event: Event) {
+	const value = Number((event.target as HTMLInputElement).value)
+	persistGlobalBackground({ blurPx: value })
+}
+
+function onAnimatedToggle(value: boolean) {
+	persistGlobalBackground({ animated: value })
 }
 // ===== END MODLEX =====
 
@@ -1014,6 +1194,26 @@ function onToggleCurseForge(value: boolean) {
 	margin: 0.5rem 0 0;
 	font-size: 0.8rem;
 	color: var(--color-orange);
+}
+
+.bg-preview {
+	width: 100%;
+	max-width: 24rem;
+	aspect-ratio: 16 / 9;
+	border-radius: 0.75rem;
+	overflow: hidden;
+	border: 1px solid var(--color-button-bg);
+	margin-bottom: 0.75rem;
+}
+
+.bg-preview__media {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.bg-slider {
+	width: 12rem;
 }
 
 .toggle-lock-wrapper--locked {

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,\n                modlex_discord_idle_message,\n                modlex_ai_api_key, modlex_ai_model, modlex_ai_provider, modlex_ai_auto_confirm, modlex_ai_max_hops,\n                modlex_experimental_offline_multiplayer_fix,\n                sync_theme_across_devices, sync_behavior_across_devices,\n                version\n            FROM settings\n            ",
+  "query": "\n            SELECT\n                max_concurrent_writes, max_concurrent_downloads,\n                theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,\n                discord_rpc, developer_mode, telemetry, personalized_ads,\n                json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,\n                mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,\n                hook_pre_launch, hook_wrapper, hook_post_exit,\n                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,\n                skipped_update, pending_update_toast_for_version, auto_download_updates,\n                modlex_vk_token, modlex_vk_user_id, modlex_soundcloud_enabled, modlex_local_music_path,\n                modlex_music_default_source, json(modlex_playlists) modlex_playlists,\n                modlex_update_channel, modlex_tester_id, modlex_beta_verified, modlex_channel_sync_done, modlex_discord_message,\n                modlex_discord_idle_message,\n                modlex_ai_api_key, modlex_ai_model, modlex_ai_provider, modlex_ai_auto_confirm, modlex_ai_max_hops,\n                modlex_experimental_offline_multiplayer_fix,\n                modlex_global_background_path, modlex_global_background_opacity,\n                modlex_global_background_blur_px, modlex_global_background_animated,\n                sync_theme_across_devices, sync_behavior_across_devices,\n                version\n            FROM settings\n            ",
   "describe": {
     "columns": [
       {
@@ -249,18 +249,38 @@
         "type_info": "Bool"
       },
       {
-        "name": "sync_theme_across_devices",
+        "name": "modlex_global_background_path",
         "ordinal": 49,
+        "type_info": "Text"
+      },
+      {
+        "name": "modlex_global_background_opacity",
+        "ordinal": 50,
+        "type_info": "Float"
+      },
+      {
+        "name": "modlex_global_background_blur_px",
+        "ordinal": 51,
+        "type_info": "Float"
+      },
+      {
+        "name": "modlex_global_background_animated",
+        "ordinal": 52,
+        "type_info": "Bool"
+      },
+      {
+        "name": "sync_theme_across_devices",
+        "ordinal": 53,
         "type_info": "Integer"
       },
       {
         "name": "sync_behavior_across_devices",
-        "ordinal": 50,
+        "ordinal": 54,
         "type_info": "Integer"
       },
       {
         "name": "version",
-        "ordinal": 51,
+        "ordinal": 55,
         "type_info": "Integer"
       }
     ],
@@ -317,10 +337,14 @@
       false,
       false,
       false,
+      true,
+      false,
+      false,
+      false,
       false,
       false,
       false
     ]
   },
-  "hash": "d6648ab120488580781c862d1bc5f1cd53e7dba939b4933bd6958258108afbe0"
+  "hash": "71db372553e2fd23c62b33bc2d830e31a3a1d0334a6dc26c1175d3817470f070"
 }

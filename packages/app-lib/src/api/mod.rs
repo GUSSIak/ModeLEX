@@ -23,6 +23,7 @@ pub mod worlds;
 //modlex
 pub mod curseforge;
 pub mod modlex_ai;
+pub mod modlex_background;
 pub mod modlex_music;
 //modlex
 
