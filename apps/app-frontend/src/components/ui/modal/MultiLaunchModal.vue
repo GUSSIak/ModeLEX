@@ -214,6 +214,7 @@ import { computed, reactive, ref, watch } from 'vue'
 // ModLEX: см. такой же комментарий в AccountsCard.vue — launcher-files.modrinth.com
 // не шлёт CORS-заголовки, локальный ассет от этого не зависит вообще.
 import steveSkinAsset from '@/assets/skins/steve.png'
+import { get_account_skin_texture_url } from '@/helpers/auth'
 import { getPlayerHeadUrl } from '@/helpers/rendering/batch-skin-renderer.ts'
 import type { Skin } from '@/helpers/skins'
 
@@ -379,7 +380,44 @@ getPlayerHeadUrl({
 		console.warn('Failed to render local Steve head fallback', error)
 	})
 
+// ModLEX: Ely.by-аккаунты несут реальный скин (см. AccountsCard.vue), просто
+// не в Credentials.profile — раньше здесь ошибочно объединялись с Offline и
+// всегда показывали общий Стив вместо своей головы.
+const elybyHeadCache = ref<Map<string, string>>(new Map())
+
+watch(
+	() => props.accounts,
+	async (accounts) => {
+		const pending = accounts.filter(
+			(account) => account.kind === 'elyby' && !elybyHeadCache.value.has(account.id),
+		)
+		await Promise.all(
+			pending.map(async (account) => {
+				try {
+					const textureUrl = await get_account_skin_texture_url(account.id)
+					if (!textureUrl) return
+					const headUrl = await getPlayerHeadUrl({
+						texture_key: account.id,
+						texture: textureUrl,
+						variant: 'CLASSIC',
+						source: 'custom_external',
+						is_equipped: false,
+					} as Skin)
+					elybyHeadCache.value = new Map(elybyHeadCache.value).set(account.id, headUrl)
+				} catch (error) {
+					console.warn('Failed to load Ely.by avatar for', account.name, error)
+				}
+			}),
+		)
+	},
+	{ immediate: true },
+)
+
 function avatarUrl(account: MultiLaunchAccount) {
+	if (account.kind === 'elyby') {
+		return elybyHeadCache.value.get(account.id) ?? STEVE_HEAD_URL.value
+	}
+	// mc-heads.net keys by Mojang UUID, which offline accounts don't have
 	if (account.kind !== 'microsoft') return STEVE_HEAD_URL.value
 	return `https://mc-heads.net/avatar/${account.id}/128`
 }

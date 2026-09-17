@@ -1,6 +1,8 @@
 //! Logic for launching Minecraft
 use crate::data::ModLoader;
-use crate::event::emit::{emit_instance, emit_loading, init_loading};
+use crate::event::emit::{
+    emit_instance, emit_loading, emit_warning, init_loading,
+};
 use crate::event::{InstancePayloadType, LoadingBarType};
 use crate::install::{
     InstallJavaStep, InstallPhaseDetails, InstallPhaseId, InstallProgress,
@@ -36,6 +38,7 @@ mod args;
 pub(crate) mod hooks;
 
 pub mod download;
+pub mod offline_multiplayer_fix;
 pub mod quick_play_version;
 
 // All nones -> disallowed
@@ -987,33 +990,41 @@ pub async fn launch_minecraft(
 
     let rpc_server = RpcServerBuilder::new().launch().await?;
 
-    let mut java_args = Vec::from(java_args);
+    let java_args = Vec::from(java_args);
     // ModLEX: experimental — on some versions (1.16.5 confirmed, possibly others),
-    // the vanilla client only shows Multiplayer as available for an offline account
-    // if it *can't* reach Mojang's session/auth endpoints during launch; toggling
-    // internet off then back on after launch works around it, which points at a
-    // client-side quirk in how that one-time startup check is handled rather than
-    // anything actually broken about local/offline play itself. This setting (dev
-    // gated in the UI, off by default, see Settings::modlex_experimental_offline_multiplayer_fix)
-    // makes only *this* JVM's own http(s)/java.net calls fail fast by pointing them
-    // at a dead local proxy — it does not touch the OS network, and does not affect
-    // Minecraft's actual multiplayer protocol (which uses raw TCP sockets, not HTTP).
-    // ModLEX: applies to Ely.by too, not just true Offline accounts — the game is
-    // always launched with `--userType msa` (see args.rs) regardless of account
-    // kind, and Ely.by accounts carry a real (Ely.by-issued, not Microsoft) access
-    // token, which Mojang's real sessionserver.mojang.com can't validate either.
+    // the vanilla client only shows Multiplayer as available for an offline/Ely.by
+    // account if it *can't* reach Mojang's real session/auth endpoints during
+    // launch; toggling internet off then back on after launch works around it,
+    // which points at a client-side quirk in how that one-time startup check is
+    // handled rather than anything actually broken about local/Ely.by play itself.
+    // Applies to Ely.by too, not just true Offline accounts — the game is always
+    // launched with `--userType msa` (see args.rs) regardless of account kind, and
+    // Ely.by accounts carry a real (Ely.by-issued, not Microsoft) access token,
+    // which Mojang's real sessionserver.mojang.com can't validate either.
+    //
+    // A first attempt routed the JVM's own http(s)/java.net calls through a dead
+    // proxy via `-Dhttp.proxyHost` — confirmed live not to work, almost certainly
+    // because authlib's era-appropriate HTTP client doesn't honor passive JVM
+    // proxy properties. Redirecting the relevant hostnames to localhost via the
+    // hosts file instead works at the DNS layer, so it doesn't matter which HTTP
+    // client the game uses — but needs write access to a protected system file
+    // (see offline_multiplayer_fix.rs), which is why this can silently no-op if
+    // the launcher isn't running elevated.
+    let mut offline_multiplayer_fix_active = false;
     if matches!(credentials.kind, AccountKind::Offline | AccountKind::ElyBy) {
         let settings = Settings::get(&state.pool).await?;
         if settings.modlex_experimental_offline_multiplayer_fix {
-            tracing::info!(
-                "Experimental offline-multiplayer fix enabled: routing this instance's JVM http(s) traffic through a dead local proxy for launch"
-            );
-            java_args.extend([
-                "-Dhttp.proxyHost=127.0.0.1".to_string(),
-                "-Dhttp.proxyPort=1".to_string(),
-                "-Dhttps.proxyHost=127.0.0.1".to_string(),
-                "-Dhttps.proxyPort=1".to_string(),
-            ]);
+            if offline_multiplayer_fix::can_write_hosts_file().await {
+                offline_multiplayer_fix_active = true;
+            } else {
+                tracing::warn!(
+                    "Experimental offline-multiplayer fix is enabled but ModLEX App isn't running with permission to edit the hosts file — restart it as Administrator for this to take effect"
+                );
+                let _ = emit_warning(
+                    "The experimental offline-multiplayer fix is on, but ModLEX App needs to be restarted as Administrator for it to work — the launcher itself needs permission to edit the hosts file, not Java.",
+                )
+                .await;
+            }
         }
     }
 
@@ -1173,9 +1184,20 @@ pub async fn launch_minecraft(
         .update_status(Some(instance.name.clone()))
         .await;
 
+    // ModLEX: start the offline-multiplayer-fix redirect window right before
+    // spawning, so it's in place for the game's earliest session check.
+    if offline_multiplayer_fix_active {
+        if let Err(error) = offline_multiplayer_fix::begin().await {
+            tracing::warn!(
+                "Failed to apply the experimental offline-multiplayer fix, launching without it: {error}"
+            );
+            offline_multiplayer_fix_active = false;
+        }
+    }
+
     // Create Minecraft child by inserting it into the state
     // This also spawns the process and prepares the subsequent processes
-    state
+    let result = state
         .process_manager
         .insert_new_process(
             &instance.id,
@@ -1219,5 +1241,19 @@ pub async fn launch_minecraft(
                 Ok(())
             },
         )
-        .await
+        .await;
+
+    // ModLEX: revert the redirect a few seconds after spawning regardless of
+    // whether the spawn itself succeeded — never leave the hosts file
+    // permanently patched. Time-based rather than tied to a specific game
+    // event since there's no reliable signal for "the session check already
+    // happened"; a few seconds is comfortably more than that check needs.
+    if offline_multiplayer_fix_active {
+        tokio::spawn(async {
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            offline_multiplayer_fix::end().await;
+        });
+    }
+
+    result
 }

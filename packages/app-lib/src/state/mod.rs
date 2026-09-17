@@ -171,6 +171,9 @@ impl State {
                 tracing::error!("Error migrating legacy instance icons: {e}");
             }
 
+            crate::launcher::offline_multiplayer_fix::cleanup_stale_block_on_startup()
+                .await;
+
             let res = tokio::try_join!(
                 state.discord_rpc.clear_to_default(true),
                 instances::refresh_all_instances(),
