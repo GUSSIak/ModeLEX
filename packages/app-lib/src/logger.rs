@@ -21,9 +21,13 @@
 pub fn start_logger(_app_identifier: &str) -> Option<()> {
     use tracing_subscriber::prelude::*;
 
+    // ModLEX: bumped from `info` to `debug` for debug builds specifically (never
+    // touches the release-build branch below) — several past bugs this session
+    // turned out to hinge on info!/debug! diagnostics that were silently missing
+    // from what the user could paste back. Still overridable via RUST_LOG.
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| {
-            tracing_subscriber::EnvFilter::new("theseus=info,theseus_gui=info")
+            tracing_subscriber::EnvFilter::new("theseus=debug,theseus_gui=debug")
         });
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())

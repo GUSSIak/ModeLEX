@@ -195,16 +195,23 @@ pub async fn login_finish(
     // so the two cases can be told apart.
     let online_profile = match minecraft_profile(&credentials.access_token).await {
         Ok(profile) => profile,
-        Err(MinecraftAuthenticationError::Request { source, .. }) => {
+        Err(err @ MinecraftAuthenticationError::Request { .. }) => {
+            tracing::warn!(
+                "Failed to fetch player profile during login (network error): {err:?}"
+            );
             return Err(io::Error::other(format!(
-                "Network error while fetching your Minecraft profile: {source}"
+                "Network error while fetching your Minecraft profile: {err:?}"
             ))
             .into());
         }
-        Err(_) => {
-            return Err(
-                io::Error::other("Failed to fetch player profile").into()
+        Err(err) => {
+            tracing::warn!(
+                "Failed to fetch player profile during login: {err:?}"
             );
+            return Err(io::Error::other(format!(
+                "Failed to fetch player profile: {err}"
+            ))
+            .into());
         }
     };
     credentials.offline_profile = MinecraftProfile {
