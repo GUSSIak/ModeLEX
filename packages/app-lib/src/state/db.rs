@@ -35,7 +35,25 @@ async fn open_migrated_app_db(db_path: &Path) -> crate::Result<Pool<Sqlite>> {
         );
     }
 
-    sqlx::migrate!().run(&pool).await?;
+    // ModLEX: dev/pre-dev/release builds all share this one real app.db (same
+    // `identifier`), and dev builds routinely run ahead of what's actually
+    // shipped — every migration added during a session gets applied here the
+    // moment `pnpm app:dev` runs, long before a real release containing it
+    // exists. Without this, that leaves the CURRENTLY INSTALLED release
+    // unable to start at all ("migration X was previously applied but is
+    // missing in the resolved migrations") until a new release ships with
+    // that same migration. `set_ignore_missing` is sqlx's own built-in
+    // escape hatch for exactly this: an older binary silently skips rows in
+    // `_sqlx_migrations` it doesn't recognize instead of hard-failing. This
+    // is safe *because* every migration in this project is purely additive
+    // (`ALTER TABLE ... ADD COLUMN ... DEFAULT ...`) and every query uses an
+    // explicit column list rather than `SELECT *` — an older binary never
+    // references a newer column, so its presence on disk is inert to it.
+    // This does NOT silence a genuinely-changed already-known migration
+    // (`VersionMismatch`) — only ones this binary has never heard of at all.
+    let mut migrator = sqlx::migrate!();
+    migrator.set_ignore_missing(true);
+    migrator.run(&pool).await?;
     record_current_app_version(&pool).await?;
 
     if let Err(err) = stale_data_cleanup(&pool).await {
